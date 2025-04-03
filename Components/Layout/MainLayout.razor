@@ -6,6 +6,8 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
 <RadzenComponents />
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
@@ -24,7 +26,36 @@
     <RadzenBody Expanded="@sidebarExpanded">
         <RadzenRow class="rz-mx-auto rz-px-4 rz-pt-2 rz-pt-md-4 rz-pt-lg-6 rz-pt-xl-12 rz-pb-2 rz-pb-lg-12" Style="max-width: 1440px;">
             <RadzenColumn Size="12">
-            @Body
+                <CascadingValue Value="this" Name="MainLayout">
+                    @if (isLoading)
+                    {
+                        <span>Loading...</span>
+                    }
+                    @if(RPMS.IsConnected)
+                    {
+                        @Body
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(ErrorMessage))
+                        {
+                            <p style="color: red">@ErrorMessage</p>
+                        }
+                        <EditForm OnValidSubmit="Login" EditContext="_editContext">
+                            <div>
+                                <label>Access Code:</label><br />
+                                <InputText @bind-Value="AccessCodeInput" type="password" required/>
+                            </div>
+                            <div class="mt-2">
+                                <label>Verify Code:</label><br />
+                                <InputText @bind-Value="VerifyCodeInput" type="password" required />
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" type="submit">Login</button>
+                            </div>
+                        </EditForm>
+                    }
+                </CascadingValue>
             </RadzenColumn>
         </RadzenRow>
     </RadzenBody>
@@ -44,10 +75,97 @@
 </RadzenLayout>
 
 @code {
-   bool sidebarExpanded = true;
+    bool sidebarExpanded = true;
 
-   void SidebarToggleClick()
-   {
-       sidebarExpanded = !sidebarExpanded;
-   }
+    void SidebarToggleClick()
+    {
+        sidebarExpanded = !sidebarExpanded;
+    }
+
+    private bool _isLoading;
+    public bool isLoading
+    {
+        get => _isLoading;
+        set
+        {
+            _isLoading = value;
+            InvokeAsync(async () =>
+            {
+                StateHasChanged();
+                await Task.Yield();
+            });
+        }
+    }
+    public string username = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            username = authState.User?.Identity?.Name;
+        }
+    }
+
+
+    private EditContext _editContext = new(new object());
+    [Inject] public RPMSService RPMS { get; set; }
+
+    private char[] accessCodeChars;
+    private char[] verifyCodeChars;
+
+    public string AccessCodeInput
+    {
+        get => accessCodeChars?.Length > 0 ? "********" : null;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                accessCodeChars = value.ToCharArray();
+            }
+        }
+    }
+
+    public string VerifyCodeInput
+    {
+        get => verifyCodeChars?.Length > 0 ? "********" : null;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                verifyCodeChars = value.ToCharArray();
+            }
+        }
+    }
+
+    public string LastOutput { get; set; } = string.Empty;
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    private async Task Login()
+    {
+
+        try
+        {
+            isLoading = true;
+            await Task.Run(() =>
+            {
+                RPMS.Login(accessCodeChars.AsSpan(), verifyCodeChars.AsSpan());
+            });
+
+            LastOutput = RPMS.LastReceivedRaw;
+            ErrorMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            LastOutput = string.Empty;
+        }
+        finally
+        {
+            isLoading = false;
+            // Clear char arrays after use
+            Array.Clear(accessCodeChars, 0, accessCodeChars.Length);
+            Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
+        }
+    }
 }
