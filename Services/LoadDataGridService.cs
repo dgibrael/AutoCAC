@@ -21,8 +21,17 @@ namespace AutoCAC{
             {
                 query = query.OrderBy(_config, args.OrderBy);
             }
+            if (args.Skip.HasValue)
+            {
+                query = query.Skip(args.Skip.Value);
+            }
 
-            return await query.Skip(args.Skip ?? 0).Take(args.Top ?? 10).ToListAsync();
+            if (args.Top.HasValue)
+            {
+                query = query.Take(args.Top.Value);
+            }
+
+            return await query.ToListAsync();
         }
     }
 }

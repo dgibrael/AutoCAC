@@ -1,0 +1,79 @@
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<RadzenStack>
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenText Text="VwNdcLookups" TextStyle="TextStyle.H3" TagName="TagName.H1" style="margin: 0" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow>
+      <RadzenColumn SizeMD=12>
+        <RadzenDataGrid @ref="grid0" ColumnWidth="200px"   AllowFiltering="true" FilterMode="FilterMode.Advanced" AllowPaging="true" 
+            AllowSorting="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30})
+            Data="@(vwNdcLookups)" TItem="AutoCAC.Models.VwNdcLookup" LoadData="@LoadData" IsLoading="isLoading">
+            <Columns>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="Ndc" Title="Ndc">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="ProductName" Title="Product Name">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="Generic" Title="Generic">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="PrintName" Title="Print Name">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="DispenseUnit" Title="Dispense Unit">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="Dea" Title="Dea">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="PackageType" Title="Package Type">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="PackageSize" Title="Package Size">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="CurrentIen" Title="Current Ien">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="DrugFileName" Title="Drug File Name">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="CurrentNdc" Title="Current Ndc">
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.VwNdcLookup" Property="InactiveDate" Title="Inactive Date">
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenColumn>
+  </RadzenRow>
+</RadzenStack>
+@code {
+    protected IEnumerable<AutoCAC.Models.VwNdcLookup> vwNdcLookups;
+    protected RadzenDataGrid<AutoCAC.Models.VwNdcLookup> grid0;
+
+    private mainContext context = default!;
+    bool isLoading = true;
+
+    protected async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        context = DbFactory.CreateDbContext();
+
+        var ndcValue = "00007-0320-20";
+
+        var query = context.VwNdcLookups
+        .AsNoTracking()
+        .Where(x => x.Ndc == ndcValue && x.NdfInactiveDate == null)
+        ;
+        vwNdcLookups = await LoadDataGridService.ApplyLoadData(query, args);
+
+        isLoading = false;
+    }
+}

@@ -10,15 +10,17 @@ public class RPMSService : IDisposable
 {
     private SshClient _client;
     private ShellStream _stream;
-    private string _lastSent;
     private string _lastReceivedRaw;
     public string LastReceivedRaw 
     { 
         get => _lastReceivedRaw; 
-        private set => _lastReceivedRaw = value?.Trim().TrimEnd(_endOfFeedStr.ToCharArray()).Trim();
+        private set
+        {
+            _lastReceivedRaw = value?.Trim().TrimEnd(_endOfFeedStr.ToCharArray()).Trim();
+            AddToHistory(_lastReceivedRaw);
+        }
     }
     private readonly string _endOfFeedStr = ((char)255).ToString();
-    public event Action OnConnected;
     private bool _signedIn;
     public bool IsConnected
     {
@@ -32,6 +34,8 @@ public class RPMSService : IDisposable
             return _signedIn;
         }
     }
+    public event Action? OnDisconnected;
+
     public RPMSService()
     {
         _signedIn = false;
@@ -43,9 +47,39 @@ public class RPMSService : IDisposable
         _client.Connect();
 
         var terminalModes = new Dictionary<TerminalModes, uint>();
-        _stream = _client.CreateShellStream("dumb", 80, 24, 800, 600, 1024, terminalModes);
+        _stream = _client.CreateShellStream("vt100", 255, 1000, 0, 0, 4096, terminalModes);
 
         WaitFor("ACCESS CODE");
+    }
+
+    private void EnsureConnected()
+    {
+        if (!IsConnected)
+        {
+            OnDisconnected?.Invoke();
+        }
+    }
+
+    public List<string> ReceivedHistory { get; private set; } = new();
+
+    private int _maxCharCount = 100000;
+
+    private void AddToHistory(string message)
+    {
+        ReceivedHistory.Add(message);
+
+        int totalChars = ReceivedHistory.Sum(m => m.Length);
+
+        while (totalChars > _maxCharCount && ReceivedHistory.Count > 0)
+        {
+            totalChars -= ReceivedHistory[0].Length;
+            ReceivedHistory.RemoveAt(0);
+        }
+    }
+
+    public void ClearHistory()
+    {
+        ReceivedHistory.Clear();
     }
 
     public void Login(Span<char> accessCode, Span<char> verifyCode)
@@ -80,7 +114,6 @@ public class RPMSService : IDisposable
                 case 2:
                     GoToMainMenu();
                     _signedIn = true;
-                    OnConnected?.Invoke();
                     return;
                 case 3:
                     SendRaw(" ");
@@ -102,37 +135,19 @@ public class RPMSService : IDisposable
         }
         finally
         {
-            _lastSent = "*hidden*";
             input.Clear();
         }
     }
 
-    public string Menu(string menuName, string? choice = null)
-    {
-        GoToMainMenu();
-        Send("^" + menuName);
-        if (!string.IsNullOrWhiteSpace(choice) && CurrentPrompt.ToLower().Contains("choose"))
-        {
-            Send(choice);
-        }
-
-        return LastReceivedRaw;
-    }
-
     public void Send(string command = "")
     {
-        if (_client?.IsConnected != true)
-        {
-            throw new Exception("Disconnected");
-        }
-
+        EnsureConnected();
         SendRaw(command);
         Read();
     }
 
     private void SendRaw(string command)
     {
-        _lastSent = command;
         _stream.Write(command+"\r");
     }
 
@@ -205,45 +220,56 @@ public class RPMSService : IDisposable
         }
     }
 
-    public string GoToMainMenu(int attempts = 30)
+    public void GoToMainMenu(int attempts = 30)
     {
-        var curPrompt = CurrentPrompt;
-        if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
+        for (int i = 0; i < attempts; i++)
         {
-            return curPrompt;
-        }
-        else if (curPrompt.Contains("Please enter your CURRENT verify code", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new Exception("Reset verify code in RPMS");
-        }
-        else if (curPrompt.ToLower().Contains("return") || curPrompt.ToLower().Contains("do you wish to resume"))
-        {
-            Send();
-        }
-        else if (curPrompt.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
-        {
-            Send(" ");
-        }
-        else if (curPrompt.ToLower().Contains("to stop") || curPrompt.ToLower().Contains("halt?"))
-        {
-            Send("^");
-        }
-        else if (curPrompt.ToLower().Contains("option"))
-        {
-            Send("^AutoCAC App Main Menu");
-        }
-        else
-        {
-            Send("^");
+            var curPrompt = CurrentPrompt;
+
+            if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
+                return;
+
+            if (curPrompt.Contains("Please enter your CURRENT verify code", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Reset verify code in RPMS");
+
+            if (curPrompt.Contains("return", StringComparison.OrdinalIgnoreCase) ||
+                curPrompt.Contains("do you wish to resume", StringComparison.OrdinalIgnoreCase))
+            {
+                Send();
+            }
+            else if (curPrompt.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
+            {
+                Send(" ");
+            }
+            else if (curPrompt.Contains("to stop", StringComparison.OrdinalIgnoreCase) ||
+                     curPrompt.Contains("halt?", StringComparison.OrdinalIgnoreCase))
+            {
+                Send("^");
+            }
+            else if (curPrompt.Contains("option", StringComparison.OrdinalIgnoreCase))
+            {
+                Send("^AutoCAC App Main Menu");
+            }
+            else
+            {
+                Send("^");
+            }
+
+            if (attempts - i <= 3)
+            {
+                Thread.Sleep(200); // let RPMS catch up
+            }
         }
 
-        if (attempts > 0)
+        throw new Exception("Could not reach main menu. Ask IRM/CAC/Informatics to assign secondary menu option: AutoCAC App Main Menu");
+    }
+
+    public void Menu(string menuName = null)
+    {
+        GoToMainMenu();
+        if (menuName != null)
         {
-            return GoToMainMenu(attempts - 1);
-        }
-        else
-        {
-            throw new Exception("Could not reach main menu. Ask IRM/CAC/Informatics to assign secondary menu option: AutoCAC App Main Menu");
+            Send(menuName);
         }
     }
 

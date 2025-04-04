@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using AutoCAC;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,7 +40,11 @@ builder.Services.AddScoped<RPMSService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-
+builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("mainConnection"));
+});
+builder.Services.AddScoped<LoadDataGridService>();
 
 var app = builder.Build();
 

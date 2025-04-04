@@ -7,8 +7,10 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject DialogService DialogService
 
 <RadzenComponents />
+<RadzenDialog />
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
     <RadzenHeader>
@@ -27,34 +29,7 @@
         <RadzenRow class="rz-mx-auto rz-px-4 rz-pt-2 rz-pt-md-4 rz-pt-lg-6 rz-pt-xl-12 rz-pb-2 rz-pb-lg-12" Style="max-width: 1440px;">
             <RadzenColumn Size="12">
                 <CascadingValue Value="this" Name="MainLayout">
-                    @if (isLoading)
-                    {
-                        <span>Loading...</span>
-                    }
-                    @if(RPMS.IsConnected)
-                    {
-                        @Body
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrEmpty(ErrorMessage))
-                        {
-                            <p style="color: red">@ErrorMessage</p>
-                        }
-                        <EditForm OnValidSubmit="Login" EditContext="_editContext">
-                            <div>
-                                <label>Access Code:</label><br />
-                                <InputText @bind-Value="AccessCodeInput" type="password" required/>
-                            </div>
-                            <div class="mt-2">
-                                <label>Verify Code:</label><br />
-                                <InputText @bind-Value="VerifyCodeInput" type="password" required />
-                            </div>
-                            <div class="mt-3">
-                                <button class="btn btn-primary" type="submit">Login</button>
-                            </div>
-                        </EditForm>
-                    }
+                    @Body
                 </CascadingValue>
             </RadzenColumn>
         </RadzenRow>
@@ -66,14 +41,25 @@
         </RadzenStack>
         <RadzenPanelMenu>
             <RadzenPanelMenuItem Text="Home" Path="" />
+            <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit" />
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
             <RadzenText Text="AutoCAC v1.0.0" TextStyle="Radzen.Blazor.TextStyle.Caption" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
             <RadzenText Text="Copyright Ⓒ 2025" TextStyle="Radzen.Blazor.TextStyle.Caption" class="rz-mb-0" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
         </RadzenStack>
     </RadzenSidebar>
+    @if (isLoading)
+    {
+        <div class="rz-dialog-wrapper">
+            <RadzenCard class="rz-dialog" style="min-height: 0;">
+                <RadzenRow>
+                    <RadzenProgressBarCircular ProgressBarStyle="ProgressBarStyle.Primary" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
+                    <RadzenText Text="Loading..." TextStyle="TextStyle.DisplayH5"/>
+                </RadzenRow>
+            </RadzenCard>
+        </div>
+    }
 </RadzenLayout>
-
 @code {
     bool sidebarExpanded = true;
 
@@ -81,6 +67,8 @@
     {
         sidebarExpanded = !sidebarExpanded;
     }
+
+    [Inject] public RPMSService RPMS { get; set; }
 
     private bool _isLoading;
     public bool isLoading
@@ -96,76 +84,66 @@
             });
         }
     }
+
+
     public string username = "";
+    private bool _checkedInitialConnection = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!_checkedInitialConnection)
+        {
+            _checkedInitialConnection = true;
+            RedirectToLoginIfNotConnected();
+        }
+
         if (firstRender)
         {
+            RPMS.OnDisconnected += () =>
+            {
+                InvokeAsync(() => RedirectToLoginIfNotConnected());
+            };
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             username = authState.User?.Identity?.Name;
         }
     }
 
-
-    private EditContext _editContext = new(new object());
-    [Inject] public RPMSService RPMS { get; set; }
-
-    private char[] accessCodeChars;
-    private char[] verifyCodeChars;
-
-    public string AccessCodeInput
+    public void RedirectToLoginIfNotConnected()
     {
-        get => accessCodeChars?.Length > 0 ? "********" : null;
-        set
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                accessCodeChars = value.ToCharArray();
-            }
-        }
-    }
+        var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).ToLowerInvariant();
 
-    public string VerifyCodeInput
-    {
-        get => verifyCodeChars?.Length > 0 ? "********" : null;
-        set
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                verifyCodeChars = value.ToCharArray();
-            }
-        }
-    }
-
-    public string LastOutput { get; set; } = string.Empty;
-    public string ErrorMessage { get; set; } = string.Empty;
-
-    private async Task Login()
-    {
-
-        try
+        if (!RPMS.IsConnected && !currentPath.StartsWith("login"))
         {
             isLoading = true;
-            await Task.Run(() =>
-            {
-                RPMS.Login(accessCodeChars.AsSpan(), verifyCodeChars.AsSpan());
-            });
-
-            LastOutput = RPMS.LastReceivedRaw;
-            ErrorMessage = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            ErrorMessage = ex.Message;
-            LastOutput = string.Empty;
-        }
-        finally
-        {
-            isLoading = false;
-            // Clear char arrays after use
-            Array.Clear(accessCodeChars, 0, accessCodeChars.Length);
-            Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
+            var returnUrl = Uri.EscapeDataString(currentPath);
+            NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}");
         }
     }
+
+    private string? _errorMessage;
+    public string? ErrorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                _errorMessage = value;
+
+                // Show the notification
+                NotificationService.Notify(new NotificationMessage
+                    {
+                        Severity = NotificationSeverity.Error,
+                        Summary = "Error",
+                        Detail = value,
+                        Duration = 4000
+                    });
+            }
+            else
+            {
+                _errorMessage = null;
+            }
+        }
+    }
+
 }

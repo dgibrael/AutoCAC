@@ -1,0 +1,38 @@
+﻿<RadzenPanel AllowCollapse="true" Collapsed="true">
+    <HeaderTemplate>
+        <span>Output from RPMS</span>
+    </HeaderTemplate>
+    <ChildContent>
+        @if (Layout?.RPMS?.ReceivedHistory?.Any() == true)
+        {
+            foreach (var entry in Layout.RPMS.ReceivedHistory)
+            {
+                        <pre>@entry</pre>
+                        <hr>
+            }
+
+                <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" />
+        }
+        else
+        {
+                <p>No output yet.</p>
+        }
+    </ChildContent>
+</RadzenPanel>
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
+    private MainLayout Layout => mainLayout ?? new MainLayout();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!Layout.RPMS.IsConnected) return;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        Layout.isLoading = false;
+    }
+}
+

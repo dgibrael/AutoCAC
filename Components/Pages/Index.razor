@@ -5,19 +5,10 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-<PageTitle>Index</PageTitle>
-<RadzenRow Gap="5" RowGap="5">
-    @if (!string.IsNullOrEmpty(Layout.ErrorMessage))
-    {
-        <p style="color: red">@Layout.ErrorMessage</p>
-    }
-    else if (!string.IsNullOrEmpty(Layout.RPMS.LastReceivedRaw))
-    {
-        <h4 class="mt-4">Last Received:</h4>
-        <pre>@Layout.RPMS.LastReceivedRaw</pre>
-    }
+@using AutoCAC.Components.Templates
 
-</RadzenRow>
+<PageTitle>Index</PageTitle>
+<RPMSOutput />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
@@ -27,19 +18,17 @@
     {
         if (firstRender)
         {
-            if (Layout.RPMS.IsConnected)
+            if (!Layout.RPMS.IsConnected) return;
+            try
             {
-                HandleConnected();
+                Layout.RPMS.GoToMainMenu();
             }
-            Layout.RPMS.OnConnected += HandleConnected;
+            catch (Exception ex)
+            {
+                Layout!.ErrorMessage = ex.Message;
+            }
+            await InvokeAsync(StateHasChanged);
         }
     }
-    private void HandleConnected()
-    {
-        Layout.RPMS.GoToMainMenu();
-        Layout.RPMS.Send("NDC");
-        InvokeAsync(StateHasChanged);
-    }
-
 }
 
