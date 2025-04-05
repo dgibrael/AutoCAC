@@ -32,7 +32,7 @@
             await InvokeAsync(StateHasChanged);
         }
 
-        Layout.isLoading = false;
+        await Layout.SetLoading(false);
     }
 }
 

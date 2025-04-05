@@ -70,19 +70,16 @@
 
     [Inject] public RPMSService RPMS { get; set; }
 
-    private bool _isLoading;
-    public bool isLoading
+    public bool isLoading { get; private set; }
+
+    public async Task SetLoading(bool value)
     {
-        get => _isLoading;
-        set
-        {
-            _isLoading = value;
-            InvokeAsync(async () =>
-            {
-                StateHasChanged();
-                await Task.Yield();
-            });
-        }
+        if (isLoading == value)
+            return;
+
+        isLoading = value;
+        await Task.Yield();
+        await InvokeAsync(StateHasChanged);
     }
 
 

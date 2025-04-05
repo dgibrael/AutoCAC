@@ -7,6 +7,7 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @using AutoCAC.Components.Templates
+@using AutoCAC.Models
 
 <PageTitle>Login</PageTitle>
 
@@ -23,7 +24,7 @@
         <button class="btn btn-primary" type="submit">Login</button>
     </div>
 </EditForm>
-<VwNdcLookups />
+<NdcLookup SelectedDrugChanged="OnDrugSelected"/>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
@@ -45,8 +46,16 @@
     [Parameter]
     [SupplyParameterFromQuery]
     public string ReturnUrl { get; set; } = "/"; // default to home
+    
+    private Drug? selectedDrug;
 
-    protected override void OnInitialized()
+    private void OnDrugSelected(Drug drug)
+    {
+        selectedDrug = drug;
+        Console.WriteLine($"User selected drug: {drug.Name}");
+    }
+
+    protected override async Task OnInitializedAsync()
     {
         var uri = new Uri(NavigationManager.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
@@ -54,7 +63,7 @@
         {
             ReturnUrl = "/" + target.ToString().TrimStart('/');
         }
-        Layout.isLoading = false;
+        await Layout.SetLoading(false);
     }
 
 
@@ -91,7 +100,7 @@
     {
         try
         {
-            Layout.isLoading = true;
+            await Layout.SetLoading(true);
             await Task.Run(() =>
             {
                 Layout.RPMS.Login(accessCodeChars.AsSpan(), verifyCodeChars.AsSpan());
@@ -102,7 +111,7 @@
         catch (Exception ex)
         {
             Layout!.ErrorMessage = ex.Message;
-            Layout.isLoading = false;
+            await Layout.SetLoading(false);
         }
         finally
         {

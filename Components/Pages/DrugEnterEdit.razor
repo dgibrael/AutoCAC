@@ -34,7 +34,6 @@
 
     private string ndcInput = string.Empty;
     private List<VwNdcLookup>? lookupResults;
-    private bool searchAttempted = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -55,7 +54,6 @@
 
     private async Task SearchNdc()
     {
-        searchAttempted = true;
         using var context = await DbFactory.CreateDbContextAsync();
 
         lookupResults = await context.VwNdcLookups

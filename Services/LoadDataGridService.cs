@@ -6,21 +6,34 @@ using Microsoft.EntityFrameworkCore; // Required for ToListAsync()
 using Radzen;
 
 namespace AutoCAC{
+    public class LoadDataResult<T>
+    {
+        public IEnumerable<T> Data { get; set; } = Enumerable.Empty<T>();
+        public int Count { get; set; }
+    }
+
     public class LoadDataGridService
     {
         private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
 
-        public async Task<IEnumerable<T>> ApplyLoadData<T>(IQueryable<T> query, LoadDataArgs args)
+        public async Task<LoadDataResult<T>> ApplyLoadData<T>(IQueryable<T> query, LoadDataArgs args, bool skipCount = false)
         {
             if (!string.IsNullOrEmpty(args.Filter))
             {
                 query = query.Where(args.Filter);
             }
 
+            int count = 0;
+            if (!skipCount)
+            {
+                count = await query.CountAsync();
+            }
+
             if (!string.IsNullOrEmpty(args.OrderBy))
             {
                 query = query.OrderBy(_config, args.OrderBy);
             }
+
             if (args.Skip.HasValue)
             {
                 query = query.Skip(args.Skip.Value);
@@ -31,7 +44,13 @@ namespace AutoCAC{
                 query = query.Take(args.Top.Value);
             }
 
-            return await query.ToListAsync();
+            var data = await query.ToListAsync();
+
+            return new LoadDataResult<T>
+            {
+                Data = data,
+                Count = count
+            };
         }
     }
 }

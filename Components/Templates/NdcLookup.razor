@@ -1,0 +1,148 @@
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<RadzenStack>
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenText Text="Drugs" TextStyle="TextStyle.H3" TagName="TagName.H1" style="margin: 0" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenTemplateForm Data="@searchModel" TItem="NdcSearchModel" Submit="@Search">
+            <RadzenMask @bind-Value="searchModel.Ndc"
+            Name="ndcInput"
+            Mask="*****-****-**"
+            Placeholder="#####-####-##"
+            CharacterPattern="[0-9]"/>
+            <RadzenRequiredValidator Component="ndcInput" Text="NDC is required" />
+
+            <RadzenRegexValidator Component="ndcInput"
+            Pattern="^\d{5}-\d{4}-\d{2}$"
+            Text="11 digit NDC required" />
+            <RadzenButton Text="Search" Icon="search" ButtonType="ButtonType.Submit"/>
+        </RadzenTemplateForm>
+    </RadzenRow>
+    @if (matchedNdf != null)
+    {
+        <RadzenRow>
+            <RadzenPanel Style="margin-top: 1rem;" Summary="Matched NDF Entry">
+                <span><strong>Ndc:</strong> @matchedNdf.Ndc</span>
+                <span><strong>Product:</strong> @matchedNdf.ProductName</span>
+                <span><strong>Print Name:</strong> @matchedNdf.PrintName</span>
+            </RadzenPanel>
+        </RadzenRow>
+    }
+    <RadzenRow>
+        <RadzenColumn SizeMD=12>
+            <RadzenLabel Text="Show only active drug files" Style="margin-left: 0.5rem;" />
+            <RadzenCheckBox TValue="bool" @bind-Value="showOnlyActive" Change="OnShowOnlyActiveChanged" />
+            <RadzenDataGrid @ref="grid0" ColumnWidth="200px" AllowPaging="false" AllowSorting="true" Data="@(drugs)" TItem="AutoCAC.Models.Drug" 
+            LoadData="@LoadData" RowSelect="OnRowSelect"
+            >
+                <EmptyTemplate>
+                    @if(!searchAttempted)
+                    {
+                        <p>Enter an Ndc above to search</p>
+                    }
+                    else if(string.IsNullOrWhiteSpace(matchedNdf?.Ndc))
+                    {
+                        <p>No matching drugs found in the national drug file. Double-check the NDC. If correct, this will require manual entry through RPMS</p>
+                    }
+                    else
+                    {
+                        <p>Matched to national drug file, but no existing drugs. Click Add New Drug below</p>
+                    }
+                </EmptyTemplate>
+                <Columns>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Existing Drug File Name" Width="300px" 
+                    WhiteSpace="WhiteSpace.Wrap">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Ndc" Title="Current Ndc">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnit" Title="Dispense Unit">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PackageType" Title="Package Type">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PackageSize" Title="Package Size">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="Current Ien">
+                    </RadzenDataGridColumn>
+                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="InactiveDate" Title="Inactive Date">
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
+    private MainLayout Layout => mainLayout ?? new MainLayout();
+    [Parameter] public EventCallback<Drug> SelectedDrugChanged { get; set; }
+
+    class NdcSearchModel
+    {
+        public string Ndc { get; set; } = string.Empty;
+    }
+    private NdcSearchModel searchModel = new();
+    private Ndf? matchedNdf;
+    protected IEnumerable<AutoCAC.Models.Drug> drugs;
+    protected RadzenDataGrid<AutoCAC.Models.Drug> grid0;
+    private bool searchAttempted = false;
+    private mainContext context = default!;
+
+    bool showOnlyActive = false;
+    void OnShowOnlyActiveChanged(bool _)
+    {
+        grid0.FirstPage(true); // This triggers LoadData to re-run with updated filter
+    }
+
+    protected async Task LoadData(LoadDataArgs args)
+    {
+        await Layout.SetLoading(true);
+        if (string.IsNullOrWhiteSpace(matchedNdf?.Ndc))
+        {
+            await Layout.SetLoading(false);
+            drugs = Array.Empty<Drug>();
+            return;
+        }
+        context = DbFactory.CreateDbContext();
+
+        var query = context.Drugs
+        .AsNoTracking()
+        .Where(x => x.VaPrintName == matchedNdf.PrintName)
+        ;
+        if (showOnlyActive)
+        {
+            query = query.Where(d => d.InactiveDate == null);
+        }
+        var result = await LoadDataGridService.ApplyLoadData(query, args, true);
+        drugs = result.Data;
+        await Layout.SetLoading(false);
+    }
+    private async Task OnRowSelect(Drug selected)
+    {
+        await SelectedDrugChanged.InvokeAsync(selected);
+    }
+    async Task Search()
+    {
+        await Layout.SetLoading(true);
+        searchAttempted = true;
+        context = DbFactory.CreateDbContext();
+        matchedNdf = await context.Ndfs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(n => n.Ndc == searchModel.Ndc);
+        await grid0!.Reload();
+    }
+}
