@@ -20,4 +20,8 @@
     <PackageReference Include="SSH.NET" Version="2024.2.0" />
     <PackageReference Include="System.Linq.Dynamic.Core" Version="1.6.0.2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Components\DrugFile\" />
+  </ItemGroup>
 </Project>

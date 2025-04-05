@@ -16,17 +16,31 @@ namespace AutoCAC{
     {
         private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
 
-        public async Task<LoadDataResult<T>> ApplyLoadData<T>(IQueryable<T> query, LoadDataArgs args, bool skipCount = false)
+        private string? _lastFilter = null;
+        private int _lastCount = 0;
+        private bool _hasRun = false;
+
+        public async Task<LoadDataResult<T>> ApplyLoadData<T>(
+            IQueryable<T> query,
+            LoadDataArgs args,
+            bool? shouldCount = null) // null = auto-detect
         {
             if (!string.IsNullOrEmpty(args.Filter))
             {
                 query = query.Where(args.Filter);
             }
 
-            int count = 0;
-            if (!skipCount)
+            if (shouldCount is null)
             {
-                count = await query.CountAsync();
+                shouldCount = !_hasRun || _lastFilter != args.Filter;
+            }
+
+            _lastFilter = args.Filter;
+            _hasRun = true;
+
+            if (shouldCount.Value)
+            {
+                _lastCount = await query.CountAsync();
             }
 
             if (!string.IsNullOrEmpty(args.OrderBy))
@@ -49,7 +63,7 @@ namespace AutoCAC{
             return new LoadDataResult<T>
             {
                 Data = data,
-                Count = count
+                Count = _lastCount
             };
         }
     }

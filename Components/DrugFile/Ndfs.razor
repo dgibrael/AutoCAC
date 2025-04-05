@@ -1,0 +1,90 @@
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<RadzenStack>
+    <RadzenRow>
+        <RadzenColumn>
+            <RadzenDataGrid @ref="grid0" AllowFiltering="true" FilterMode="FilterMode.Simple" AllowPaging="true" AllowSorting="false" 
+            ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10}) PageSize="5"
+            Data="@(data)" TItem="AutoCAC.Models.Ndf" LoadData="@LoadData" Count="count"
+            RowSelect="OnRowSelect"
+            >
+                <Columns>
+                    <RadzenDataGridColumn>
+                        <HeaderTemplate>
+                            <span style="word-wrap: normal !important">Type NDC or NDF Drug name below.</span><br />
+                            <span style="word-wrap: normal !important">Recommended: Search by NDC for more accuracy</span><br />
+                            <span style="word-wrap: normal !important">Then presss enter to filter restults</span><br />
+                            <span style="word-wrap: normal !important">Then click an option to select</span>
+                        </HeaderTemplate>
+                        <Template Context="ndf">
+                            <div>
+                                <div><strong>@ndf.Ndc</strong></div>
+                                <div>@ndf.ProductName</div>
+                                <div>@ndf.PrintName</div>
+                            </div>
+                        </Template>
+                        <FilterTemplate>
+                            <RadzenTextBox @bind-Value="combinedSearchTerm" Style="width:100%" Name="combinedSearchBox" 
+                            Placeholder="Type NDC or name then press Enter to search" Change="OnFilterChange"
+                            />
+                        </FilterTemplate>
+                    </RadzenDataGridColumn>
+                </Columns>
+            </RadzenDataGrid>
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenStack>
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
+    private MainLayout Layout => mainLayout ?? new MainLayout();
+
+    //[Parameter] public EventCallback<Ndf> SelectionChanged { get; set; }
+    protected IEnumerable<AutoCAC.Models.Ndf> data;
+    protected int count = 0;
+    private mainContext context = default!;
+    protected RadzenDataGrid<AutoCAC.Models.Ndf> grid0;
+    private string combinedSearchTerm = string.Empty;
+    bool? shouldCount;
+    private async Task OnRowSelect(Ndf selected)
+    {
+        Console.WriteLine(selected.Generic);
+        //await SelectionChanged.InvokeAsync(selected);
+    }
+    protected async Task LoadData(LoadDataArgs args)
+    {
+        await Layout.SetLoading(true);
+        context = DbFactory.CreateDbContext();
+        var query = context.Ndfs
+        .AsNoTracking()
+        .Where(x => x.InactiveDate == null)
+        ;
+        if (!string.IsNullOrWhiteSpace(combinedSearchTerm))
+        {
+            var filter = combinedSearchTerm.ToLower();
+            query = query.Where(n =>
+                n.Ndc.ToLower().Contains(filter) ||
+                n.ProductName.ToLower().Contains(filter) ||
+                n.PrintName.ToLower().Contains(filter));            
+        }
+        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+        data = result.Data;
+        count = result.Count;
+        shouldCount = null;
+        await Layout.SetLoading(false);
+    }
+    private async Task OnFilterChange(object value)
+    {
+        shouldCount = true;
+        await grid0.FirstPage(true);
+    }
+}

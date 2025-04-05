@@ -4,6 +4,7 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
+
 @inject LoadDataGridService LoadDataGridService
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
@@ -21,17 +22,49 @@
     </RadzenRow>
     <RadzenRow>
         <RadzenTemplateForm Data="@searchModel" TItem="NdcSearchModel" Submit="@Search">
-            <RadzenMask @bind-Value="searchModel.Ndc"
-            Name="ndcInput"
-            Mask="*****-****-**"
-            Placeholder="#####-####-##"
-            CharacterPattern="[0-9]"/>
-            <RadzenRequiredValidator Component="ndcInput" Text="NDC is required" />
+            <RadzenRow>
+                <RadzenColumn SizeMD="6">
+                    <RadzenLabel Component="ndcInput" Text="NDC" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="6">
+                    <RadzenMask @bind-Value="searchModel.Ndc"
+                    Name="ndcInput"
+                    Mask="*****-****-**"
+                    Placeholder="#####-####-##"
+                    CharacterPattern="[0-9]"/>
+                    <RadzenRequiredValidator Component="ndcInput" Text="NDC is required" />
+                    <RadzenRegexValidator Component="ndcInput"
+                    Pattern="^\d{5}-\d{4}-\d{2}$"
+                    Text="11 digit NDC required" />
+                </RadzenColumn>
+            </RadzenRow>
 
-            <RadzenRegexValidator Component="ndcInput"
-            Pattern="^\d{5}-\d{4}-\d{2}$"
-            Text="11 digit NDC required" />
-            <RadzenButton Text="Search" Icon="search" ButtonType="ButtonType.Submit"/>
+            <RadzenRow>
+                <RadzenColumn SizeMD="6">
+                    <RadzenLabel Component="priceInput" Text="Price" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="6">
+                    <RadzenTextBox Name="priceInput" @bind-Value="searchModel.Price"></RadzenTextBox>            
+                    <RadzenRegexValidator 
+                    Component="priceInput"
+                    Pattern="^\d*\.?\d*$"
+                    Text="Numerical values only" />
+                </RadzenColumn>
+            </RadzenRow>
+
+            <RadzenRow>
+                <RadzenColumn SizeMD="6">
+                    <RadzenLabel Component="unitsPerOrderInput" Text="Qty (Units Per Order)" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="6">
+                    <RadzenTextBox Name="unitsPerOrderInput" @bind-Value="searchModel.UnitsPerOrder"></RadzenTextBox>
+                    <RadzenRegexValidator 
+                    Component="unitsPerOrderInput"
+                    Pattern="^\d*\.?\d*$"
+                    Text="Numerical values only" />
+                </RadzenColumn>
+            </RadzenRow>            
+            <RadzenButton Text="Submit" ButtonType="ButtonType.Submit"/>
         </RadzenTemplateForm>
     </RadzenRow>
     @if (matchedNdf != null)
@@ -94,6 +127,9 @@
     class NdcSearchModel
     {
         public string Ndc { get; set; } = string.Empty;
+        public string Price { get; set; } = "0";
+        public string UnitsPerOrder { get; set; } = "0";
+        public string Unit { get; set; } = "EA";
     }
     private NdcSearchModel searchModel = new();
     private Ndf? matchedNdf;
@@ -145,4 +181,36 @@
             .FirstOrDefaultAsync(n => n.Ndc == searchModel.Ndc);
         await grid0!.Reload();
     }
+    private static readonly Dictionary<string, string> UnitOptions = new()
+    {
+        ["12"] = "Packet",
+        ["00"] = "Not Specified",
+        ["AL"] = "Applicator",
+        ["AR"] = "Suppository",
+        ["AV"] = "Capsule",
+        ["BL"] = "Blister",
+        ["CP"] = "Caplet",
+        ["EA"] = "Each",
+        ["FG"] = "Patch",
+        ["FM"] = "Film",
+        ["GR"] = "Gram",
+        ["IP"] = "Implant",
+        ["KT"] = "Kit",
+        ["ML"] = "Milliliter",
+        ["PD"] = "Pad",
+        ["RG"] = "Ring",
+        ["SG"] = "Sponge",
+        ["SI"] = "Stick",
+        ["SR"] = "Strip",
+        ["SW"] = "Swab",
+        ["TE"] = "Troche",
+        ["U2"] = "Tablet",
+        ["UU"] = "Lozenge",
+        ["WA"] = "Wafer",
+        ["Y7"] = "Gum",
+        ["Z01"] = "Insert",
+        ["Z02"] = "Lancet",
+        ["Z03"] = "Pen Needles"
+    };
+
 }
