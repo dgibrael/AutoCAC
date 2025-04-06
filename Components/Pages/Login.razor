@@ -6,8 +6,6 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-@using AutoCAC.Components.Templates
-@using AutoCAC.Components.DrugFile
 @using AutoCAC.Models
 
 <PageTitle>Login</PageTitle>
@@ -25,7 +23,7 @@
         <button class="btn btn-primary" type="submit">Login</button>
     </div>
 </EditForm>
-<Ndfs />
+<NdfLookup SelectionChanged="OnNdfSelected" />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
@@ -47,14 +45,6 @@
     [Parameter]
     [SupplyParameterFromQuery]
     public string ReturnUrl { get; set; } = "/"; // default to home
-    
-    private Drug? selectedDrug;
-
-    private void OnDrugSelected(Drug drug)
-    {
-        selectedDrug = drug;
-        Console.WriteLine($"User selected drug: {drug.Name}");
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -111,7 +101,7 @@
         }
         catch (Exception ex)
         {
-            Layout!.ErrorMessage = ex.Message;
+            Layout!.ShowError(ex.Message);
             await Layout.SetLoading(false);
         }
         finally
@@ -119,6 +109,18 @@
             Array.Clear(accessCodeChars, 0, accessCodeChars.Length);
             Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
         }
+    }
+
+    private Ndf? selectedNdf;
+
+    private Task OnNdfSelected(Ndf? selected)
+    {
+        selectedNdf = selected;
+        if (selectedNdf != null)
+        {
+            Console.WriteLine(selected.Ndc);
+        }
+        return Task.CompletedTask;
     }
 }
 

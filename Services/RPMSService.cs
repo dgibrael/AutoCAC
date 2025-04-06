@@ -21,20 +21,28 @@ public class RPMSService : IDisposable
         }
     }
     private readonly string _endOfFeedStr = ((char)255).ToString();
-    private bool _signedIn;
+
+    private bool _signedIn = false;
+    public event Action OnConnectionChanged;
+    private bool _wasConnected;
+
     public bool IsConnected
     {
         get
         {
-            if (_client?.IsConnected != true)
+            bool currentlyConnected = _client?.IsConnected == true && _signedIn;
+
+            if (currentlyConnected != _wasConnected)
             {
-                _signedIn = false;
-                return false;
+                _wasConnected = currentlyConnected;
+                OnConnectionChanged?.Invoke();
             }
-            return _signedIn;
+
+            return currentlyConnected;
         }
     }
-    public event Action? OnDisconnected;
+
+    public event Action OnDisconnected;
 
     public RPMSService()
     {
@@ -50,14 +58,6 @@ public class RPMSService : IDisposable
         _stream = _client.CreateShellStream("vt100", 255, 1000, 0, 0, 4096, terminalModes);
 
         WaitFor("ACCESS CODE");
-    }
-
-    private void EnsureConnected()
-    {
-        if (!IsConnected)
-        {
-            OnDisconnected?.Invoke();
-        }
     }
 
     public List<string> ReceivedHistory { get; private set; } = new();
@@ -84,10 +84,11 @@ public class RPMSService : IDisposable
 
     public void Login(Span<char> accessCode, Span<char> verifyCode)
     {
-        if (!IsConnected)
+        if (_client?.IsConnected != true)
         {
             OpenConnection();
         }
+        _signedIn = false;
         SendSecure(accessCode);
         SendSecure(verifyCode);
 
@@ -112,8 +113,8 @@ public class RPMSService : IDisposable
                 case 1:
                     throw new Exception("Reset verify code in RPMS");
                 case 2:
-                    GoToMainMenu();
                     _signedIn = true;
+                    GoToMainMenu();
                     return;
                 case 3:
                     SendRaw(" ");
@@ -141,9 +142,17 @@ public class RPMSService : IDisposable
 
     public void Send(string command = "")
     {
-        EnsureConnected();
-        SendRaw(command);
-        Read();
+        if (!IsConnected) return;
+        try
+        {
+            SendRaw(command);
+            Read();
+        }
+        catch
+        {
+            Close();
+            throw;
+        }
     }
 
     private void SendRaw(string command)
@@ -151,25 +160,56 @@ public class RPMSService : IDisposable
         _stream.Write(command+"\r");
     }
 
+    public int MaxReadLoops { get; set; } = 50000; // ~500 seconds at 10ms sleep
     private void Read()
     {
         _stream.Write(_endOfFeedStr);
         var sb = new StringBuilder();
-        while (true)
+
+        const int earlyExitCheckThreshold = 500; // ~5 seconds
+        int loopCounter = 0;
+        string data = "";
+
+        while (_stream.CanRead)
         {
             if (_stream.DataAvailable)
             {
-                var data = _stream.Read();
+                data = _stream.Read();
                 sb.AppendLine(data);
+
                 if (data.Contains(_endOfFeedStr))
                 {
                     _stream.Write(new string('\b', _endOfFeedStr.Length));
                     LastReceivedRaw = sb.ToString();
-                    break;
+                    return;
+                }
+
+                loopCounter = 0; // reset
+            }
+            else
+            {
+                // Early exit detection
+                if (loopCounter == earlyExitCheckThreshold && !string.IsNullOrEmpty(data))
+                {
+                    if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
+                    {
+                        throw new Exception("Detected logout or prompt for re-authentication.");
+                    }
+                }
+
+                Thread.Sleep(10);
+                loopCounter++;
+
+                if (loopCounter >= MaxReadLoops)
+                {
+                    throw new TimeoutException("Timed out waiting for RPMS output.");
                 }
             }
         }
+
+        throw new IOException("SSH stream is no longer readable.");
     }
+
 
     public List<string> GetReceivedLines()
     {
@@ -275,6 +315,7 @@ public class RPMSService : IDisposable
 
     public void Close()
     {
+        _signedIn = false;
         _stream?.Dispose();
         _client?.Disconnect();
         _client?.Dispose();

@@ -12,7 +12,13 @@
 
 <RadzenStack>
     <RadzenRow>
-        <RadzenColumn>
+        @if (selectedRow != null)
+        {
+            <RadzenButton Click="ClearSelection" ButtonStyle="ButtonStyle.Base" Variant="Variant.Text" Text="@GetSelectedLabel()"
+                          Style="text-transform: none" />
+        }
+        else
+        {
             <RadzenDataGrid @ref="grid0" AllowFiltering="true" FilterMode="FilterMode.Simple" AllowPaging="true" AllowSorting="false" 
             ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10}) PageSize="5"
             Data="@(data)" TItem="AutoCAC.Models.Ndf" LoadData="@LoadData" Count="count"
@@ -29,8 +35,7 @@
                         <Template Context="ndf">
                             <div>
                                 <div><strong>@ndf.Ndc</strong></div>
-                                <div>@ndf.ProductName</div>
-                                <div>@ndf.PrintName</div>
+                                <div>@(string.IsNullOrWhiteSpace(ndf.PrintName) ? ndf.ProductName : ndf.PrintName)</div>
                             </div>
                         </Template>
                         <FilterTemplate>
@@ -41,24 +46,27 @@
                     </RadzenDataGridColumn>
                 </Columns>
             </RadzenDataGrid>
-        </RadzenColumn>
+        }
     </RadzenRow>
 </RadzenStack>
+
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
+    [CascadingParameter(Name = "MainLayout")] public MainLayout? mainLayout { get; set; }
     private MainLayout Layout => mainLayout ?? new MainLayout();
 
-    //[Parameter] public EventCallback<Ndf> SelectionChanged { get; set; }
-    protected IEnumerable<AutoCAC.Models.Ndf> data;
+    [Parameter] public EventCallback<Ndf?> SelectionChanged { get; set; }
+    protected IEnumerable<AutoCAC.Models.Ndf>? data;
     protected int count = 0;
     private mainContext context = default!;
-    protected RadzenDataGrid<AutoCAC.Models.Ndf> grid0;
+    protected RadzenDataGrid<AutoCAC.Models.Ndf>? grid0;
     private string combinedSearchTerm = string.Empty;
+    private Ndf? selectedRow;
     bool? shouldCount;
     private async Task OnRowSelect(Ndf selected)
     {
-        Console.WriteLine(selected.Generic);
-        //await SelectionChanged.InvokeAsync(selected);
+        selectedRow = selected;
+        await SelectionChanged.InvokeAsync(selected);
+        await InvokeAsync(StateHasChanged);
     }
     protected async Task LoadData(LoadDataArgs args)
     {
@@ -85,6 +93,18 @@
     private async Task OnFilterChange(object value)
     {
         shouldCount = true;
-        await grid0.FirstPage(true);
+        await grid0!.FirstPage(true);
     }
+    private async Task ClearSelection()
+    {
+        selectedRow = null;
+        await SelectionChanged.InvokeAsync(null);
+        await InvokeAsync(StateHasChanged);
+    }
+    private string GetSelectedLabel()
+    {
+        if (selectedRow == null) return string.Empty;
+        return $"Selected NDC: {selectedRow.Ndc}; {(string.IsNullOrWhiteSpace(selectedRow.PrintName) ? selectedRow.ProductName : selectedRow.PrintName)} (click to change)";
+    }
+
 }

@@ -101,7 +101,7 @@
                 InvokeAsync(() => RedirectToLoginIfNotConnected());
             };
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            username = authState.User?.Identity?.Name;
+            username = authState?.User?.Identity?.Name ?? "";
         }
     }
 
@@ -117,30 +117,17 @@
         }
     }
 
-    private string? _errorMessage;
-    public string? ErrorMessage
+    public void ShowError(string message)
     {
-        get => _errorMessage;
-        set
+        if (!string.IsNullOrEmpty(message))
         {
-            if (!string.IsNullOrEmpty(value))
+            NotificationService.Notify(new NotificationMessage
             {
-                _errorMessage = value;
-
-                // Show the notification
-                NotificationService.Notify(new NotificationMessage
-                    {
-                        Severity = NotificationSeverity.Error,
-                        Summary = "Error",
-                        Detail = value,
-                        Duration = 4000
-                    });
-            }
-            else
-            {
-                _errorMessage = null;
-            }
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = message,
+                Duration = 4000
+            });
         }
     }
-
 }

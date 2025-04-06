@@ -12,21 +12,8 @@
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
-<EditForm Model="@this" OnValidSubmit="SearchNdc">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-3">
-        <label for="ndcInput">Enter NDC:</label>
-        <InputText id="ndcInput" class="form-control" @bind-Value="ndcInput" />
-    </div>
-
-    <button type="submit" class="btn btn-primary">Search</button>
-</EditForm>
-
-
-
 <RPMSOutput />
+<NdfLookup SelectionChanged="OnNdfSelected" />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
@@ -46,19 +33,19 @@
             }
             catch (Exception ex)
             {
-                Layout!.ErrorMessage = ex.Message;
+                Layout!.ShowError(ex.Message);
             }
             await InvokeAsync(StateHasChanged);
         }
     }
 
-    private async Task SearchNdc()
-    {
-        using var context = await DbFactory.CreateDbContextAsync();
+    private Ndf selectedNdf;
 
-        lookupResults = await context.VwNdcLookups
-            .Where(x => x.Ndc == ndcInput)
-            .ToListAsync();
+    private Task OnNdfSelected(Ndf selected)
+    {
+        selectedNdf = selected;
+
+        return Task.CompletedTask;
     }
 }
 
