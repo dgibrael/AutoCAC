@@ -5,48 +5,47 @@ using System.Text;
 using System.Text.RegularExpressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
-
 public class RPMSService : IDisposable
 {
     private SshClient _client;
     private ShellStream _stream;
-    private string _lastReceivedRaw;
-    public string LastReceivedRaw 
-    { 
-        get => _lastReceivedRaw; 
-        private set
+    public ShellStream Stream => _stream;
+    private bool _signedIn;
+    public bool SignedIn
+    {
+        get => _client?.IsConnected == true && _signedIn;
+
+        set
         {
-            _lastReceivedRaw = value?.Trim().TrimEnd(_endOfFeedStr.ToCharArray()).Trim();
+            if (!value && _signedIn)
+            {
+                _signedIn = false;
+                Close(); // Ensures proper cleanup
+            }
+            else if (value)
+            {
+                // ✅ Optional: if you want to enforce .IsConnected check here too
+                if (_client?.IsConnected != true)
+                    throw new InvalidOperationException("Cannot mark as signed in if SSH client is not connected.");
+
+                _signedIn = true;
+            }
+        }
+    }
+
+    private string _lastReceivedRaw;
+    public string LastReceivedRaw
+    {
+        get => _lastReceivedRaw;
+        set
+        {
+            _lastReceivedRaw = value?.TrimEnd().TrimEnd(EndOfFeedStr.ToCharArray()).TrimEnd();
             AddToHistory(_lastReceivedRaw);
         }
     }
-    private readonly string _endOfFeedStr = ((char)255).ToString();
-
-    private bool _signedIn = false;
-    public event Action OnConnectionChanged;
-    private bool _wasConnected;
-
-    public bool IsConnected
-    {
-        get
-        {
-            bool currentlyConnected = _client?.IsConnected == true && _signedIn;
-
-            if (currentlyConnected != _wasConnected)
-            {
-                _wasConnected = currentlyConnected;
-                OnConnectionChanged?.Invoke();
-            }
-
-            return currentlyConnected;
-        }
-    }
-
-    public event Action OnDisconnected;
-
+    public string EndOfFeedStr { get; set; } = ((char)255).ToString();
     public RPMSService()
     {
-        _signedIn = false;
     }
 
     public void OpenConnection()
@@ -55,7 +54,7 @@ public class RPMSService : IDisposable
         _client.Connect();
 
         var terminalModes = new Dictionary<TerminalModes, uint>();
-        _stream = _client.CreateShellStream("vt100", 255, 1000, 0, 0, 4096, terminalModes);
+        _stream = _client.CreateShellStream("vt100", 80, 24, 0, 0, 4096, terminalModes);
 
         WaitFor("ACCESS CODE");
     }
@@ -63,7 +62,6 @@ public class RPMSService : IDisposable
     public List<string> ReceivedHistory { get; private set; } = new();
 
     private int _maxCharCount = 100000;
-
     private void AddToHistory(string message)
     {
         ReceivedHistory.Add(message);
@@ -84,15 +82,15 @@ public class RPMSService : IDisposable
 
     public void Login(Span<char> accessCode, Span<char> verifyCode)
     {
-        if (_client?.IsConnected != true)
+        if (_client?.IsConnected == true)
         {
-            OpenConnection();
+            Close();
         }
-        _signedIn = false;
+        OpenConnection();
         SendSecure(accessCode);
         SendSecure(verifyCode);
 
-        for (int i = 0; i < 15; i++)
+        for (int i = 0; i < 20; i++)
         {
             int result = WaitForAny(new[] {
             "ACCESS CODE:",
@@ -113,8 +111,7 @@ public class RPMSService : IDisposable
                 case 1:
                     throw new Exception("Reset verify code in RPMS");
                 case 2:
-                    _signedIn = true;
-                    GoToMainMenu();
+                    SignedIn = true;
                     return;
                 case 3:
                     SendRaw(" ");
@@ -132,7 +129,7 @@ public class RPMSService : IDisposable
     {
         try
         {
-            _stream.Write(new string(input)+"\r");
+            _stream.Write(new string(input) + "\r");
         }
         finally
         {
@@ -140,76 +137,10 @@ public class RPMSService : IDisposable
         }
     }
 
-    public void Send(string command = "")
+    public void SendRaw(string command = "")
     {
-        if (!IsConnected) return;
-        try
-        {
-            SendRaw(command);
-            Read();
-        }
-        catch
-        {
-            Close();
-            throw;
-        }
+        _stream.Write(command + "\r");
     }
-
-    private void SendRaw(string command)
-    {
-        _stream.Write(command+"\r");
-    }
-
-    public int MaxReadLoops { get; set; } = 50000; // ~500 seconds at 10ms sleep
-    private void Read()
-    {
-        _stream.Write(_endOfFeedStr);
-        var sb = new StringBuilder();
-
-        const int earlyExitCheckThreshold = 500; // ~5 seconds
-        int loopCounter = 0;
-        string data = "";
-
-        while (_stream.CanRead)
-        {
-            if (_stream.DataAvailable)
-            {
-                data = _stream.Read();
-                sb.AppendLine(data);
-
-                if (data.Contains(_endOfFeedStr))
-                {
-                    _stream.Write(new string('\b', _endOfFeedStr.Length));
-                    LastReceivedRaw = sb.ToString();
-                    return;
-                }
-
-                loopCounter = 0; // reset
-            }
-            else
-            {
-                // Early exit detection
-                if (loopCounter == earlyExitCheckThreshold && !string.IsNullOrEmpty(data))
-                {
-                    if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
-                    {
-                        throw new Exception("Detected logout or prompt for re-authentication.");
-                    }
-                }
-
-                Thread.Sleep(10);
-                loopCounter++;
-
-                if (loopCounter >= MaxReadLoops)
-                {
-                    throw new TimeoutException("Timed out waiting for RPMS output.");
-                }
-            }
-        }
-
-        throw new IOException("SSH stream is no longer readable.");
-    }
-
 
     public List<string> GetReceivedLines()
     {
@@ -260,65 +191,43 @@ public class RPMSService : IDisposable
         }
     }
 
-    public void GoToMainMenu(int attempts = 30)
+    public bool CheckSessionActive(bool throwError = false)
     {
-        for (int i = 0; i < attempts; i++)
+        if (SignedIn == false)
         {
-            var curPrompt = CurrentPrompt;
-
-            if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
-                return;
-
-            if (curPrompt.Contains("Please enter your CURRENT verify code", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Reset verify code in RPMS");
-
-            if (curPrompt.Contains("return", StringComparison.OrdinalIgnoreCase) ||
-                curPrompt.Contains("do you wish to resume", StringComparison.OrdinalIgnoreCase))
-            {
-                Send();
-            }
-            else if (curPrompt.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
-            {
-                Send(" ");
-            }
-            else if (curPrompt.Contains("to stop", StringComparison.OrdinalIgnoreCase) ||
-                     curPrompt.Contains("halt?", StringComparison.OrdinalIgnoreCase))
-            {
-                Send("^");
-            }
-            else if (curPrompt.Contains("option", StringComparison.OrdinalIgnoreCase))
-            {
-                Send("^AutoCAC App Main Menu");
-            }
-            else
-            {
-                Send("^");
-            }
-
-            if (attempts - i <= 3)
-            {
-                Thread.Sleep(200); // let RPMS catch up
-            }
+            if (throwError) throw new InvalidOperationException("Logged out of RPMS.");
+            return false;
         }
 
-        throw new Exception("Could not reach main menu. Ask IRM/CAC/Informatics to assign secondary menu option: AutoCAC App Main Menu");
-    }
-
-    public void Menu(string menuName = null)
-    {
-        GoToMainMenu();
-        if (menuName != null)
+        if (_stream?.DataAvailable == true)
         {
-            Send(menuName);
+            var data = _stream.Read();
+            LastReceivedRaw = data;
+
+            if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
+            {
+                SignedIn = false;
+                if (throwError) throw new InvalidOperationException("Logged out of RPMS.");
+                return false;
+            }
         }
+        return true;
     }
 
     public void Close()
     {
-        _signedIn = false;
-        _stream?.Dispose();
-        _client?.Disconnect();
-        _client?.Dispose();
+        if (_stream != null)
+        {
+            _stream.Dispose();
+            _stream = null;
+        }
+
+        if (_client != null)
+        {
+            if (_client.IsConnected) _client.Disconnect();
+            _client.Dispose();
+            _client = null;
+        }
     }
 
     public void Dispose()

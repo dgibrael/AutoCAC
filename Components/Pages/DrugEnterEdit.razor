@@ -12,40 +12,80 @@
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
-<RPMSOutput />
 <NdfLookup SelectionChanged="OnNdfSelected" />
+<hr>
+@if(selectedNdf != null)
+{
+    <span>Now select an existing drug to update or click New Drug</span>
+    <DrugsTbl InitialQuery="ndfFilteredDrugs" />
+}
+else
+{
+    <span>Select drug from National Drug Formulary above to continue</span>
+}
+<hr>
+<RPMSOutput OnLoginSuccess="AfterLogin" SignedOutMsg="After selecting drug above, enter access and verify code to continue." CollapsedInitial="true" />
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
-    private MainLayout Layout => mainLayout ?? new MainLayout();
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
 
     private string ndcInput = string.Empty;
-    private List<VwNdcLookup>? lookupResults;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            if (!Layout.RPMS.IsConnected) return;
-            try
-            {
-                Layout.RPMS.Menu();
-            }
-            catch (Exception ex)
-            {
-                Layout!.ShowError(ex.Message);
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-    }
 
     private Ndf selectedNdf;
+    private Drug selectedDrug;
+    IQueryable<Drug> ndfFilteredDrugs;
 
     private Task OnNdfSelected(Ndf selected)
     {
         selectedNdf = selected;
-
+        var db = DbFactory.CreateDbContext();
+        ndfFilteredDrugs = db.Drugs
+            .Where(d => d.VaPrintName == selected.PrintName)
+            .AsNoTracking();
         return Task.CompletedTask;
     }
+
+    private Task OnDrugSelected(Drug selected)
+    {
+        selectedDrug = selected;
+        return Task.CompletedTask;
+    }
+
+    private async Task AfterLogin()
+    {
+        await Layout.GoToMenu("DRUG");
+    }
+
+    private static readonly Dictionary<string, string> UnitOptions = new()
+    {
+        ["12"] = "Packet",
+        ["00"] = "Not Specified",
+        ["AL"] = "Applicator",
+        ["AR"] = "Suppository",
+        ["AV"] = "Capsule",
+        ["BL"] = "Blister",
+        ["CP"] = "Caplet",
+        ["EA"] = "Each",
+        ["FG"] = "Patch",
+        ["FM"] = "Film",
+        ["GR"] = "Gram",
+        ["IP"] = "Implant",
+        ["KT"] = "Kit",
+        ["ML"] = "Milliliter",
+        ["PD"] = "Pad",
+        ["RG"] = "Ring",
+        ["SG"] = "Sponge",
+        ["SI"] = "Stick",
+        ["SR"] = "Strip",
+        ["SW"] = "Swab",
+        ["TE"] = "Troche",
+        ["U2"] = "Tablet",
+        ["UU"] = "Lozenge",
+        ["WA"] = "Wafer",
+        ["Y7"] = "Gum",
+        ["Z01"] = "Insert",
+        ["Z02"] = "Lancet",
+        ["Z03"] = "Pen Needles"
+    };
 }
 

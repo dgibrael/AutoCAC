@@ -18,7 +18,6 @@ namespace AutoCAC{
 
         private string? _lastFilter = null;
         private int _lastCount = 0;
-        private bool _hasRun = false;
 
         public async Task<LoadDataResult<T>> ApplyLoadData<T>(
             IQueryable<T> query,
@@ -30,13 +29,9 @@ namespace AutoCAC{
                 query = query.Where(args.Filter);
             }
 
-            if (shouldCount is null)
-            {
-                shouldCount = !_hasRun || _lastFilter != args.Filter;
-            }
+            shouldCount ??= _lastFilter != args.Filter;
 
             _lastFilter = args.Filter;
-            _hasRun = true;
 
             if (shouldCount.Value)
             {

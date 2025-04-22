@@ -1,38 +1,160 @@
-﻿<RadzenPanel AllowCollapse="true" Collapsed="true">
-    <HeaderTemplate>
-        <span>Output from RPMS</span>
-    </HeaderTemplate>
-    <ChildContent>
-        @if (Layout?.RPMS?.ReceivedHistory?.Any() == true)
-        {
-            foreach (var entry in Layout.RPMS.ReceivedHistory)
-            {
-                        <pre>@entry</pre>
-                        <hr>
-            }
+﻿@implements IDisposable
 
-                <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" />
+<div id="RPMSOutputDiv">
+    @if (Layout.RPMS.SignedIn)
+    {
+        @if (ChildContent != null)
+        {
+            @ChildContent
         }
         else
         {
-                <p>No output yet.</p>
-        }
-    </ChildContent>
-</RadzenPanel>
+                <RadzenPanel AllowCollapse="true" Collapsed="@CollapsedInitial" Expand="ScrollToInput">
+                <HeaderTemplate>
+                    <span>Output from RPMS</span>
+                </HeaderTemplate>
+                <ChildContent>
+                    @if (Layout?.RPMS?.ReceivedHistory?.Any() == true)
+                    {
+                        @for (int i = 0; i < Layout.RPMS.ReceivedHistory.Count; i++)
+                        {
+                            var entry = Layout.RPMS.ReceivedHistory[i];
+                            var cleaned = new string(
+                                entry?.Where(c => !char.IsControl(c) || c == '\n' || c == '\r' || c == '\t')
+                                      .ToArray() ?? Array.Empty<char>());
 
+                            if (!string.IsNullOrWhiteSpace(cleaned))
+                            {
+                                <pre @key="@i">@cleaned</pre>
+                                <hr />
+                            }
+                        }
+                        <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" />
+                    }
+
+                    else
+                    {
+                        <p>No output yet.</p>
+                    }
+                    <RadzenRow>
+                        <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
+                            <div>
+                                <label>Send Custom Command:</label><br />
+                                <InputText @bind-Value="customCmd"
+                                   id="customRPMSInpt"
+                                   disabled="@Layout.ReceivingFromRPMS"
+                                   placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : "Enter custom command...")" />
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-primary" type="submit" disabled="@Layout.ReceivingFromRPMS">Submit</button>
+                            </div>
+                        </EditForm>
+                    </RadzenRow>
+                </ChildContent>
+            </RadzenPanel>
+        }
+    }
+    else
+    {
+        <EditForm OnValidSubmit="HandleLogin" EditContext="_editContext">
+            <span>@SignedOutMsg</span>
+            <div>
+                <label>Access Code:</label><br />
+                <InputText @bind-Value="AccessCodeInput" type="password" required />
+            </div>
+            <div class="mt-2">
+                <label>Verify Code:</label><br />
+                <InputText @bind-Value="VerifyCodeInput" type="password" required />
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary" type="submit">Login</button>
+            </div>
+        </EditForm>
+    }
+</div>
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
-    private MainLayout Layout => mainLayout ?? new MainLayout();
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    [Parameter] public RenderFragment ChildContent { get; set; }
+
+    // Optional callback after successful login
+    [Parameter] public EventCallback OnLoginSuccess { get; set; }
+    [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
+    [Parameter] public bool CollapsedInitial { get; set; } = false;
+
+    private string customCmd;
+
+    private async Task SendCustomCmd()
+    {
+        await Layout.RunCommands(async () =>
+        {
+            await Layout.Send(customCmd);
+        });
+        customCmd = string.Empty;
+    }
+
+
+    private void ScrollToInput()
+    {
+        _ = Layout.ScrollToRPMS();
+    }
+
+    private EditContext _editContext = new(new object());
+    private EditContext _editContext2 = new(new object());
+    private char[] accessCodeChars;
+    private char[] verifyCodeChars;
+
+    public string AccessCodeInput
+    {
+        get => accessCodeChars?.Length > 0 ? "********" : null;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                accessCodeChars = value.ToCharArray();
+            }
+        }
+    }
+
+    public string VerifyCodeInput
+    {
+        get => verifyCodeChars?.Length > 0 ? "********" : null;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                verifyCodeChars = value.ToCharArray();
+            }
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && Layout.RPMS.SignedIn && OnLoginSuccess.HasDelegate)
         {
-            if (!Layout.RPMS.IsConnected) return;
-            await InvokeAsync(StateHasChanged);
+            await OnLoginSuccess.InvokeAsync();
+            await Layout.ScrollToRPMS();
         }
+    }
 
-        await Layout.SetLoading(false);
+    private async Task HandleLogin()
+    {
+        await Layout.RunCommands(async () =>
+        {
+            Layout.RPMS.Login(accessCodeChars.AsSpan(), verifyCodeChars.AsSpan());
+            await Layout.ScrollToRPMS();
+            if (OnLoginSuccess.HasDelegate)
+            {
+                await OnLoginSuccess.InvokeAsync();
+            }
+
+        });
+        Array.Clear(accessCodeChars, 0, accessCodeChars.Length);
+        accessCodeChars = null;
+        Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
+        verifyCodeChars = null;
+    }
+
+    public void Dispose()
+    {
     }
 }
-

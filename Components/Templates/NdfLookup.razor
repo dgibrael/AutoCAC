@@ -24,6 +24,10 @@
             Data="@(data)" TItem="AutoCAC.Models.Ndf" LoadData="@LoadData" Count="count"
             RowSelect="OnRowSelect"
             >
+                <EmptyTemplate>
+                    <p>No matching drugs found in the national drug file. Double-check the NDC.</p>
+                    <p>Tip: if there is no matching NDC, use the drug name that most closely matches your product, then manually change the NDC in RPMS</p>
+                </EmptyTemplate>
                 <Columns>
                     <RadzenDataGridColumn>
                         <HeaderTemplate>
@@ -51,17 +55,15 @@
 </RadzenStack>
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout? mainLayout { get; set; }
-    private MainLayout Layout => mainLayout ?? new MainLayout();
-
-    [Parameter] public EventCallback<Ndf?> SelectionChanged { get; set; }
-    protected IEnumerable<AutoCAC.Models.Ndf>? data;
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    [Parameter] public EventCallback<Ndf> SelectionChanged { get; set; }
+    protected IEnumerable<AutoCAC.Models.Ndf> data;
     protected int count = 0;
     private mainContext context = default!;
-    protected RadzenDataGrid<AutoCAC.Models.Ndf>? grid0;
+    protected RadzenDataGrid<AutoCAC.Models.Ndf> grid0;
     private string combinedSearchTerm = string.Empty;
-    private Ndf? selectedRow;
-    bool? shouldCount;
+    private Ndf selectedRow;
+    bool? shouldCount = true;
     private async Task OnRowSelect(Ndf selected)
     {
         selectedRow = selected;
@@ -106,5 +108,4 @@
         if (selectedRow == null) return string.Empty;
         return $"Selected NDC: {selectedRow.Ndc}; {(string.IsNullOrWhiteSpace(selectedRow.PrintName) ? selectedRow.ProductName : selectedRow.PrintName)} (click to change)";
     }
-
 }

@@ -8,9 +8,37 @@
 @inject NotificationService NotificationService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DialogService DialogService
+@using System.Text
+@inject IJSRuntime JS
 
 <RadzenComponents />
 <RadzenDialog />
+<script>
+    function scrollToElement(elementId) {
+    const container = document.getElementById("mainContent");
+    const target = document.getElementById(elementId);
+
+    if (container && target) {
+    container.scrollTop = target.offsetTop + target.offsetHeight - container.clientHeight;
+    target.focus();
+    console.log("scrolling to element...");
+    } 
+    else {
+    console.warn("scrollTo: element or container not found");
+    }
+    }
+
+    function scrollToBottom() {
+    const container = document.getElementById("mainContent");
+    if (container) {
+    container.scrollTop = container.scrollHeight;
+    } else {
+    console.warn("scrollToBottom: container not found");
+    }
+    }
+</script>
+
+
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
     <RadzenHeader>
@@ -25,7 +53,7 @@
             </RadzenColumn>
         </RadzenRow>
     </RadzenHeader>
-    <RadzenBody Expanded="@sidebarExpanded">
+    <RadzenBody Expanded="@sidebarExpanded" id="mainContent">
         <RadzenRow class="rz-mx-auto rz-px-4 rz-pt-2 rz-pt-md-4 rz-pt-lg-6 rz-pt-xl-12 rz-pb-2 rz-pb-lg-12" Style="max-width: 1440px;">
             <RadzenColumn Size="12">
                 <CascadingValue Value="this" Name="MainLayout">
@@ -50,8 +78,8 @@
     </RadzenSidebar>
     @if (isLoading)
     {
-        <div class="rz-dialog-wrapper">
-            <RadzenCard class="rz-dialog" style="min-height: 0;">
+        <div class="rz-dialog-wrapper" style="pointer-events: none;">
+            <RadzenCard class="rz-dialog" style="min-height: 0; pointer-events: auto;">
                 <RadzenRow>
                     <RadzenProgressBarCircular ProgressBarStyle="ProgressBarStyle.Primary" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
                     <RadzenText Text="Loading..." TextStyle="TextStyle.DisplayH5"/>
@@ -76,7 +104,6 @@
     {
         if (isLoading == value)
             return;
-
         isLoading = value;
         await Task.Yield();
         await InvokeAsync(StateHasChanged);
@@ -84,50 +111,241 @@
 
 
     public string username = "";
-    private bool _checkedInitialConnection = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_checkedInitialConnection)
-        {
-            _checkedInitialConnection = true;
-            RedirectToLoginIfNotConnected();
-        }
-
         if (firstRender)
         {
-            RPMS.OnDisconnected += () =>
-            {
-                InvokeAsync(() => RedirectToLoginIfNotConnected());
-            };
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             username = authState?.User?.Identity?.Name ?? "";
         }
     }
 
-    public void RedirectToLoginIfNotConnected()
+    public void HandleError(Exception ex)
     {
-        var currentPath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).ToLowerInvariant();
+        if (ex == null) return;
 
-        if (!RPMS.IsConnected && !currentPath.StartsWith("login"))
+        NotificationService.Notify(new NotificationMessage
         {
-            isLoading = true;
-            var returnUrl = Uri.EscapeDataString(currentPath);
-            NavigationManager.NavigateTo($"/login?returnUrl={returnUrl}");
+            Severity = NotificationSeverity.Error,
+            Summary = ex.GetType().Name, // "Exception"
+            Detail = ex.Message,         // "Could not connect to RPMS."
+            Duration = 4000
+        });
+        StateHasChanged();
+    }
+
+    public bool ReceivingFromRPMS { get; private set; } = false;
+
+    public async Task SetReceivingFromRPMS(bool value)
+    {
+        if (ReceivingFromRPMS != value)
+        {
+            ReceivingFromRPMS = value;
+            await InvokeAsync(StateHasChanged);
         }
     }
 
-    public void ShowError(string message)
+    public async Task Send(string command = "")
     {
-        if (!string.IsNullOrEmpty(message))
+        RPMS.CheckSessionActive(true);
+        RPMS.SendRaw(command);
+        await ReadFromRPMS();
+    }
+
+
+    public async Task GoToMenu(string menu = null, int attempts = 30)
+    {
+        try
         {
-            NotificationService.Notify(new NotificationMessage
+            for (int i = 0; i < attempts; i++)
             {
-                Severity = NotificationSeverity.Error,
-                Summary = "Error",
-                Detail = message,
-                Duration = 4000
-            });
+                var curPrompt = RPMS.CurrentPrompt;
+
+                if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
+                {
+                    if (menu != null) await Send(menu);
+                    return;
+                }
+
+                if (curPrompt.Contains("Please enter your CURRENT verify code", StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("Reset verify code in RPMS");
+
+                if (curPrompt.Contains("return", StringComparison.OrdinalIgnoreCase) ||
+                    curPrompt.Contains("do you wish to resume", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Send();
+                }
+                else if (curPrompt.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Send(" ");
+                }
+                else if (curPrompt.Contains("to stop", StringComparison.OrdinalIgnoreCase) ||
+                         curPrompt.Contains("halt?", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Send("^");
+                }
+                else if (curPrompt.Contains("option", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Send("^AutoCAC App Main Menu");
+                }
+                else
+                {
+                    await Send("^");
+                }
+
+                if (attempts - i <= 3)
+                {
+                    await Task.Delay(200); // now async
+                }
+            }
+
+            throw new Exception("Could not reach main menu. Ask IRM/CAC/Informatics to assign secondary menu option: AutoCAC App Main Menu");
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex);
         }
     }
+
+
+
+    public async Task ReadFromRPMS(int maxWaitMs = 5000, int earlyExitMs = 2000)
+    {
+        await SetReceivingFromRPMS(true);
+        try
+        {
+            int maxReadLoops = maxWaitMs / 10;
+            int earlyExitCheck = earlyExitMs / 10;
+            RPMS.Stream.Write(RPMS.EndOfFeedStr);
+            var sb = new StringBuilder();
+            int loopCounter = 0;
+            string data = "";
+
+            while (RPMS.Stream.CanRead)
+            {
+                if (RPMS.Stream.DataAvailable)
+                {
+                    data = RPMS.Stream.Read();
+                    sb.AppendLine(data);
+
+                    if (data.Contains(RPMS.EndOfFeedStr))
+                    {
+                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length));
+                        RPMS.LastReceivedRaw = sb.ToString();
+                        return;
+                    }
+
+                    loopCounter = 0; // reset
+                }
+                else
+                {
+                    if (sb.Length > 0)
+                    {
+                        RPMS.LastReceivedRaw = sb.ToString();
+                        sb.Clear();
+                        await ScrollToRPMS();
+                    }
+
+                    // Early exit detection
+                    if (loopCounter == earlyExitCheck && !string.IsNullOrEmpty(data))
+                    {
+                        if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
+                        {
+                            RPMS.SignedIn = false;
+                            throw new Exception("Detected logout or prompt for re-authentication.");
+                        }
+                        else if (data.Contains("Please enter your CURRENT verify code"))
+                        {
+                            RPMS.SignedIn = false;
+                            throw new Exception("Reset verify code in RPMS then try again.");
+                        }
+                    }
+
+                    if (loopCounter >= maxReadLoops)
+                    {
+                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length));
+                        throw new TimeoutException("Timed out waiting for RPMS output.");
+                    }
+
+                    await Task.Delay(10);
+                    loopCounter++;
+                }
+            }
+        }
+        finally
+        {
+            await SetReceivingFromRPMS(false);
+            await ScrollToRPMS();
+        }
+    }
+
+
+    public async Task ScrollTo(string elementId = null)
+    {
+        await InvokeAsync(StateHasChanged); // request a UI render
+        await Task.Yield();
+        if (string.IsNullOrEmpty(elementId))
+        {
+            await JS.InvokeVoidAsync("scrollToBottom");
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("scrollToElement", elementId);
+        }
+    }
+
+    public async Task ScrollToRPMS()
+    {
+        if (RPMS.SignedIn)
+        {
+            await ScrollTo("customRPMSInpt");
+        }
+    }
+
+    /// <summary>
+    /// Runs a block of RPMS or app commands with loading UI and error handling.
+    /// </summary>
+    public async Task RunCommands(Func<Task> action)
+    {
+        await SetLoading(true);
+
+        try
+        {
+            await action();
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex);
+        }
+        finally
+        {
+            await SetLoading(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs a block of RPMS or app commands with loading UI and error handling.
+    /// </summary>
+    public async Task<T> RunCommands<T>(Func<Task<T>> action)
+    {
+        await SetLoading(true);
+
+        try
+        {
+            return await action();
+        }
+        catch (Exception ex)
+        {
+            HandleError(ex);
+            return default!;
+        }
+        finally
+        {
+            await SetLoading(false);
+        }
+    }
+
+
+
 }

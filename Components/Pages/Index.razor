@@ -8,27 +8,9 @@
 @using AutoCAC.Components.Templates
 
 <PageTitle>Index</PageTitle>
-<RPMSOutput />
+<RPMSOutput/>
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout mainLayout { get; set; }
-    private MainLayout Layout => mainLayout ?? new MainLayout();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            if (!Layout.RPMS.IsConnected) return;
-            try
-            {
-                Layout.RPMS.GoToMainMenu();
-            }
-            catch (Exception ex)
-            {
-                Layout!.ShowError(ex.Message);
-            }
-            await InvokeAsync(StateHasChanged);
-        }
-    }
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
 }
 
