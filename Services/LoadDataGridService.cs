@@ -16,7 +16,7 @@ namespace AutoCAC{
     {
         private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
 
-        private string? _lastFilter = null;
+        private string _lastFilter = null;
         private int _lastCount = 0;
 
         public async Task<LoadDataResult<T>> ApplyLoadData<T>(

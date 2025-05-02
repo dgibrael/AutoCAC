@@ -16,76 +16,206 @@
 <hr>
 @if(selectedNdf != null)
 {
-    <span>Now select an existing drug to update or click New Drug</span>
-    <DrugsTbl InitialQuery="ndfFilteredDrugs" />
+    <DrugsTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
 }
 else
 {
     <span>Select drug from National Drug Formulary above to continue</span>
 }
 <hr>
-<RPMSOutput OnLoginSuccess="AfterLogin" SignedOutMsg="After selecting drug above, enter access and verify code to continue." CollapsedInitial="true" />
+<RPMSOutput OnLoginSuccess="AfterLogin" SignedOutMsg="After selecting drug above, enter access and verify code to continue." />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
 
     private string ndcInput = string.Empty;
-
+    private DrugsTbl DrugsTblRef;
     private Ndf selectedNdf;
     private Drug selectedDrug;
-    IQueryable<Drug> ndfFilteredDrugs;
 
     private Task OnNdfSelected(Ndf selected)
     {
         selectedNdf = selected;
-        var db = DbFactory.CreateDbContext();
-        ndfFilteredDrugs = db.Drugs
-            .Where(d => d.VaPrintName == selected.PrintName)
-            .AsNoTracking();
         return Task.CompletedTask;
     }
 
-    private Task OnDrugSelected(Drug selected)
+    private async Task OnDrugSelected(Drug selected)
     {
         selectedDrug = selected;
-        return Task.CompletedTask;
+        if (Layout.RPMS.SignedIn)
+        {
+            await RPMSDrugAddUpdate();
+        }
+        return;
     }
 
-    private async Task AfterLogin()
+    private async Task RPMSDrugAddUpdate()
+    {
+        if (selectedDrug != null)
+        {
+            if (selectedDrug.Id == 0)
+            {
+                await NewDrug();
+            }
+            else
+            {
+                await NdcChange();
+                await Layout.Send(selectedNdf.Ndc);
+                Layout.RPMS.AddToHistory($"Follow RPMS Prompts. Dispense unit: {selectedDrug.DispenseUnit}");
+                await Task.Yield();
+                await InvokeAsync(StateHasChanged);
+
+            }
+        }
+        else
+        {
+            await Layout.ScrollTo("top");
+        }
+    }
+
+    private async Task NewDrug()
     {
         await Layout.GoToMenu("DRUG");
+        await Layout.Send(selectedDrug.Name);
+        for (int i = 0; i < 20; i++)
+        {
+            string prompt = Layout.CheckPrompt( "Yes//", "No//", "CHOOSE");
+            switch(prompt)
+            {
+                case "No//":
+                    await CreateNewDrug();
+                    return;
+                case "Yes//":
+                    string lastStr = Layout.RPMS.LastReceivedRaw;
+                    if(lastStr.Contains("Lookup: GENERIC NAME"))
+                    {
+                        var parameters = new Dictionary<string, object>
+                        {
+                            { "SelectedNdf", selectedNdf },
+                            { "drug", selectedDrug },
+                            { "nullOnCancel", true}
+                        };
+                        selectedDrug = await DialogService.OpenAsync<DrugForm>($"The name {selectedDrug.Name} already exists", parameters);
+                        if (selectedDrug==null)
+                        {
+                            await DrugsTblRef.ClearSelection();
+                            await InvokeAsync(StateHasChanged);
+                            return;
+                        }
+                        await Layout.GoToMenu("DRUG");
+                        await Layout.Send(selectedDrug.Name);
+                    }
+                    else
+                    {
+                        await Layout.Send("NO");
+                    }
+                    break;
+                case "CHOOSE":
+                    await Layout.Send("^");
+                    break;
+                default:
+                    throw new RPMSException();
+            }
+        }
+        throw new RPMSException("Max loops reached");
     }
 
-    private static readonly Dictionary<string, string> UnitOptions = new()
+    private async Task CreateNewDrug()
     {
-        ["12"] = "Packet",
-        ["00"] = "Not Specified",
-        ["AL"] = "Applicator",
-        ["AR"] = "Suppository",
-        ["AV"] = "Capsule",
-        ["BL"] = "Blister",
-        ["CP"] = "Caplet",
-        ["EA"] = "Each",
-        ["FG"] = "Patch",
-        ["FM"] = "Film",
-        ["GR"] = "Gram",
-        ["IP"] = "Implant",
-        ["KT"] = "Kit",
-        ["ML"] = "Milliliter",
-        ["PD"] = "Pad",
-        ["RG"] = "Ring",
-        ["SG"] = "Sponge",
-        ["SI"] = "Stick",
-        ["SR"] = "Strip",
-        ["SW"] = "Swab",
-        ["TE"] = "Troche",
-        ["U2"] = "Tablet",
-        ["UU"] = "Lozenge",
-        ["WA"] = "Wafer",
-        ["Y7"] = "Gum",
-        ["Z01"] = "Insert",
-        ["Z02"] = "Lancet",
-        ["Z03"] = "Pen Needles"
-    };
-}
+        try
+        {
+            await Layout.Send("YES");
+            await Layout.EnterUntil("DRUG MESSAGE");
+            await Layout.Send(selectedDrug.Message);
+            await Layout.EnterUntil("DEA, SPECIAL HDLG:");
+            await Layout.Send(selectedDrug.DeaSpcl);
+            Layout.CheckPromptAndThrow("DAW CODE:");
+            await Layout.Send("^ORDER UNIT", selectedDrug.OrderUnit, selectedDrug.DispenseUnit, selectedDrug.DispenseUnitsPerOrderUnit, selectedDrug.NcpdpDispenseUnit, selectedNdf.Ndc);
+            Layout.CheckPromptAndThrow("PRICE PER ORDER UNIT:");
+            await Layout.Send(selectedDrug.PricePerOrderUnit);
+            await Layout.EnterUntil("NATIONAL DRUG file?");
+            await Layout.Send("YES");
+            await Layout.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
+            {
+                ["Yes or No"] = async () => { await Layout.Send("YES"); return false; },
+                ["Is this a match "] = async () => { await Layout.Send("YES"); return false; },
+                ["Press Return"] = async () => { await Layout.Send(); return false; },
+                ["Enter RETURN to continue"] = async () => { await Layout.Send(); return false; },
+                [" edit "] = async () => { return true; },
+                ["osages"] = async () => { return true; }
+            }, 20);
+            await Layout.EnterUntil("Enter your choice(s) separated by commas");
+            await Layout.Send(selectedDrug.ApplicationPackage);
+            await Layout.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
+                {
+                    ["AN Outpatient Pharmacy ITEM"] = OutpatientPackage,
+                    ["AN Unit Dose ITEM"] = UDPackage,
+                    ["A Non-VA Med ITEM"] = YesOnly,
+                    ["AN IV ITEM"] = YesAndUphat,
+                    ["Orderable Item"] = async () => { return true; }
+                }, 10);
+        }
+        catch (Exception ex)
+        {
+            Layout.HandleError(ex);
+        }
+        finally
+        {
+            await Layout.SetLoading(false);
+        }
+    }
 
+    private async Task<bool> OutpatientPackage()
+    {
+        await Layout.Send("YES");
+        await Layout.EnterUntil("Enter Yes or No");
+        await Layout.Send("NO");
+        await Layout.Send("NO");
+        return false;
+    }    
+    
+    private async Task<bool> UDPackage()
+    {
+        await Layout.Send("YES", "^", "^");
+        return false;
+    }    
+    
+    private async Task<bool> YesAndUphat()
+    {
+        await Layout.Send("YES", "^");
+        return false;
+    }
+
+    private async Task<bool> YesOnly()
+    {
+        await Layout.Send("YES", "^");
+        return false;
+    }
+
+    private async Task NdcChange()
+    {
+        await Layout.GoToMenu("NDC");
+        for (int i = 0; i < 3; i++)
+        {
+            await Layout.Send(selectedDrug.Id.ToString());
+            string prompt = Layout.CheckPrompt("NDC:", "Select DRUG GENERIC NAME");
+            switch(prompt)
+            {
+                case "NDC:":
+                    return;
+                case "Select DRUG GENERIC NAME":
+                    await Task.Delay(500);
+                    await Layout.GoToMenu("NDC");
+                    break;
+                default:
+                    throw new Exception("Unknown Menu location");
+            }
+        }
+        throw new Exception("Drug not found");
+    }
+    
+    private async Task AfterLogin()
+    {
+        await RPMSDrugAddUpdate();
+    }
+}

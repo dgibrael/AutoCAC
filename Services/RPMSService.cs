@@ -62,7 +62,7 @@ public class RPMSService : IDisposable
     public List<string> ReceivedHistory { get; private set; } = new();
 
     private int _maxCharCount = 100000;
-    private void AddToHistory(string message)
+    public void AddToHistory(string message)
     {
         ReceivedHistory.Add(message);
 
@@ -191,7 +191,7 @@ public class RPMSService : IDisposable
         }
     }
 
-    public bool CheckSessionActive(bool throwError = false)
+    public bool CheckSessionActive(bool throwError = true)
     {
         if (SignedIn == false)
         {

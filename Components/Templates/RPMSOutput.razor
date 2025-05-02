@@ -22,12 +22,8 @@
                             var cleaned = new string(
                                 entry?.Where(c => !char.IsControl(c) || c == '\n' || c == '\r' || c == '\t')
                                       .ToArray() ?? Array.Empty<char>());
-
-                            if (!string.IsNullOrWhiteSpace(cleaned))
-                            {
-                                <pre @key="@i">@cleaned</pre>
-                                <hr />
-                            }
+                            <pre @key="@i">@cleaned</pre>
+                            <hr />
                         }
                         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" />
                     }
@@ -36,20 +32,24 @@
                     {
                         <p>No output yet.</p>
                     }
-                    <RadzenRow>
-                        <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
-                            <div>
-                                <label>Send Custom Command:</label><br />
+                    <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
+                        <RadzenRow AlignItems="AlignItems.Start">
+                            <RadzenColumn Size="2">
+                                <label>Send Command:</label>
+                            </RadzenColumn>                            
+                            <RadzenColumn Size="5">
                                 <InputText @bind-Value="customCmd"
-                                   id="customRPMSInpt"
-                                   disabled="@Layout.ReceivingFromRPMS"
-                                   placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : "Enter custom command...")" />
-                            </div>
-                            <div class="mt-3">
+                                            id="customRPMSInpt"
+                                            disabled="@Layout.ReceivingFromRPMS"
+                                            placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : Layout.RPMS.CurrentPrompt)" 
+                                            class="rz-w-100"
+                                            />
+                            </RadzenColumn>
+                            <RadzenColumn Size="1">
                                 <button class="btn btn-primary" type="submit" disabled="@Layout.ReceivingFromRPMS">Submit</button>
-                            </div>
-                        </EditForm>
-                    </RadzenRow>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    </EditForm>
                 </ChildContent>
             </RadzenPanel>
         }
@@ -132,7 +132,6 @@
         if (firstRender && Layout.RPMS.SignedIn && OnLoginSuccess.HasDelegate)
         {
             await OnLoginSuccess.InvokeAsync();
-            await Layout.ScrollToRPMS();
         }
     }
 

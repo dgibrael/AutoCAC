@@ -37,6 +37,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
 builder.Services.AddScoped<RPMSService>();
+builder.Services.AddScoped<FtpUploadService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

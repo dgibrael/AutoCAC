@@ -36,6 +36,14 @@
     console.warn("scrollToBottom: container not found");
     }
     }
+    function scrollToTop() {
+    const container = document.getElementById("mainContent");
+    if (container) {
+    container.scrollTop = 0;
+    } else {
+    console.warn("scrollToTop: container not found");
+    }
+    }
 </script>
 
 
@@ -89,7 +97,7 @@
     }
 </RadzenLayout>
 @code {
-    bool sidebarExpanded = true;
+    bool sidebarExpanded = true;    
 
     void SidebarToggleClick()
     {
@@ -121,7 +129,7 @@
         }
     }
 
-    public void HandleError(Exception ex)
+    public void HandleError(Exception ex, bool reThrow = false)
     {
         if (ex == null) return;
 
@@ -133,6 +141,20 @@
             Duration = 4000
         });
         StateHasChanged();
+        if (reThrow)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<bool?> YesNoDialog(string message = "Are you sure?", string title = "Confirm")
+    {
+        return await DialogService.Confirm(message, title, new ConfirmOptions
+            {
+                OkButtonText = "Yes",
+                CancelButtonText = "No"
+            }
+        );
     }
 
     public bool ReceivingFromRPMS { get; private set; } = false;
@@ -146,11 +168,19 @@
         }
     }
 
-    public async Task Send(string command = "")
+    public async Task Send(params string[] commands)
     {
-        RPMS.CheckSessionActive(true);
-        RPMS.SendRaw(command);
-        await ReadFromRPMS();
+        // Treat null as a single empty string command
+        if (commands == null || commands.Length == 0)
+            commands = new[] { "" };
+
+        RPMS.CheckSessionActive(); // only once
+
+        foreach (var command in commands)
+        {
+            RPMS.SendRaw(command ?? ""); // in case any individual item is null
+            await ReadFromRPMS();
+        }
     }
 
 
@@ -212,12 +242,12 @@
 
     public async Task ReadFromRPMS(int maxWaitMs = 5000, int earlyExitMs = 2000)
     {
-        await SetReceivingFromRPMS(true);
         try
         {
+            RPMS.Stream.Write(RPMS.EndOfFeedStr);
+            await SetReceivingFromRPMS(true);
             int maxReadLoops = maxWaitMs / 10;
             int earlyExitCheck = earlyExitMs / 10;
-            RPMS.Stream.Write(RPMS.EndOfFeedStr);
             var sb = new StringBuilder();
             int loopCounter = 0;
             string data = "";
@@ -281,13 +311,17 @@
     }
 
 
-    public async Task ScrollTo(string elementId = null)
+    public async Task ScrollTo(string elementId = "bottom")
     {
         await InvokeAsync(StateHasChanged); // request a UI render
         await Task.Yield();
-        if (string.IsNullOrEmpty(elementId))
+        if (elementId == "bottom")
         {
             await JS.InvokeVoidAsync("scrollToBottom");
+        }
+        else if (elementId == "top")
+        {
+            await JS.InvokeVoidAsync("scrollToTop");
         }
         else
         {
@@ -346,6 +380,106 @@
         }
     }
 
+    public string CheckPrompt(StringComparison comparison, params string[] expectedPrompts)
+    {
+        string prompt = RPMS.CurrentPrompt;
 
+        foreach (var expected in expectedPrompts)
+        {
+            if (prompt.Contains(expected, comparison))
+            {
+                return expected;
+            }
+        }
+        return null;
+    }
+    public string CheckPrompt(params string[] expectedPrompts) => CheckPrompt(StringComparison.Ordinal, expectedPrompts);
 
+    public void CheckPromptAndThrow(string expectedPrompt, StringComparison comparison = StringComparison.Ordinal)
+    {
+        string prompt = RPMS.CurrentPrompt;
+        if (!prompt.Contains(expectedPrompt, comparison))
+        {
+            throw new RPMSException();
+        }
+    }
+
+    public async Task HandlePrompt(
+        List<(string Prompt, Func<Task> Action)> promptActions,
+        Func<Task> onNoMatch = null,
+        StringComparison comparison = StringComparison.Ordinal)
+    {
+        string prompt = RPMS.CurrentPrompt;
+        foreach (var (expectedPrompt, action) in promptActions)
+        {
+            if (prompt.Contains(expectedPrompt, comparison))
+            {
+                await action();
+                return;
+            }
+        }
+
+        if (onNoMatch is not null)
+        {
+            await onNoMatch();
+        }
+        else
+        {
+            HandleError(new Exception("Unknown prompt"));
+        }
+    }
+
+    public async Task<string> EnterUntil(int maxTries, StringComparison comparison, params string[] prompts)
+    {
+        for (int i = 0; i < maxTries; i++)
+        {
+            var curPrompt = CheckPrompt(comparison, prompts);
+            if (curPrompt!=null)
+            {
+                return curPrompt;
+            }
+            await Send("");
+        }
+        throw new RPMSException();
+    }
+    public async Task EnterUntil(params string[] prompts) => await EnterUntil(30, StringComparison.Ordinal, prompts);
+
+    /// <summary>
+    /// Repeatedly handles the RPMS prompt and runs the corresponding handler action.
+    /// Each handler returns a boolean: true = exit early, false = continue.
+    /// </summary>
+    /// <param name="maxLoops">Maximum number of prompt iterations.</param>
+    /// <param name="handlers">Dictionary of prompt string to handler function.</param>
+    /// <returns>Task representing the async operation.</returns>
+    /// <example>
+    /// await Layout.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
+    /// {
+    ///     ["Yes or No"] = async () => { await Layout.Send("YES"); return true; },
+    ///     ["Is this a match "] = async () => { await Layout.Send("YES"); return true; },
+    ///     ["Press Return"] = async () => { await Layout.Send(); return false; },
+    ///     ["Enter RETURN to continue"] = async () => { await Layout.Send(); return false; },
+    ///     [" edit "] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; },
+    ///     ["osages"] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; }
+    /// }, 20);
+    /// </example>
+    public async Task PromptLoopAsync(Dictionary<string, Func<Task<bool>>> handlers, int maxLoops = 30)
+    {
+        for (int i = 0; i < maxLoops; i++)
+        {
+            var prompt = CheckPrompt(handlers.Keys.ToArray());
+
+            if (!handlers.TryGetValue(prompt, out var handler))
+                throw new RPMSException();
+
+            bool shouldExit = await handler();
+            if (shouldExit)
+                return; // exits outer method
+        }
+        throw new RPMSException();
+    }
+    public async Task<bool> PromptHandleSend(bool exitLoop, params string[] commands)
+    {
+        await Send(commands);
+        return exitLoop;
+    }
 }

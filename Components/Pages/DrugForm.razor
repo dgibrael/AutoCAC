@@ -1,0 +1,270 @@
+﻿@attribute [Authorize]
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@using AutoCAC.Models
+
+    <RadzenColumn SizeMD=12>
+        <RadzenAlert Shade="Shade.Lighter" Variant="Variant.Flat" Size="AlertSize.Small" AlertStyle="AlertStyle.Danger" Visible="@errorVisible">Cannot save Drug</RadzenAlert>
+        <RadzenTemplateForm TItem="AutoCAC.Models.Drug" Data="@(drug)" Visible="@(drug != null)" Submit="@FormSubmit">
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Name" Component="Name" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Name)" Name="Name" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Message" Component="Message" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Message)" Name="Message" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Dea" Component="Dea" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DeaSpcl)" Name="DeaSpcl" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Order Unit" Component="OrderUnit" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                        <RadzenDropDown @bind-Value="@(drug.OrderUnit)"
+                        Data="@OrderUnitOptions"
+                        TextProperty="Value"
+                        ValueProperty="Key"
+                        Style="width: 100%"
+                        Name="OrderUnit" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Price Per Order Unit" Component="PricePerOrderUnit" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.PricePerOrderUnit)" Name="PricePerOrderUnit" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Dispense Unit" Component="DispenseUnit" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnit)" Name="DispenseUnit" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Dispense Units Per Order Unit" Component="DispenseUnitsPerOrderUnit" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnitsPerOrderUnit)" Name="DispenseUnitsPerOrderUnit" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Ncpdp Dispense Unit" Component="NcpdpDispenseUnit" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                        <RadzenDropDown @bind-Value="@(drug.NcpdpDispenseUnit)"
+                        Data="@UnitOptions"
+                        TextProperty="Value"
+                        ValueProperty="Key"
+                        Style="display: block; width: 100%"
+                        Name="NcpdpDispenseUnit" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Application Packages" Component="ApplicationPackage" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.ApplicationPackage)" Name="ApplicationPackage" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn SizeMD="3">
+                    <RadzenLabel Text="Nf" Component="Nf" style="width: 100%" />
+                </RadzenColumn>
+                <RadzenColumn SizeMD="9">
+                    <RadzenToggleButton @bind-Value="isNf"
+                                        Name="NfToggle"
+                                        style="display: block; width: 100%"
+                                        ToggleIcon="check"
+                                        Shade="Radzen.Shade.Default" ToggleShade="Radzen.Shade.Lighter"
+                                        />
+                </RadzenColumn>
+
+            </RadzenRow>
+          <RadzenStack  Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" Icon="save" Text="Save" Variant="Variant.Flat" />
+                    <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Cancel" Variant="Variant.Flat" Click="@CancelButtonClick"  />
+          </RadzenStack>
+        </RadzenTemplateForm>
+    </RadzenColumn>
+
+@code {
+    [Parameter] public Ndf SelectedNdf { get; set; }
+    [Parameter] public Drug drug { get; set; }
+    [Parameter] public bool? nullOnCancel { get; set; }
+    protected bool errorVisible;
+    private bool isNf
+    {
+        get => drug?.Nf == "N/F";
+        set => drug.Nf = value ? "N/F" : null;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if(nullOnCancel==null)
+        {
+            nullOnCancel = drug == null ? true : false;
+        }
+        drug ??= new Drug
+        {
+            Id = 0,
+            Name = SelectedNdf?.PrintName,
+            Ndc = SelectedNdf?.Ndc,
+            ApplicationPackage = "O,U,X",
+            DispenseUnit = SelectedNdf?.DispenseUnit,
+            OrderUnit = GetDefaultOrderUnit(SelectedNdf?.PackageType),
+            DispenseUnitsPerOrderUnit = SelectedNdf?.PackageSize,
+            NcpdpDispenseUnit = GetDefaultNcpdpDispenseUnit(SelectedNdf?.DispenseUnit),
+            DeaSpcl = MapDea(SelectedNdf?.Dea)
+        };
+    }
+
+    protected async Task FormSubmit()
+    {
+        DialogService.Close(drug);
+    }
+
+    protected async Task CancelButtonClick(MouseEventArgs args)
+    {
+        DialogService.Close(nullOnCancel==true ? null : drug);
+    }
+
+    private static readonly Dictionary<string, string> UnitOptions = new()
+        {
+            ["12"] = "Packet",
+            ["00"] = "Not Specified",
+            ["AL"] = "Applicator",
+            ["AR"] = "Suppository",
+            ["AV"] = "Capsule",
+            ["BL"] = "Blister",
+            ["CP"] = "Caplet",
+            ["EA"] = "Each",
+            ["FG"] = "Patch",
+            ["FM"] = "Film",
+            ["GR"] = "Gram",
+            ["IP"] = "Implant",
+            ["KT"] = "Kit",
+            ["ML"] = "Milliliter",
+            ["PD"] = "Pad",
+            ["RG"] = "Ring",
+            ["SG"] = "Sponge",
+            ["SI"] = "Stick",
+            ["SR"] = "Strip",
+            ["SW"] = "Swab",
+            ["TE"] = "Troche",
+            ["U2"] = "Tablet",
+            ["UU"] = "Lozenge",
+            ["WA"] = "Wafer",
+            ["Y7"] = "Gum",
+            ["Z01"] = "Insert",
+            ["Z02"] = "Lancet",
+            ["Z03"] = "Pen Needles"
+        };
+
+    private string GetDefaultNcpdpDispenseUnit(string input)
+    {
+        return input?.ToUpperInvariant() switch
+        {
+            "PKT" => "12",
+            "CAP" => "AV",
+            "PATCH" => "FG",
+            "GM" => "GR",
+            "KIT" => "KT",
+            "ML" => "ML",
+            "STRIP" => "SR",
+            "TAB" => "U2",
+            "LOZ" => "UU",
+            _ => "EA" // fallback
+        };
+    }
+
+    private string MapDea(string input) => input switch
+    {
+        "Schedule I" => "1",
+        "Schedule II" => "2",
+        "Schedule II Non-Narcotics" => "2",
+        "Schedule III" => "3",
+        "Schedule III Non-Narcotics" => "3",
+        "Schedule IV" => "4",
+        "Schedule V" => "5",
+        _ => "6"
+    };
+
+    private static readonly Dictionary<string, string> OrderUnitOptions = new()
+    {
+        ["AM"] = "AMPUL",
+        ["BG"] = "BAG",
+        ["BR"] = "BAR",
+        ["BT"] = "BOTTLE",
+        ["BX"] = "BOX",
+        ["CC"] = "CUBIC CENTIMETER",
+        ["CK"] = "CAKE",
+        ["CN"] = "CAN",
+        ["CO"] = "CONTAINER",
+        ["CS"] = "CASE",
+        ["CT"] = "CARTON",
+        ["DI"] = "DISPENSER",
+        ["DR"] = "DRUM",
+        ["EA"] = "EACH",
+        ["GAL"] = "GALLON",
+        ["GL"] = "GLASS",
+        ["GM"] = "GRAM",
+        ["GR"] = "GRAIN",
+        ["JR"] = "JAR",
+        ["KG"] = "KILOGRAM",
+        ["LB"] = "POUND",
+        ["MG"] = "MILLIGRAM",
+        ["ML"] = "MILLILITER",
+        ["OZ"] = "OUNCE",
+        ["PG"] = "PACKAGE",
+        ["PK"] = "PACKET",
+        ["PT"] = "PINT",
+        ["QT"] = "QUART",
+        ["RL"] = "ROLL",
+        ["SE"] = "SET",
+        ["TR"] = "TRAY",
+        ["TU"] = "TUBE",
+        ["VI"] = "VIAL"
+    };
+
+    private string GetDefaultOrderUnit(string packageType)
+    {
+        if (!string.IsNullOrWhiteSpace(packageType))
+        {
+            foreach (var kvp in OrderUnitOptions)
+            {
+                if (packageType.Contains(kvp.Value, StringComparison.OrdinalIgnoreCase))
+                    return kvp.Key;
+            }
+        }
+
+        return "BX"; // default to BOX
+    }
+
+}
+

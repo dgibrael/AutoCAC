@@ -8,7 +8,7 @@ public class MessageService
     private readonly ConcurrentDictionary<string, List<Func<string, string, Task>>> _subscriptions = new();
 
     // 👇 Event to notify listeners
-    public event Action? OnUsersChanged;
+    public event Action OnUsersChanged;
 
     public void Subscribe(string username, Func<string, string, Task> subscriber)
     {
