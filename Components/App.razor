@@ -8,6 +8,7 @@
     <base href="@NavigationManager.BaseUri" />
     <RadzenTheme @rendermode="@InteractiveServer" Theme="material" />
     <link rel="stylesheet" href="css/site.css" />
+    <link rel="stylesheet" href="css/xterm.min.css" />
     <link rel="icon" href="favicon.ico" />
     <HeadOutlet @rendermode="@InteractiveServer" />
 </head>
@@ -16,6 +17,31 @@
     <Routes @rendermode="@InteractiveServer" />
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
+    <script src="js/xterm.min.js"></script>
+    <script>
+        let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
+        
+        window.writeRPMSXterm = function (text) {
+        const divId = "rpmsOutputTxtDiv";
+        const container = document.getElementById(divId);
+        if (!container) {
+        console.warn("Target div not found:", divId);
+        return;
+        }
+        if (!rpmsTerm._core || !rpmsTerm._core._renderService?.dimensions) {
+            rpmsTerm.open(container);
+        }
+        rpmsTerm.write(text);
+        };
+
+        window.clearRPMSXterm = function () {
+            if (rpmsTerm) {
+                rpmsTerm.clear();
+            } else {
+                console.warn("Terminal not initialized.");
+            }
+        };
+    </script>
 </body>
 
 </html>

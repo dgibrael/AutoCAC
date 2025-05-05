@@ -1,0 +1,147 @@
+﻿@page "/benchmarkprice"
+@inject FtpUploadService FtpService
+@using AutoCAC.Components.Templates
+
+<h4>Step 1: Download Cost Change Report from McKesson</h4>
+<ul>
+    <li>Login to McKesson and go to https://prod-z1-fconnect.mckesson.com/mckessonstorefront/report/cost-change
+        (If the link no longer works go to https://connect.mckesson.com/ > Ordering/inventory > Reports > Cost Change Report)
+    </li>
+    <li>Fill the form as follows:
+        <ul>
+            <li>Accounts: Select all of the items</li>
+            <li>Item Inclusion: Changes only</li>
+            <li>Include Previous Price: Leave unchecked</li>
+            <li>Compare Dates: Change to a little before the last time this was updated (i.e. 2 months) to today</li>
+            <li>Price Change: leave as Purchase Price</li>
+            <li>Filters: Uncheck history</li>
+            <li>Format: Extract, without Header, uncheck tab delimited</li>
+            <li>Sort: NDC</li>
+        </ul>
+    </li>
+    <li>Click Generate Report and save (the name doesn't matter). It may take a few minutes to download</li>
+</ul>
+
+@if (!connected)
+{
+    <h4>Step 2: Login to your AIX FTP account (the one used for SecureFX)</h4>
+    <EditForm OnValidSubmit="HandleLogin" EditContext="_editContext">
+        <div>
+            <label>Username:</label><br />
+            <InputText @bind-Value="UsernameInput" required />
+        </div>
+        <div class="mt-2">
+            <label>Password:</label><br />
+            <InputText @bind-Value="PasswordInput" type="password" required />
+        </div>
+        <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Login</button>
+        </div>
+    </EditForm>
+    <h4><i>Step 3: Upload Cost Change Report (waiting on login)</i></h4>
+}
+else
+{
+    <h4><i>Step 2: Completed (logged into AIX FTP Account)</i></h4>
+    <h4>Step 3: Upload Cost Change Report (the one you just downloaded)</h4>
+    <InputFile OnChange="HandleFileUpload"/>
+}
+
+
+@if(fileUploaded)
+{
+    <h4>Step 4: Login to RPMS (if not already)</h4>
+    <RPMSOutput OnLoginSuccess="AfterLogin" />
+}
+else
+{
+    <h4><i>Step 4: Login to RPMS (if not already)</i> If you have already uploaded the Cost Change file from McKesson earlier, you can skip steps 2-3 by clicking below.</h4>
+    <RadzenButton Text="File not uploaded, continue anyway"
+    Variant="Variant.Outlined"
+    Click="@ContinueWithoutUpload" />
+}
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    private EditContext _editContext = new(new object());
+    public string UsernameInput { get; set; }
+    private char[] passwordChars;
+
+    public string PasswordInput
+    {
+        get => passwordChars?.Length > 0 ? "********" : null;
+        set
+        {
+            if (!string.IsNullOrEmpty(value))
+            {
+                passwordChars = value.ToCharArray();
+            }
+        }
+    }
+
+    private bool connected = false;
+    private string aixDirectory = "/usr2/cchc/pub/import/";
+    private string fileName = "smoextr.csv";
+    private bool fileUploaded = false;
+    private async Task HandleLogin()
+    {
+        try
+        {
+            await FtpService.ConnectAsync(UsernameInput, passwordChars);
+            Array.Clear(passwordChars, 0, passwordChars.Length);
+            passwordChars = null;
+            connected = true;
+        }
+        catch (Exception ex)
+        {
+            Layout.HandleError(ex);
+        }
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        try
+        {
+            await Layout.SetLoading(true);
+            await using var stream = file.OpenReadStream(50 * 1024 * 1024);
+            await FtpService.UploadFileAsync(stream, aixDirectory+fileName);
+            fileUploaded = true;
+        }
+        catch (Exception ex)
+        {
+            Layout.HandleError(ex);
+        }
+        finally
+        {
+            await Layout.SetLoading(false);
+        }
+    }
+
+    private void ContinueWithoutUpload()
+    {
+        fileUploaded = true;
+        StateHasChanged();
+    }
+
+
+    private async Task AfterLogin()
+    {
+        await Layout.GoToMenu("AAC");
+        Layout.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
+        await Layout.Send("YES");
+        await Layout.HandlePrompt(new()
+        {
+            ("Replace", async () => { await Layout.Send("...", aixDirectory, ""); }),
+            ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(aixDirectory); })
+        });
+        await Layout.HandlePrompt(new()
+        {
+            ("Replace", async () => { await Layout.Send("...", fileName, ""); }),
+            ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(fileName); })
+        });
+        await Layout.Send();
+    }
+}
+
+

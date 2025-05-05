@@ -21,7 +21,6 @@
     if (container && target) {
     container.scrollTop = target.offsetTop + target.offsetHeight - container.clientHeight;
     target.focus();
-    console.log("scrolling to element...");
     } 
     else {
     console.warn("scrollTo: element or container not found");
@@ -44,6 +43,18 @@
     console.warn("scrollToTop: container not found");
     }
     }
+
+    function downloadTextFile(text, filename, mimeType) {
+    const blob = new Blob([text], { type: mimeType });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link); // For Firefox compatibility
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    }
+
 </script>
 
 
@@ -78,6 +89,7 @@
         <RadzenPanelMenu>
             <RadzenPanelMenuItem Text="Home" Path="" />
             <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit" />
+            <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
             <RadzenText Text="AutoCAC v1.0.0" TextStyle="Radzen.Blazor.TextStyle.Caption" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
@@ -238,19 +250,37 @@
         }
     }
 
+    private int maxReadLoops = 12000;
 
+    public void SetMaxReadTime(int timeInMs)
+    {
+        maxReadLoops = timeInMs / 10;
+    }
 
-    public async Task ReadFromRPMS(int maxWaitMs = 5000, int earlyExitMs = 2000)
+    public async Task ReadFromRPMS()
     {
         try
         {
             RPMS.Stream.Write(RPMS.EndOfFeedStr);
             await SetReceivingFromRPMS(true);
-            int maxReadLoops = maxWaitMs / 10;
-            int earlyExitCheck = earlyExitMs / 10;
+
             var sb = new StringBuilder();
             int loopCounter = 0;
+            int resendCounter = 1; // 1 initial write already sent
             string data = "";
+            void TryResendEndOfFeed()
+            {
+                try
+                {
+                    RPMS.Stream.Write(RPMS.EndOfFeedStr);
+                }
+                catch (ObjectDisposedException)
+                {
+                    RPMS.SignedIn = false;
+                    throw new RPMSException("Lost session connection. Login and try again");
+                }
+                resendCounter++;
+            }
 
             while (RPMS.Stream.CanRead)
             {
@@ -261,12 +291,16 @@
 
                     if (data.Contains(RPMS.EndOfFeedStr))
                     {
-                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length));
+                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length * resendCounter)); // Clean up
                         RPMS.LastReceivedRaw = sb.ToString();
                         return;
                     }
+                    else if(data.Contains("\x1B[?7l"))
+                    {
+                        TryResendEndOfFeed();
+                    }
 
-                    loopCounter = 0; // reset
+                    loopCounter = 0; // reset timeout counter
                 }
                 else
                 {
@@ -277,25 +311,28 @@
                         await ScrollToRPMS();
                     }
 
-                    // Early exit detection
-                    if (loopCounter == earlyExitCheck && !string.IsNullOrEmpty(data))
+                    if (maxReadLoops > 10 && loopCounter % (maxReadLoops / 10) == 0)
                     {
                         if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
                         {
                             RPMS.SignedIn = false;
-                            throw new Exception("Detected logout or prompt for re-authentication.");
+                            throw new RPMSException("Detected logged out message. Login and try again");
                         }
                         else if (data.Contains("Please enter your CURRENT verify code"))
                         {
                             RPMS.SignedIn = false;
-                            throw new Exception("Reset verify code in RPMS then try again.");
+                            throw new RPMSException("Reset verify code in RPMS then try again.");
+                        }
+                        if (loopCounter % (maxReadLoops / 5) == 0)
+                        {
+                            TryResendEndOfFeed();
                         }
                     }
 
                     if (loopCounter >= maxReadLoops)
                     {
                         RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length));
-                        throw new TimeoutException("Timed out waiting for RPMS output.");
+                        throw new TimeoutException($"Timed out waiting for RPMS output after {resendCounter} end-of-feed attempt(s).");
                     }
 
                     await Task.Delay(10);
@@ -329,11 +366,20 @@
         }
     }
 
+    public async Task DownloadText(string content, string fileName = "data.txt", string mimeType = "text/plain")
+    {
+        await JS.InvokeVoidAsync("downloadTextFile", content, fileName, mimeType);
+    }
+
     public async Task ScrollToRPMS()
     {
         if (RPMS.SignedIn)
         {
             await ScrollTo("customRPMSInpt");
+        }
+        else
+        {
+            await ScrollTo();
         }
     }
 
@@ -425,7 +471,7 @@
         }
         else
         {
-            HandleError(new Exception("Unknown prompt"));
+            HandleError(new RPMSException());
         }
     }
 

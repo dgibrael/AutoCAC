@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
+using Microsoft.JSInterop;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 using System.Text;
@@ -7,6 +8,12 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 public class RPMSService : IDisposable
 {
+    private readonly IJSRuntime _js;
+    public RPMSService(IJSRuntime js)
+    {
+        _js = js;
+    }
+
     private SshClient _client;
     private ShellStream _stream;
     public ShellStream Stream => _stream;
@@ -54,7 +61,7 @@ public class RPMSService : IDisposable
         _client.Connect();
 
         var terminalModes = new Dictionary<TerminalModes, uint>();
-        _stream = _client.CreateShellStream("vt100", 80, 24, 0, 0, 4096, terminalModes);
+        _stream = _client.CreateShellStream("xterm", 80, 24, 0, 0, 4096, terminalModes);
 
         WaitFor("ACCESS CODE");
     }
@@ -64,6 +71,7 @@ public class RPMSService : IDisposable
     private int _maxCharCount = 100000;
     public void AddToHistory(string message)
     {
+        _ = _js.InvokeVoidAsync("writeRPMSXterm", message);
         ReceivedHistory.Add(message);
 
         int totalChars = ReceivedHistory.Sum(m => m.Length);
@@ -77,6 +85,7 @@ public class RPMSService : IDisposable
 
     public void ClearHistory()
     {
+        _ = _js.InvokeVoidAsync("clearRPMSXterm");
         ReceivedHistory.Clear();
     }
 

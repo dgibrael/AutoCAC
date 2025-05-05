@@ -1,8 +1,11 @@
 ﻿using Renci.SshNet;
+using Renci.SshNet.Async;
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
-public class FtpUploadService : IDisposable
+public class FtpUploadService : IAsyncDisposable
 {
     private SftpClient _sftpClient;
 
@@ -11,21 +14,24 @@ public class FtpUploadService : IDisposable
 
     public bool IsConnected => _sftpClient?.IsConnected == true;
 
-    public void Connect(string username, string password)
+    public async Task ConnectAsync(string username, char[] password)
     {
-        _sftpClient = new SftpClient(Host, Port, username, password);
-        _sftpClient.Connect();
+        string passwordString = new string(password);
+        Array.Clear(password, 0, password.Length);
+
+        _sftpClient = new SftpClient(Host, Port, username, passwordString);
+        _sftpClient.Connect(); // still sync; no async Connect in SSH.NET yet
     }
 
-    public void UploadFile(Stream fileStream, string remoteFilePath)
+    public async Task UploadFileAsync(Stream fileStream, string remoteFilePath, CancellationToken cancellationToken = default)
     {
-        if (!_sftpClient?.IsConnected ?? true)
+        if (_sftpClient == null || !_sftpClient.IsConnected)
             throw new InvalidOperationException("SFTP client is not connected.");
 
-        _sftpClient.UploadFile(fileStream, remoteFilePath, true);
+        await _sftpClient.UploadFileAsync(fileStream, remoteFilePath, FileMode.Create, cancellationToken);
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
         if (_sftpClient != null)
         {
@@ -35,6 +41,20 @@ public class FtpUploadService : IDisposable
             _sftpClient.Dispose();
             _sftpClient = null;
         }
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+// ✅ Add extension methods directly below
+public static class SftpClientExtensions
+{
+    private const int BufferSize = 81920;
+
+    public static async Task UploadFileAsync(this SftpClient sftpClient, Stream input, string path, FileMode createMode, CancellationToken cancellationToken = default)
+    {
+        await using Stream remoteStream = await sftpClient.OpenAsync(path, createMode, FileAccess.Write, cancellationToken).ConfigureAwait(false);
+        await input.CopyToAsync(remoteStream, BufferSize, cancellationToken).ConfigureAwait(false);
     }
 }
 

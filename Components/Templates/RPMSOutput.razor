@@ -1,58 +1,32 @@
 ﻿@implements IDisposable
+@inject IJSRuntime JS
 
 <div id="RPMSOutputDiv">
+    <div id="rpmsOutputTxtDiv"></div>
+    <RadzenRow class="rz-mb-2">
+        <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
+        <RadzenButton Text="Download History" Click="DownloadRPMSReceived" Disabled="@(Layout?.RPMS?.ReceivedHistory?.Any() != true)" />
+    </RadzenRow>
     @if (Layout.RPMS.SignedIn)
     {
-        @if (ChildContent != null)
-        {
-            @ChildContent
-        }
-        else
-        {
-                <RadzenPanel AllowCollapse="true" Collapsed="@CollapsedInitial" Expand="ScrollToInput">
-                <HeaderTemplate>
-                    <span>Output from RPMS</span>
-                </HeaderTemplate>
-                <ChildContent>
-                    @if (Layout?.RPMS?.ReceivedHistory?.Any() == true)
-                    {
-                        @for (int i = 0; i < Layout.RPMS.ReceivedHistory.Count; i++)
-                        {
-                            var entry = Layout.RPMS.ReceivedHistory[i];
-                            var cleaned = new string(
-                                entry?.Where(c => !char.IsControl(c) || c == '\n' || c == '\r' || c == '\t')
-                                      .ToArray() ?? Array.Empty<char>());
-                            <pre @key="@i">@cleaned</pre>
-                            <hr />
-                        }
-                        <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" />
-                    }
-
-                    else
-                    {
-                        <p>No output yet.</p>
-                    }
-                    <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
-                        <RadzenRow AlignItems="AlignItems.Start">
-                            <RadzenColumn Size="2">
-                                <label>Send Command:</label>
-                            </RadzenColumn>                            
-                            <RadzenColumn Size="5">
-                                <InputText @bind-Value="customCmd"
-                                            id="customRPMSInpt"
-                                            disabled="@Layout.ReceivingFromRPMS"
-                                            placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : Layout.RPMS.CurrentPrompt)" 
-                                            class="rz-w-100"
-                                            />
-                            </RadzenColumn>
-                            <RadzenColumn Size="1">
-                                <button class="btn btn-primary" type="submit" disabled="@Layout.ReceivingFromRPMS">Submit</button>
-                            </RadzenColumn>
-                        </RadzenRow>
-                    </EditForm>
-                </ChildContent>
-            </RadzenPanel>
-        }
+        <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
+            <RadzenRow AlignItems="AlignItems.Start">
+                <RadzenColumn Size="2">
+                    <label>Send Command:</label>
+                </RadzenColumn>                            
+                <RadzenColumn Size="5">
+                    <InputText @bind-Value="customCmd"
+                                id="customRPMSInpt"
+                                disabled="@Layout.ReceivingFromRPMS"
+                                placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : Layout.RPMS.CurrentPrompt)" 
+                                class="rz-w-100"
+                                />
+                </RadzenColumn>
+                <RadzenColumn Size="1">
+                    <button class="btn btn-primary" type="submit" disabled="@Layout.ReceivingFromRPMS">Submit</button>
+                </RadzenColumn>
+            </RadzenRow>
+        </EditForm>
     }
     else
     {
@@ -152,6 +126,20 @@
         Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
         verifyCodeChars = null;
     }
+
+    public async Task DownloadRPMSReceived()
+    {
+        var receivedStr = string.Join('\n', Layout.RPMS.ReceivedHistory);
+        await Layout.DownloadText(receivedStr, "rpms_output.txt");
+    }
+
+    private Task WriteRPMSXterm(string divId, string text)
+    {
+        // Fire and forget – that's intentional here
+        _ = JS.InvokeVoidAsync("writeRPMSXterm", divId, text);
+        return Task.CompletedTask;
+    }
+
 
     public void Dispose()
     {
