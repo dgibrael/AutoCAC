@@ -13,51 +13,6 @@
 
 <RadzenComponents />
 <RadzenDialog />
-<script>
-    function scrollToElement(elementId) {
-    const container = document.getElementById("mainContent");
-    const target = document.getElementById(elementId);
-
-    if (container && target) {
-    container.scrollTop = target.offsetTop + target.offsetHeight - container.clientHeight;
-    target.focus();
-    } 
-    else {
-    console.warn("scrollTo: element or container not found");
-    }
-    }
-
-    function scrollToBottom() {
-    const container = document.getElementById("mainContent");
-    if (container) {
-    container.scrollTop = container.scrollHeight;
-    } else {
-    console.warn("scrollToBottom: container not found");
-    }
-    }
-    function scrollToTop() {
-    const container = document.getElementById("mainContent");
-    if (container) {
-    container.scrollTop = 0;
-    } else {
-    console.warn("scrollToTop: container not found");
-    }
-    }
-
-    function downloadTextFile(text, filename, mimeType) {
-    const blob = new Blob([text], { type: mimeType });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link); // For Firefox compatibility
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-    }
-
-</script>
-
-
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
     <RadzenHeader>
@@ -138,6 +93,7 @@
         {
             var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
             username = authState?.User?.Identity?.Name ?? "";
+            TerminalInterop.RPMS = RPMS;
         }
     }
 
@@ -185,13 +141,9 @@
         // Treat null as a single empty string command
         if (commands == null || commands.Length == 0)
             commands = new[] { "" };
-
-        RPMS.CheckSessionActive(); // only once
-
         foreach (var command in commands)
         {
-            RPMS.SendRaw(command ?? ""); // in case any individual item is null
-            await ReadFromRPMS();
+            RPMS.SendRaw(command); // in case any individual item is null
         }
     }
 
@@ -276,7 +228,6 @@
                 }
                 catch (ObjectDisposedException)
                 {
-                    RPMS.SignedIn = false;
                     throw new RPMSException("Lost session connection. Login and try again");
                 }
                 resendCounter++;
@@ -297,8 +248,13 @@
                     }
                     else if(data.Contains("\x1B[?7l"))
                     {
+                        if (data.Contains("T=======T=======T=======T=======T=======T"))
+                        {
+                            RPMS.LastReceivedRaw = sb.ToString();
+                            return;
+                        }
                         TryResendEndOfFeed();
-                    }
+                    }                    
 
                     loopCounter = 0; // reset timeout counter
                 }
@@ -315,13 +271,22 @@
                     {
                         if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
                         {
-                            RPMS.SignedIn = false;
                             throw new RPMSException("Detected logged out message. Login and try again");
                         }
                         else if (data.Contains("Please enter your CURRENT verify code"))
                         {
-                            RPMS.SignedIn = false;
                             throw new RPMSException("Reset verify code in RPMS then try again.");
+                        }
+                        else if (data.Contains("Enter your Current Signature Code:"))
+                        {
+                            await Send();
+                            RPMS.LastReceivedRaw = sb.ToString();
+                            return;
+                        }
+                        else if (data.Contains("T=======T=======T=======T=======T"))
+                        {
+                            RPMS.LastReceivedRaw = sb.ToString();
+                            return;
                         }
                         if (loopCounter % (maxReadLoops / 5) == 0)
                         {
@@ -373,14 +338,7 @@
 
     public async Task ScrollToRPMS()
     {
-        if (RPMS.SignedIn)
-        {
-            await ScrollTo("customRPMSInpt");
-        }
-        else
-        {
-            await ScrollTo();
-        }
+        await ScrollTo("rpmsOutputTxtDiv");
     }
 
     /// <summary>

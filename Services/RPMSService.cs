@@ -5,6 +5,21 @@ using Renci.SshNet.Common;
 using System.Text;
 using System.Text.RegularExpressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.Linq;
+
+public enum RPMSMode
+{
+    Disconnected,
+    Access,
+    Verify,
+    Secure,
+    DefaultInput,
+    DefaultReceive,
+    ScrollRead,
+    ScrollWrite,
+    Report,
+    LoginSuccess
+}
 
 public class RPMSService : IDisposable
 {
@@ -17,196 +32,140 @@ public class RPMSService : IDisposable
     private SshClient _client;
     private ShellStream _stream;
     public ShellStream Stream => _stream;
-    private bool _signedIn;
-    public bool SignedIn
-    {
-        get => _client?.IsConnected == true && _signedIn;
 
+    private RPMSMode _currentMode = RPMSMode.Disconnected;
+    public RPMSMode CurrentMode
+    {
+        get => _currentMode;
         set
         {
-            if (!value && _signedIn)
+            if (_currentMode != value)
             {
-                _signedIn = false;
-                Close(); // Ensures proper cleanup
-            }
-            else if (value)
-            {
-                // ✅ Optional: if you want to enforce .IsConnected check here too
-                if (_client?.IsConnected != true)
-                    throw new InvalidOperationException("Cannot mark as signed in if SSH client is not connected.");
-
-                _signedIn = true;
+                _currentMode = value;
+                switch (value)
+                {
+                    case (RPMSMode.Disconnected):
+                        StopListening();
+                        break;
+                }
+                Console.WriteLine(value.ToString());
             }
         }
     }
 
-    private string _lastReceivedRaw;
+
+    private string _lastReceivedRaw = string.Empty;
     public string LastReceivedRaw
     {
         get => _lastReceivedRaw;
         set
         {
-            _lastReceivedRaw = value?.TrimEnd().TrimEnd(EndOfFeedStr.ToCharArray()).TrimEnd();
-            AddToHistory(_lastReceivedRaw);
+            // Only save output in non-write modes
+            if (!IsInMode(RPMSMode.ScrollWrite, RPMSMode.DefaultInput))
+            {
+                _lastReceivedRaw = value;
+            }
+
+            // Always render it to the terminal
+            _ = _js.InvokeVoidAsync("writeRPMSXterm", value);
         }
     }
-    public string EndOfFeedStr { get; set; } = ((char)255).ToString();
-    public RPMSService()
-    {
-    }
+
+    public string EndOfFeedStr { get; set; } = " \b"; //((char)255).ToString();
+
+    private CancellationTokenSource _listenCts;
 
     public void OpenConnection()
-    {
-        _client = new SshClient("CHC-RPMS", "m", "");
-        _client.Connect();
-
-        var terminalModes = new Dictionary<TerminalModes, uint>();
-        _stream = _client.CreateShellStream("xterm", 80, 24, 0, 0, 4096, terminalModes);
-
-        WaitFor("ACCESS CODE");
-    }
-
-    public List<string> ReceivedHistory { get; private set; } = new();
-
-    private int _maxCharCount = 100000;
-    public void AddToHistory(string message)
-    {
-        _ = _js.InvokeVoidAsync("writeRPMSXterm", message);
-        ReceivedHistory.Add(message);
-
-        int totalChars = ReceivedHistory.Sum(m => m.Length);
-
-        while (totalChars > _maxCharCount && ReceivedHistory.Count > 0)
-        {
-            totalChars -= ReceivedHistory[0].Length;
-            ReceivedHistory.RemoveAt(0);
-        }
-    }
-
-    public void ClearHistory()
-    {
-        _ = _js.InvokeVoidAsync("clearRPMSXterm");
-        ReceivedHistory.Clear();
-    }
-
-    public void Login(Span<char> accessCode, Span<char> verifyCode)
     {
         if (_client?.IsConnected == true)
         {
             Close();
         }
-        OpenConnection();
-        SendSecure(accessCode);
-        SendSecure(verifyCode);
+        _client = new SshClient("CHC-RPMS", "m", "");
+        _client.Connect();
 
-        for (int i = 0; i < 20; i++)
+        var terminalModes = new Dictionary<TerminalModes, uint>();
+        _stream = _client.CreateShellStream("xterm", 80, 24, 0, 0, 4096, terminalModes);
+        StartListening();
+    }
+
+    public void StartListening()
+    {
+        _listenCts = new CancellationTokenSource();
+        Task.Run(() => ListenLoop(_listenCts.Token));
+    }
+
+    public void StopListening()
+    {
+        _listenCts?.Cancel();
+    }
+
+    public bool IsInMode(params RPMSMode[] modes)
+    {
+        return modes.Contains(CurrentMode);
+    }
+    public bool SignedIn => !IsInMode(RPMSMode.Disconnected, RPMSMode.Access, RPMSMode.Verify);
+
+    private async Task ListenLoop(CancellationToken token)
+    {
+        string data = null;
+
+        while (!token.IsCancellationRequested && _stream?.CanRead == true)
         {
-            int result = WaitForAny(new[] {
-            "ACCESS CODE:",
-            "Please enter your CURRENT verify code",
-            "ption:",
-            "Select DIVISION",
-            "to stop:",
-            "return",
-            "Return",
-            "RETURN",
-            "//"
-            });
-
-            switch (result)
+            if (_stream.DataAvailable)
             {
-                case 0:
-                    throw new Exception("Incorrect access or verify code");
-                case 1:
-                    throw new Exception("Reset verify code in RPMS");
-                case 2:
-                    SignedIn = true;
-                    return;
-                case 3:
-                    SendRaw(" ");
-                    break;
-                default:
-                    SendRaw(""); // Press ENTER
-                    break;
+                data = _stream.Read();
+
+                if (data!=null)
+                {
+                    LastReceivedRaw = data;
+                }
+            }
+            else if (data != null)
+            {
+                HandleData(data);
+                data = null;
+            }
+            else
+            {
+                await Task.Delay(10, token);
             }
         }
-
-        throw new Exception("Unknown Menu Location. Check RPMS screen.");
-    }
-
-    private void SendSecure(Span<char> input)
-    {
-        try
+        if (!_client.IsConnected || !_stream.CanRead)
         {
-            _stream.Write(new string(input) + "\r");
-        }
-        finally
-        {
-            input.Clear();
+            CurrentMode = RPMSMode.Disconnected;
+            StopListening();
         }
     }
 
-    public void SendRaw(string command = "")
+
+    public void WriteToXterm(string message)
     {
-        _stream.Write(command + "\r");
+        _ = _js.InvokeVoidAsync("writeRPMSXterm", message);
+    }
+
+    public void ClearHistory()
+    {
+        _ = _js.InvokeVoidAsync("clearRPMSXterm");
+    }
+
+    public void SendRaw(string command = "", string appendStr="\r")
+    {
+        _stream.Write(command + appendStr);
     }
 
     public List<string> GetReceivedLines()
     {
-        return LastReceivedRaw
-            ?.Split("\r\n")
+        return LastReceivedRaw?
+            .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None)
             .ToList()
             ?? new List<string>();
     }
 
     public string CurrentPrompt => GetReceivedLines().LastOrDefault() ?? string.Empty;
 
-    private void WaitFor(string waitFor)
-    {
-        var sb = new StringBuilder();
-        while (true)
-        {
-            if (_stream.DataAvailable)
-            {
-                var data = _stream.Read();
-                sb.AppendLine(data);
-                if (data.Contains(waitFor))
-                {
-                    LastReceivedRaw = sb.ToString();
-                    break;
-                }
-            }
-        }
-    }
-
-    private int WaitForAny(string[] options)
-    {
-        var sb = new StringBuilder();
-        while (true)
-        {
-            if (_stream.DataAvailable)
-            {
-                var data = _stream.Read();
-                sb.Append(data);
-                for (int i = 0; i < options.Length; i++)
-                {
-                    if (data.Contains(options[i]))
-                    {
-                        LastReceivedRaw = sb.ToString();
-                        return i;
-                    }
-                }
-            }
-        }
-    }
-
     public bool CheckSessionActive(bool throwError = true)
     {
-        if (SignedIn == false)
-        {
-            if (throwError) throw new InvalidOperationException("Logged out of RPMS.");
-            return false;
-        }
 
         if (_stream?.DataAvailable == true)
         {
@@ -215,7 +174,6 @@ public class RPMSService : IDisposable
 
             if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
             {
-                SignedIn = false;
                 if (throwError) throw new InvalidOperationException("Logged out of RPMS.");
                 return false;
             }
@@ -223,13 +181,120 @@ public class RPMSService : IDisposable
         return true;
     }
 
+    private void HandleData(string data)
+    {
+        switch (CurrentMode)
+        {
+            case RPMSMode.Access:
+                if (data.Contains("VERIFY CODE")) CurrentMode = RPMSMode.Verify;
+                break;
+
+            case RPMSMode.Verify:
+                if (data.Contains("verify code", StringComparison.OrdinalIgnoreCase) || 
+                    data.Contains("that I have it right:") || data.Contains("*"))
+                {
+                    
+                }
+                else if (data.Contains("Option:"))
+                {
+                    CurrentMode = RPMSMode.DefaultInput;
+                }
+                else if (data.Contains("ACCESS CODE"))
+                {
+                    CurrentMode = RPMSMode.Access;
+                }
+                else
+                {
+                    CurrentMode = RPMSMode.LoginSuccess;
+                }
+                break;
+            case RPMSMode.LoginSuccess:
+                if (data.Contains("return", StringComparison.OrdinalIgnoreCase) ||
+                    data.Contains("do you wish to resume", StringComparison.OrdinalIgnoreCase) ||
+                    data.Contains("press enter", StringComparison.OrdinalIgnoreCase)
+                    )
+                {
+                    SendRaw();
+                }
+                else if (data.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
+                {
+                    SendRaw(" ");
+                }
+                else if (data.Contains("to stop", StringComparison.OrdinalIgnoreCase) ||
+                         data.Contains("halt?", StringComparison.OrdinalIgnoreCase))
+                {
+                    SendRaw("^");
+                }
+                else if (data.Contains("option:", StringComparison.OrdinalIgnoreCase))
+                {
+                    CurrentMode = RPMSMode.DefaultInput;
+                }
+                else
+                {
+                    SendRaw("^");
+                }
+                break;
+            case RPMSMode.DefaultInput:
+                if (data.Contains("\r"))
+                {
+                    SendRaw(EndOfFeedStr, null);
+                    CurrentMode = RPMSMode.DefaultReceive;
+                }
+                break;
+            case RPMSMode.DefaultReceive:
+                if (data.Contains("\x1B[?7l"))
+                {
+                    if (data.Contains("\x1B[?25h"))
+                        CurrentMode = RPMSMode.ScrollRead;
+                    else if (data.Contains("[ WRAP ]") || data.Contains("[ INSERT ]"))
+                        CurrentMode = RPMSMode.ScrollWrite;
+                }
+                else if (data.TrimEnd().EndsWith("\r\nDEVICE:"))
+                {
+                    CurrentMode = RPMSMode.Report;
+                }
+                else if (data.Contains(EndOfFeedStr))
+                {
+                    CurrentMode = RPMSMode.DefaultInput;
+                }
+                else
+                {
+                    SendRaw(EndOfFeedStr, null);
+                }
+                break;
+            case RPMSMode.ScrollRead:
+                if (data.Contains("\x1B[?7h")) CurrentMode = RPMSMode.DefaultInput;
+                break;
+            case RPMSMode.ScrollWrite:
+                if (data.Contains("\x1B[?7h")) CurrentMode = RPMSMode.DefaultInput;
+                break;
+            case RPMSMode.Disconnected:
+                if (data.Contains("ACCESS CODE"))
+                {
+                    CurrentMode = RPMSMode.Access;
+                }
+                break;
+            case RPMSMode.Report:
+                if (data.Contains("\x07"))
+                {
+                    if (CurrentPrompt.Trim() == "\x07")
+                    {
+                        SendRaw();
+                    }
+                    else
+                    {
+                        CurrentMode = RPMSMode.DefaultInput;
+                    }
+                }
+                break;
+        }
+    }
+
     public void Close()
     {
-        if (_stream != null)
-        {
-            _stream.Dispose();
-            _stream = null;
-        }
+        StopListening();
+        _stream?.Dispose();
+        _stream = null;
 
         if (_client != null)
         {

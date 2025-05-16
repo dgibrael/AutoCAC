@@ -61,10 +61,7 @@ else
             {
                 await NdcChange();
                 await Layout.Send(selectedNdf.Ndc);
-                Layout.RPMS.AddToHistory($"Follow RPMS Prompts. Dispense unit: {selectedDrug.DispenseUnit}");
-                await Task.Yield();
-                await InvokeAsync(StateHasChanged);
-
+                Layout.RPMS.WriteToXterm($"Follow RPMS Prompts. Dispense unit: {selectedDrug.DispenseUnit}: ");
             }
         }
         else
@@ -188,7 +185,7 @@ else
 
     private async Task<bool> YesOnly()
     {
-        await Layout.Send("YES", "^");
+        await Layout.Send("YES");
         return false;
     }
 
