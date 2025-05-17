@@ -143,7 +143,7 @@
             commands = new[] { "" };
         foreach (var command in commands)
         {
-            RPMS.SendRaw(command); // in case any individual item is null
+            await RPMS.SendAsync(command);
         }
     }
 
@@ -155,10 +155,12 @@
             for (int i = 0; i < attempts; i++)
             {
                 var curPrompt = RPMS.CurrentPrompt;
-
                 if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
                 {
-                    if (menu != null) await Send(menu);
+                    if (menu != null)
+                    {
+                        await Send(menu);
+                    }
                     return;
                 }
 
@@ -179,8 +181,16 @@
                 {
                     await Send("^");
                 }
-                else if (curPrompt.Contains("option", StringComparison.OrdinalIgnoreCase))
+                else if (curPrompt.Contains("Option:"))
                 {
+                    if (curPrompt.Contains("AutoCAC App Main Menu"))
+                    {
+                        if (menu != null) 
+                        {
+                            await Send(menu);
+                        }
+                        return;
+                    }
                     await Send("^AutoCAC App Main Menu");
                 }
                 else
@@ -208,110 +218,6 @@
     {
         maxReadLoops = timeInMs / 10;
     }
-
-    public async Task ReadFromRPMS()
-    {
-        try
-        {
-            RPMS.Stream.Write(RPMS.EndOfFeedStr);
-            await SetReceivingFromRPMS(true);
-
-            var sb = new StringBuilder();
-            int loopCounter = 0;
-            int resendCounter = 1; // 1 initial write already sent
-            string data = "";
-            void TryResendEndOfFeed()
-            {
-                try
-                {
-                    RPMS.Stream.Write(RPMS.EndOfFeedStr);
-                }
-                catch (ObjectDisposedException)
-                {
-                    throw new RPMSException("Lost session connection. Login and try again");
-                }
-                resendCounter++;
-            }
-
-            while (RPMS.Stream.CanRead)
-            {
-                if (RPMS.Stream.DataAvailable)
-                {
-                    data = RPMS.Stream.Read();
-                    sb.AppendLine(data);
-
-                    if (data.Contains(RPMS.EndOfFeedStr))
-                    {
-                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length * resendCounter)); // Clean up
-                        RPMS.LastReceivedRaw = sb.ToString();
-                        return;
-                    }
-                    else if(data.Contains("\x1B[?7l"))
-                    {
-                        if (data.Contains("T=======T=======T=======T=======T=======T"))
-                        {
-                            RPMS.LastReceivedRaw = sb.ToString();
-                            return;
-                        }
-                        TryResendEndOfFeed();
-                    }                    
-
-                    loopCounter = 0; // reset timeout counter
-                }
-                else
-                {
-                    if (sb.Length > 0)
-                    {
-                        RPMS.LastReceivedRaw = sb.ToString();
-                        sb.Clear();
-                        await ScrollToRPMS();
-                    }
-
-                    if (maxReadLoops > 10 && loopCounter % (maxReadLoops / 10) == 0)
-                    {
-                        if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
-                        {
-                            throw new RPMSException("Detected logged out message. Login and try again");
-                        }
-                        else if (data.Contains("Please enter your CURRENT verify code"))
-                        {
-                            throw new RPMSException("Reset verify code in RPMS then try again.");
-                        }
-                        else if (data.Contains("Enter your Current Signature Code:"))
-                        {
-                            await Send();
-                            RPMS.LastReceivedRaw = sb.ToString();
-                            return;
-                        }
-                        else if (data.Contains("T=======T=======T=======T=======T"))
-                        {
-                            RPMS.LastReceivedRaw = sb.ToString();
-                            return;
-                        }
-                        if (loopCounter % (maxReadLoops / 5) == 0)
-                        {
-                            TryResendEndOfFeed();
-                        }
-                    }
-
-                    if (loopCounter >= maxReadLoops)
-                    {
-                        RPMS.Stream.Write(new string('\b', RPMS.EndOfFeedStr.Length));
-                        throw new TimeoutException($"Timed out waiting for RPMS output after {resendCounter} end-of-feed attempt(s).");
-                    }
-
-                    await Task.Delay(10);
-                    loopCounter++;
-                }
-            }
-        }
-        finally
-        {
-            await SetReceivingFromRPMS(false);
-            await ScrollToRPMS();
-        }
-    }
-
 
     public async Task ScrollTo(string elementId = "bottom")
     {

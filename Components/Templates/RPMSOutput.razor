@@ -5,7 +5,7 @@
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
-        <RadzenButton Text="Download History" Click="DownloadRPMSReceived" />
+        <RadzenButton Text="Download Terminal Contents" Click="DownloadRPMSReceived" />
     </RadzenRow>
 </div>
 @code {
@@ -30,7 +30,6 @@
             if (Layout.RPMS.IsInMode(RPMSMode.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
-                Console.WriteLine("Connection opened");
             }
             else if (Layout.RPMS.SignedIn && OnLoginSuccess.HasDelegate)
             {

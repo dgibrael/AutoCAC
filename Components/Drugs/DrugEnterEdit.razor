@@ -61,7 +61,7 @@ else
             {
                 await NdcChange();
                 await Layout.Send(selectedNdf.Ndc);
-                Layout.RPMS.WriteToXterm($"Follow RPMS Prompts. Dispense unit: {selectedDrug.DispenseUnit}: ");
+                Layout.RPMS.WriteToXterm($"Follow RPMS Prompts. (Dispense unit: {selectedDrug.DispenseUnit}): ");
             }
         }
         else

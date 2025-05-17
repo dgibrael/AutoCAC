@@ -1,7 +1,7 @@
 ﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
-window.writeRPMSXterm = function (text) {
+window.writeRPMSXterm = function (text, enableLogging = false) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
         console.warn("Target div not found:", rpmsTxtDivId);
@@ -11,6 +11,13 @@ window.writeRPMSXterm = function (text) {
         rpmsTerm.open(container);
     }
     rpmsTerm.write(text);
+    if (enableLogging) {
+        if (!window.deflator) {
+            window.deflator = new pako.Deflate({ to: "string" });
+        }
+        window.deflator.push(text, false);
+    }
+
 };
 
 window.clearRPMSXterm = function () {
@@ -34,7 +41,7 @@ window.reinitRPMSXterm = function () {
     rpmsTerm.onData(function (input) {
         runCSharp("UserInput", input);
     });
-
+    window.deflator = new pako.Deflate({ to: "string" });
 };
 
 
@@ -79,43 +86,44 @@ window.downloadTextFile = function (text, filename, mimeType = "text/plain") {
     URL.revokeObjectURL(link.href);
 };
 
-window.getRPMSXtermContent = function (maxLines = null, asString = true) {
+window.getRPMSXtermContent = function () {
     if (!rpmsTerm) {
         console.warn("Terminal is not initialized.");
-        return asString ? "" : [];
+        return "";
     }
 
     const buffer = rpmsTerm.buffer.active;
-    const totalLines = buffer.length;
     const lines = [];
 
-    const startLine = maxLines && maxLines < totalLines
-        ? totalLines - maxLines
-        : 0;
-
-    for (let i = startLine; i < totalLines; i++) {
-        const line = buffer.getLine(i)?.translateToString(true) ?? "";
-        lines.push(line);
+    for (let i = 0; i < buffer.length; i++) {
+        lines.push(buffer.getLine(i)?.translateToString(true) ?? "");
     }
 
-    return asString ? lines.join("\n") : lines;
+    return lines.join("\n");
 };
-
-function trimRPMSXterm(n = 1000) {
-    const lines = getRPMSXtermContent(n, false);
-
-    rpmsTerm.clear();
-    for (const line of lines) {
-        rpmsTerm.writeln(line);
-    }
-}
 
 window.downloadRPMSContent = function () {
     let content = getRPMSXtermContent();
     if (content != null) {
-        downloadTextFile(content, "rpms_output.txt", "text/plain")
+        downloadTextFile(content, "output.txt", "text/plain")
     }
-}
+};
+
+window.downloadRPMSLog = function () {
+    if (!window.deflator?.result) {
+        window.deflator.push("", true);
+    }
+
+    let content = pako.inflate(window.deflator.result, { to: "string" });
+
+    if (content != null) {
+        downloadTextFile(content, "output.txt", "text/plain")
+    }
+
+    // Reset for next session
+    window.deflator = new pako.Deflate({ to: "string" });
+};
+
 
 window.runCSharp = function (methodName, data) {
     if (data === undefined) {

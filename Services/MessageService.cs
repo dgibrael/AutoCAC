@@ -12,7 +12,6 @@ public class MessageService
 
     public void Subscribe(string username, Func<string, string, Task> subscriber)
     {
-        Console.WriteLine($"Subscribing {username}");
         _subscriptions.AddOrUpdate(username,
             new List<Func<string, string, Task>> { subscriber },
             (key, existingSubscribers) =>
@@ -51,7 +50,6 @@ public class MessageService
 
     public IEnumerable<string> GetActiveUsernames()
     {
-        Console.WriteLine("Getting users");
         return _subscriptions.Keys;
     }
 
