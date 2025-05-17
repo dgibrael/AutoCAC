@@ -235,9 +235,9 @@ public class RPMSService : IDisposable
             case RPMSMode.DefaultReceive:
                 if (data.Contains("\x1B[?7l"))
                 {
-                    if (data.Contains("\x1B7"))
+                    if (data.Contains("\x1B"+"7"))
                         CurrentMode = RPMSMode.ScrollRead;
-                    else if (data.Contains("\x1B[2"))
+                    else if(data.Contains("\x1B[2"))
                         CurrentMode = RPMSMode.ScrollWrite;
                 }
                 else if (data.Contains(EndOfFeedStr))
