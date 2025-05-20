@@ -7,21 +7,133 @@ using System.Text.RegularExpressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Linq;
 using AutoCAC;
+using AutoCAC.Extensions;
 
-public enum RPMSMode
-{
-    Disconnected,
-    Access,
-    Verify,
-    DefaultInput,
-    ScrollWrite,
-    ScrollRead,
-    DefaultReceive,
-    Report
-}
 
 public class RPMSService : IDisposable
 {
+    // Updated record with both OnEnter and OnExit
+    public record RPMSMode(
+        bool SignedIn,
+        bool InputEnabled,
+        bool LoggingEnabled,
+        bool FixedCursor,
+        Action<RPMSService, string> HandleData,
+        Action OnEnter,
+        Action OnExit
+    )
+    {
+        // Overload 1: only bools
+        public RPMSMode(
+            bool SignedIn,
+            bool InputEnabled,
+            bool LoggingEnabled,
+            bool FixedCursor
+        ) : this(SignedIn, InputEnabled, LoggingEnabled, FixedCursor, (_, _) => { }, () => { }, () => { }) { }
+
+        // Overload 2: bools + HandleData
+        public RPMSMode(
+            bool SignedIn,
+            bool InputEnabled,
+            bool LoggingEnabled,
+            bool FixedCursor,
+            Action<RPMSService, string> HandleData
+        ) : this(SignedIn, InputEnabled, LoggingEnabled, FixedCursor, HandleData, () => { }, () => { }) { }
+
+        // Overload 3: bools + HandleData + OnEnter
+        public RPMSMode(
+            bool SignedIn,
+            bool InputEnabled,
+            bool LoggingEnabled,
+            bool FixedCursor,
+            Action<RPMSService, string> HandleData,
+            Action OnEnter
+        ) : this(SignedIn, InputEnabled, LoggingEnabled, FixedCursor, HandleData, OnEnter, () => { }) { }
+    }
+
+    public static class Modes
+    {
+        public static readonly RPMSMode Disconnected = new (
+            SignedIn: false,
+            InputEnabled: false,
+            LoggingEnabled: false,
+            FixedCursor: true,
+            HandleData: (_, _) => { },
+            OnEnter: () => Console.WriteLine("Disconnected")
+        );        
+        public static readonly RPMSMode DefaultInput = new (
+            SignedIn: true,
+            InputEnabled: true,
+            LoggingEnabled: false,
+            FixedCursor: true,
+            HandleData: (_, _) => { },
+            OnEnter: () => Console.WriteLine("DefaultInput")
+        );
+        public static readonly RPMSMode DefaultReceive = new (
+            SignedIn: true,
+            InputEnabled: false,
+            LoggingEnabled: false,
+            FixedCursor: true,
+            HandleData: (_, _) => { },
+            OnEnter: () => Console.WriteLine("DefaultReceive")
+        );
+        public static readonly RPMSMode Access = new(
+            SignedIn: false,
+            InputEnabled: true,
+            LoggingEnabled: false,
+            FixedCursor: true,
+            HandleData: (s, data) => 
+            {
+                if (data.EndContains("VERIFY CODE")) s.SetMode(Modes.Verify);
+            },
+            OnEnter: () => Console.WriteLine("Access")
+        );
+        public static readonly RPMSMode Verify = new(
+            SignedIn: false,
+            InputEnabled: true,
+            LoggingEnabled: false,
+            FixedCursor: true,
+            HandleData: (s, data) => 
+            {
+                if (!data.EndContains("verify code", StringComparison.OrdinalIgnoreCase) &&
+                    !data.Contains("that I have it right:") &&
+                    !data.EndContains('*'))
+                {
+                    if (data.EndContains("Option:", charsFromEnd: 10))
+                    {
+                        s.SetMode(Modes.DefaultInput);
+                    }
+                    else if (data.EndContains("ACCESS CODE"))
+                    {
+                        s.SetMode(Modes.Access);
+                    }
+                    else
+                    {
+                        s.SetMode(Modes.DefaultInput);
+                    }
+                }
+            },
+            OnEnter: () => Console.WriteLine("Verify")
+        );
+        public static readonly RPMSMode ScrollWrite = new(
+            SignedIn: true,
+            InputEnabled: true,
+            LoggingEnabled: false,
+            FixedCursor: false,
+            HandleData: (_, _) => { },
+            OnEnter: () => Console.WriteLine("ScrollWrite")
+        );
+        public static readonly RPMSMode Report = new(
+            SignedIn: true,
+            InputEnabled: false,
+            LoggingEnabled: true,
+            FixedCursor: true,
+            HandleData: (_, _) => { },
+            OnEnter: () => Console.WriteLine("Report")
+        );
+    }
+
+
     private readonly IJSRuntime _js;
     public RPMSService(IJSRuntime js)
     {
@@ -32,28 +144,18 @@ public class RPMSService : IDisposable
     private ShellStream _stream;
     public ShellStream Stream => _stream;
 
-    private RPMSMode _currentMode = RPMSMode.Disconnected;
-    public RPMSMode CurrentMode
+    public RPMSMode CurrentMode { get; private set; } = Modes.Disconnected;
+
+    public void SetMode(RPMSMode newMode)
     {
-        get => _currentMode;
-        set
-        {
-            if (_currentMode != value)
-            {
-                Console.WriteLine(value);
-                _currentMode = value;
-                switch (value)
-                {
-                    case (RPMSMode.Disconnected):
-                        StopListening();
-                        break;
-                    case (RPMSMode.Report):
-                        EnableLogging = true;
-                        break;
-                }
-            }
-        }
+        if (newMode == CurrentMode)
+            return;
+
+        CurrentMode.OnExit();      // Run exit logic first
+        CurrentMode = newMode;
+        newMode.OnEnter();         // Then run enter logic
     }
+
 
     public bool EnableLogging { get; set; } = false;
     private string _lastReceivedRaw = string.Empty;
@@ -62,13 +164,13 @@ public class RPMSService : IDisposable
         get => _lastReceivedRaw;
         set
         {
-            if (value!=EndOfFeedStr && !IsInMode(RPMSMode.DefaultInput, RPMSMode.ScrollWrite, RPMSMode.Access))
+            if (value!=EndOfFeedStr && !CurrentMode.InputEnabled)
             {
                 _lastReceivedRaw = value;
             }
 
             // Always render it to the terminal
-            _ = _js.InvokeVoidAsync("writeRPMSXterm", value, EnableLogging);
+            _ = _js.InvokeVoidAsync("writeRPMSXterm", value, CurrentMode.LoggingEnabled);
         }
     }
 
@@ -101,11 +203,12 @@ public class RPMSService : IDisposable
         _listenCts?.Cancel();
     }
 
-    public bool IsInMode(params RPMSMode[] modes)
-    {
-        return modes.Contains(CurrentMode);
-    }
-    public bool SignedIn => !IsInMode(RPMSMode.Disconnected, RPMSMode.Access, RPMSMode.Verify);
+    public bool IsInMode(RPMSMode mode) =>
+        CurrentMode == mode;
+
+    public bool IsInMode(params RPMSMode[] modes) =>
+        modes.Contains(CurrentMode);
+
 
     private async Task ListenLoop(CancellationToken token)
     {
@@ -124,17 +227,18 @@ public class RPMSService : IDisposable
             }
             else if (data != null)
             {
-                HandleData(data);
+                CurrentMode.HandleData(this, data);
                 data = null;
             }
             else
             {
+
                 await Task.Delay(10, token);
             }
         }
         if (!_client.IsConnected || !_stream.CanRead)
         {
-            CurrentMode = RPMSMode.Disconnected;
+            SetMode(Modes.Disconnected);
             StopListening();
         }
     }
@@ -162,12 +266,12 @@ public class RPMSService : IDisposable
 
     public async Task SendAsync(string command = "")
     {
-        if (CurrentMode != RPMSMode.DefaultInput) throw new RPMSException($"Must be in write mode. Currently in {CurrentMode}");
+        if (!IsInMode(Modes.DefaultInput)) throw new RPMSException($"Must be in write mode. Currently in {CurrentMode}");
         _stream.Write(command + "\r");
         SendEndOfFeed();
-        CurrentMode = RPMSMode.DefaultReceive;
+        SetMode(Modes.DefaultReceive);
         // Poll with delay
-        while (CurrentMode == RPMSMode.DefaultReceive)
+        while (IsInMode(Modes.DefaultReceive))
         {
             await Task.Delay(10); // let other code run
         }
@@ -188,108 +292,6 @@ public class RPMSService : IDisposable
     }
 
     public string CurrentPrompt => GetReceivedLines().LastOrDefault() ?? string.Empty;
-
-    public bool CheckSessionActive(bool throwError = true)
-    {
-
-        if (_stream?.DataAvailable == true)
-        {
-            var data = _stream.Read();
-            LastReceivedRaw = data;
-
-            if (data.Contains("ACCESS CODE:") || data.Contains("Logged out"))
-            {
-                if (throwError) throw new InvalidOperationException("Logged out of RPMS.");
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void HandleData(string data)
-    {
-        switch (CurrentMode)
-        {
-            case RPMSMode.Access:
-                if (data.Contains("VERIFY CODE")) CurrentMode = RPMSMode.Verify;
-                break;
-            case RPMSMode.Verify:
-                if (data.Contains("verify code", StringComparison.OrdinalIgnoreCase) || 
-                    data.Contains("that I have it right:") || data.Contains('*'))
-                {
-                    
-                }
-                else if (data.Contains("Option:"))
-                {
-                    CurrentMode = RPMSMode.DefaultInput;
-                }
-                else if (data.Contains("ACCESS CODE"))
-                {
-                    CurrentMode = RPMSMode.Access;
-                }
-                else
-                {
-                    CurrentMode = RPMSMode.DefaultInput;
-                }
-                break;
-            case RPMSMode.DefaultReceive:
-                if (data.Contains("\x1B[?7l"))
-                {
-                    if (data.Contains("\x1B"+"7"))
-                        CurrentMode = RPMSMode.ScrollRead;
-                    else if(data.Contains("\x1B[2"))
-                        CurrentMode = RPMSMode.ScrollWrite;
-                }
-                else if (data.Contains(EndOfFeedStr))
-                {
-                    if (CurrentPrompt.Contains("DEVICE:"))
-                    {
-                        SendRaw("0;512;999999999999\r");
-                        CurrentMode = RPMSMode.Report;
-                    }
-                    else
-                    {
-                        CurrentMode = RPMSMode.DefaultInput;
-                    }
-                }
-                break;
-            case RPMSMode.ScrollRead:
-                if (data.Contains("\x1B[?7l") && !data.Contains("\x1B[?25"))
-                {
-                    CurrentMode = RPMSMode.DefaultReceive;
-                    SendEndOfFeed();
-                }
-                break;
-            case RPMSMode.ScrollWrite:
-                if (data.Contains("\x1B[?7h"))
-                {
-                    CurrentMode = RPMSMode.DefaultReceive;
-                    SendEndOfFeed();
-                }
-                break;
-            case RPMSMode.Disconnected:
-                if (data.Contains("ACCESS CODE"))
-                {
-                    CurrentMode = RPMSMode.Access;
-                }
-                break;
-            case RPMSMode.Report:
-                if (data.Contains("\x07"))
-                {
-                    if (CurrentPrompt.Trim() == "\x07")
-                    {
-                        Send();
-                    }
-                    else
-                    {
-                        _ = _js.InvokeVoidAsync("downloadRPMSLog");
-                        EnableLogging = false;
-                        CurrentMode = RPMSMode.DefaultInput;
-                    }
-                }
-                break;
-        }
-    }
 
     public void Close()
     {

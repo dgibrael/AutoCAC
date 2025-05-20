@@ -27,11 +27,11 @@
         {
             await JS.InvokeVoidAsync("reinitRPMSXterm");
             await JS.InvokeVoidAsync("writeRPMSXterm", Layout.RPMS.LastReceivedRaw);
-            if (Layout.RPMS.IsInMode(RPMSMode.Disconnected))
+            if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
             }
-            else if (Layout.RPMS.SignedIn && OnLoginSuccess.HasDelegate)
+            else if (Layout.RPMS.CurrentMode.SignedIn && OnLoginSuccess.HasDelegate)
             {
                 await OnLoginSuccess.InvokeAsync();
             }

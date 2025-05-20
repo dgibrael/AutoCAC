@@ -7,32 +7,32 @@ public static class TerminalInterop
     [JSInvokable]
     public static Task UserInput(string input)
     {
-        if (RPMS.CurrentMode == RPMSMode.Disconnected)
+        if (RPMS.IsInMode(RPMSService.Modes.Disconnected))
         {
             RPMS.OpenConnection();
             return Task.CompletedTask;
         }
-        else if (RPMS.CurrentMode == RPMSMode.Report)
+        else if (RPMS.IsInMode(RPMSService.Modes.Report))
         {
             return Task.CompletedTask;
         }
-        bool recordInput = RPMS.CurrentMode == RPMSMode.DefaultInput && input.EndsWith("\r");
+        bool recordInput = RPMS.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
         try
         {
             if (recordInput)
             {
-                RPMS.Stream?.Write(input);
-                RPMS.CurrentMode = RPMSMode.DefaultReceive;
-                RPMS.Stream?.Write(RPMS.EndOfFeedStr);
+                RPMS.SendRaw(input);
+                RPMS.SetMode(RPMSService.Modes.DefaultReceive);
+                RPMS.SendRaw(RPMS.EndOfFeedStr);
             }
             else
             {
-                RPMS.Stream?.Write(input);
+                RPMS.SendRaw(input);
             }
         }
         catch (ObjectDisposedException)
         {
-            RPMS.CurrentMode = RPMSMode.Disconnected;
+            RPMS.SetMode(RPMSService.Modes.Disconnected);
             RPMS.OpenConnection();
         }
         return Task.CompletedTask;

@@ -42,7 +42,7 @@ else
     private async Task OnDrugSelected(Drug selected)
     {
         selectedDrug = selected;
-        if (Layout.RPMS.SignedIn)
+        if (Layout.RPMS.CurrentMode.SignedIn)
         {
             await RPMSDrugAddUpdate();
         }
