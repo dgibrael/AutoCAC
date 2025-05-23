@@ -5,141 +5,43 @@
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
-        <RadzenButton Text="Download History" Click="DownloadRPMSReceived" Disabled="@(Layout?.RPMS?.ReceivedHistory?.Any() != true)" />
+        <RadzenButton Text="Download Terminal Contents" Click="DownloadRPMSReceived" />
     </RadzenRow>
-    @if (Layout.RPMS.SignedIn)
-    {
-        <EditForm OnValidSubmit="@SendCustomCmd" EditContext="_editContext2">
-            <RadzenRow AlignItems="AlignItems.Start">
-                <RadzenColumn Size="2">
-                    <label>Send Command:</label>
-                </RadzenColumn>                            
-                <RadzenColumn Size="5">
-                    <InputText @bind-Value="customCmd"
-                                id="customRPMSInpt"
-                                disabled="@Layout.ReceivingFromRPMS"
-                                placeholder="@(Layout.ReceivingFromRPMS ? "Receiving from RPMS..." : Layout.RPMS.CurrentPrompt)" 
-                                class="rz-w-100"
-                                />
-                </RadzenColumn>
-                <RadzenColumn Size="1">
-                    <button class="btn btn-primary" type="submit" disabled="@Layout.ReceivingFromRPMS">Submit</button>
-                </RadzenColumn>
-            </RadzenRow>
-        </EditForm>
-    }
-    else
-    {
-        <EditForm OnValidSubmit="HandleLogin" EditContext="_editContext">
-            <span>@SignedOutMsg</span>
-            <div>
-                <label>Access Code:</label><br />
-                <InputText @bind-Value="AccessCodeInput" type="password" required />
-            </div>
-            <div class="mt-2">
-                <label>Verify Code:</label><br />
-                <InputText @bind-Value="VerifyCodeInput" type="password" required />
-            </div>
-            <div class="mt-3">
-                <button class="btn btn-primary" type="submit">Login</button>
-            </div>
-        </EditForm>
-    }
 </div>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    [Parameter] public RenderFragment ChildContent { get; set; }
 
     // Optional callback after successful login
     [Parameter] public EventCallback OnLoginSuccess { get; set; }
     [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
     [Parameter] public bool CollapsedInitial { get; set; } = false;
 
-    private string customCmd;
-
-    private async Task SendCustomCmd()
-    {
-        await Layout.RunCommands(async () =>
-        {
-            await Layout.Send(customCmd);
-        });
-        customCmd = string.Empty;
-    }
-
-
     private void ScrollToInput()
     {
         _ = Layout.ScrollToRPMS();
     }
 
-    private EditContext _editContext = new(new object());
-    private EditContext _editContext2 = new(new object());
-    private char[] accessCodeChars;
-    private char[] verifyCodeChars;
-
-    public string AccessCodeInput
-    {
-        get => accessCodeChars?.Length > 0 ? "********" : null;
-        set
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                accessCodeChars = value.ToCharArray();
-            }
-        }
-    }
-
-    public string VerifyCodeInput
-    {
-        get => verifyCodeChars?.Length > 0 ? "********" : null;
-        set
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                verifyCodeChars = value.ToCharArray();
-            }
-        }
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && Layout.RPMS.SignedIn && OnLoginSuccess.HasDelegate)
+        if (firstRender)
         {
-            await OnLoginSuccess.InvokeAsync();
-        }
-    }
-
-    private async Task HandleLogin()
-    {
-        await Layout.RunCommands(async () =>
-        {
-            Layout.RPMS.Login(accessCodeChars.AsSpan(), verifyCodeChars.AsSpan());
-            await Layout.ScrollToRPMS();
-            if (OnLoginSuccess.HasDelegate)
+            await JS.InvokeVoidAsync("reinitRPMSXterm");
+            await JS.InvokeVoidAsync("writeRPMSXterm", Layout.RPMS.LastReceivedRaw);
+            if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
+            {
+                Layout.RPMS.OpenConnection();
+            }
+            else if (Layout.RPMS.CurrentMode.SignedIn && OnLoginSuccess.HasDelegate)
             {
                 await OnLoginSuccess.InvokeAsync();
             }
-
-        });
-        Array.Clear(accessCodeChars, 0, accessCodeChars.Length);
-        accessCodeChars = null;
-        Array.Clear(verifyCodeChars, 0, verifyCodeChars.Length);
-        verifyCodeChars = null;
+        }
     }
 
     public async Task DownloadRPMSReceived()
     {
-        var receivedStr = string.Join('\n', Layout.RPMS.ReceivedHistory);
-        await Layout.DownloadText(receivedStr, "rpms_output.txt");
+        await JS.InvokeVoidAsync("downloadRPMSContent");
     }
-
-    private Task WriteRPMSXterm(string divId, string text)
-    {
-        // Fire and forget – that's intentional here
-        _ = JS.InvokeVoidAsync("writeRPMSXterm", divId, text);
-        return Task.CompletedTask;
-    }
-
 
     public void Dispose()
     {

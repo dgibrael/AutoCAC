@@ -10,6 +10,21 @@
     <link rel="stylesheet" href="css/site.css" />
     <link rel="stylesheet" href="css/xterm.min.css" />
     <link rel="icon" href="favicon.ico" />
+    <style>
+        .xterm .xterm-viewport {
+            overflow-y: auto;
+            scrollbar-width: thin; /* For Firefox */
+            scrollbar-color: #888 #444; /* For Firefox */
+        }
+
+        .xterm .xterm-viewport::-webkit-scrollbar {
+            width: 8px; /* For Chrome, Safari, and Opera */
+        }
+
+        .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+            background-color: #888;
+        }
+    </style>
     <HeadOutlet @rendermode="@InteractiveServer" />
 </head>
 
@@ -18,30 +33,8 @@
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/Radzen.Blazor/Radzen.Blazor.js?v=@(typeof(Radzen.Colors).Assembly.GetName().Version)"></script>
     <script src="js/xterm.min.js"></script>
-    <script>
-        let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
-        
-        window.writeRPMSXterm = function (text) {
-        const divId = "rpmsOutputTxtDiv";
-        const container = document.getElementById(divId);
-        if (!container) {
-        console.warn("Target div not found:", divId);
-        return;
-        }
-        if (!rpmsTerm._core || !rpmsTerm._core._renderService?.dimensions) {
-            rpmsTerm.open(container);
-        }
-        rpmsTerm.write(text);
-        };
-
-        window.clearRPMSXterm = function () {
-            if (rpmsTerm) {
-                rpmsTerm.clear();
-            } else {
-                console.warn("Terminal not initialized.");
-            }
-        };
-    </script>
+    <script src="js/pako.min.js"></script>
+    <script src="js/index.js"></script>
 </body>
 
 </html>

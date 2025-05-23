@@ -8,9 +8,13 @@
 @using AutoCAC.Components.Templates
 
 <PageTitle>Index</PageTitle>
-<RPMSOutput/>
+<RPMSOutput OnLoginSuccess="AfterLogin"/>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    private async Task AfterLogin()
+    {
+        await Layout.GoToMenu();
+    }
 }
 
