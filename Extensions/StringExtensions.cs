@@ -2,77 +2,67 @@
 {
     public static class StringExtensions
     {
-        public static bool EndContains(this string data, string substring
-            , StringComparison stringComparison = StringComparison.OrdinalIgnoreCase
-            , int charsFromEnd = 10)
-        {
-            if (string.IsNullOrEmpty(data) || substring is null)
-                return false;
-
-            int strDiff = data.Length - substring.Length;
-            if (strDiff < 0)
-                return false;
-
-            int searchStart = strDiff < charsFromEnd
-                ? 0
-                : data.Length - (charsFromEnd + substring.Length);
-
-            ReadOnlySpan<char> span = data.AsSpan(searchStart);
-            return span.IndexOf(substring.AsSpan(), stringComparison) >= 0;
-        }
-        public static bool EndContains(this string data, char character, int charsFromEnd = 30)
-        {
-            if (string.IsNullOrEmpty(data))
-                return false;
-
-            // If data is shorter than charsFromEnd, search the entire string
-            int searchStart = data.Length < charsFromEnd
-                ? 0
-                : data.Length - charsFromEnd;
-
-            ReadOnlySpan<char> span = data.AsSpan(searchStart);
-            return span.IndexOf(character) >= 0;
-        }
-        public static bool ContainsIn(this string data, string substring,
-            int startIndex = 0,
-            int bufferLength = 30,
-            StringComparison comparison = StringComparison.OrdinalIgnoreCase)
-        {
-            if (string.IsNullOrEmpty(data) || substring is null)
-                return false;
-
-            if (substring.Length > data.Length)
-                return false;
-
-            startIndex = Math.Clamp(startIndex, 0, data.Length - substring.Length);
-
-            int maxLength = data.Length - startIndex;
-            int spanLength = Math.Min(substring.Length + bufferLength, maxLength);
-
-            ReadOnlySpan<char> span = data.AsSpan(startIndex, spanLength);
-            return span.IndexOf(substring.AsSpan(), comparison) >= 0;
-        }
-
-        public static bool ContainsIn(this string data, char character,
-            int startIndex = 0,
-            int bufferLength = 30)
-        {
-            if (string.IsNullOrEmpty(data))
-                return false;
-
-            startIndex = Math.Clamp(startIndex, 0, data.Length - 1);
-
-            int spanLength = Math.Min(bufferLength + 1, data.Length - startIndex); // +1 so even single char is included
-            ReadOnlySpan<char> span = data.AsSpan(startIndex, spanLength);
-
-            return span.IndexOf(character) >= 0;
-        }
         public static int ReverseIndex(this string data, int endIndex)
+        {
+            return data.Length - endIndex;
+        }
+        public static int ReverseIndexSafe(this string data, int endIndex)
         {
             if (string.IsNullOrEmpty(data))
                 return 0;
 
             return Math.Max(data.Length - endIndex, 0);
+        }
+        public static string LastLine(this string data)
+        {
+            if (string.IsNullOrEmpty(data))
+                return string.Empty;
+
+            ReadOnlySpan<char> span = data.AsSpan();
+            int lastIndex = span.LastIndexOfAny('\r', '\n');
+
+            return lastIndex >= 0
+                ? span[(lastIndex + 1)..].ToString()
+                : data;
+        }
+        public static ReadOnlySpan<char> LastLineSpan(this string data)
+        {
+            if (string.IsNullOrEmpty(data))
+                return ReadOnlySpan<char>.Empty;
+
+            ReadOnlySpan<char> span = data.AsSpan();
+            int lastIndex = span.LastIndexOfAny('\r', '\n');
+
+            return lastIndex >= 0
+                ? span[(lastIndex + 1)..]
+                : span;
+        }
+        public static bool LastLineContains(this string data, string value,
+            StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(value))
+                return false;
+
+            return data.LastLineSpan().IndexOf(value.AsSpan(), comparison) >= 0;
+        }
+
+        public static string LastLineContains(this string data, string[] values,
+            StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (string.IsNullOrEmpty(data) || values == null || values.Length == 0)
+                return null;
+
+            ReadOnlySpan<char> line = data.LastLineSpan();
+
+            foreach (var value in values)
+            {
+                if (string.IsNullOrEmpty(value)) continue;
+
+                if (line.IndexOf(value.AsSpan(), comparison) >= 0)
+                    return value;
+            }
+
+            return null;
         }
 
 

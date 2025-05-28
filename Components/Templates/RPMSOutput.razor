@@ -1,5 +1,6 @@
 ﻿@implements IDisposable
 @inject IJSRuntime JS
+@using AutoCAC.Extensions
 
 <div id="RPMSOutputDiv">
     <div id="rpmsOutputTxtDiv"></div>
@@ -25,8 +26,8 @@
     {
         if (firstRender)
         {
-            await JS.InvokeVoidAsync("reinitRPMSXterm");
-            await JS.InvokeVoidAsync("writeRPMSXterm", Layout.RPMS.LastReceivedRaw);
+            await JS.ReinitXterm();
+            await JS.WriteToXtermAsync(Layout.RPMS.LastReceivedRaw);
             if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
@@ -40,7 +41,7 @@
 
     public async Task DownloadRPMSReceived()
     {
-        await JS.InvokeVoidAsync("downloadRPMSContent");
+        await JS.DownloadXtermContentAsync();
     }
 
     public void Dispose()

@@ -1,0 +1,47 @@
+﻿@using AutoCAC.Extensions
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject IHttpClientFactory ClientFactory
+@typeparam TItem
+
+@if (Data == null || !Data.Any())
+{
+    <p>No data to display.</p>
+}
+else
+{
+    <button class="btn btn-primary" @onclick="DownloadExcel">Download Excel</button>
+    <RadzenDataGrid @ref="grid" TItem="TItem" Data="@Data" ColumnWidth="200px">
+        <Columns>
+            @foreach (var prop in typeof(TItem).GetProperties())
+            {
+                <RadzenDataGridColumn TItem="TItem" Property="@prop.Name" Title="@prop.Name" />
+            }
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    [Parameter] public IEnumerable<TItem> Data { get; set; }
+    private RadzenDataGrid<TItem> grid;
+    private async Task DownloadExcel()
+    {
+        var client = ClientFactory.CreateClient("WindowsAuthClient");
+
+        var content = Data.ToExcelExportContent();
+        var uri = new Uri(Nav.BaseUri + "export-excel");
+
+        var response = await client.PostAsync(uri, content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Optionally log or show error
+            return;
+        }
+
+        var fileBytes = await response.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(fileBytes);
+        await JS.DownloadExcel(base64);
+    }
+}

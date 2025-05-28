@@ -132,3 +132,13 @@ window.runCSharp = function (methodName, data) {
         return DotNet.invokeMethodAsync("AutoCAC", methodName, data);
     }
 };
+
+window.downloadExcel = function (base64, filename="data.xlsx") {
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + base64;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+

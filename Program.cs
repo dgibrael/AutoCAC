@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Components.Server;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using AutoCAC;
+using Microsoft.AspNetCore.Mvc;
+using AutoCAC.Utilities;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +25,13 @@ builder.Services.AddRadzenCookieThemeService(options =>
     options.Duration = TimeSpan.FromDays(365);
 });
 builder.Services.AddHttpClient();
+
+builder.Services.AddHttpClient("WindowsAuthClient")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        UseDefaultCredentials = true
+    });
+
 
 builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
     .AddNegotiate();
@@ -49,8 +58,6 @@ builder.Services.AddScoped<LoadDataGridService>();
 
 var app = builder.Build();
 
-
-
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -71,5 +78,22 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
+
+app.MapPost("/export-excel", async (HttpContext http, [FromBody] List<Dictionary<string, object>> data) =>
+{
+    if (data == null || data.Count == 0)
+    {
+        http.Response.StatusCode = 400;
+        await http.Response.WriteAsync("No data received.");
+        return;
+    }
+
+    var fileBytes = ExcelExporter.ExportDynamicToExcel(data);
+
+    http.Response.ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    http.Response.Headers.ContentDisposition = "attachment; filename=\"AutoCAC_Export.xlsx\"";
+
+    await http.Response.Body.WriteAsync(fileBytes);
+});
 
 app.Run();
