@@ -8,6 +8,8 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Linq;
 using AutoCAC;
 using AutoCAC.Extensions;
+using AutoCAC.Utilities;
+using Microsoft.Identity.Client;
 
 public class RPMSService : IDisposable
 {
@@ -15,41 +17,29 @@ public class RPMSService : IDisposable
     public record RPMSMode(
         bool SignedIn,
         Action<RPMSService, string> ReceiveComplete,
-        Action OnEnter,
-        Action<RPMSService, string> Receiving
+        Action<RPMSService, string> Receiving,
+        Action<RPMSService> OnEnter
     )
     {
         public RPMSMode(
             bool SignedIn
-        ) : this(SignedIn, (_, _) => { }, () => { },
-            (s, data) => 
-            {
-                _ = s._js.WriteToXtermAsync(data);
-            }) { }
+        ) : this(SignedIn, (_, _) => { }, (s, data) => s.Output.SetEchoed(data), (_) => { }) { }
 
         public RPMSMode(
             bool SignedIn,
             Action<RPMSService, string> ReceiveComplete
-        ) : this(SignedIn, ReceiveComplete, () => { }, 
-            (s, data) =>
-            {
-                _ = s._js.WriteToXtermAsync(data);
-            }) { }
+        ) : this(SignedIn, ReceiveComplete, (s, data) => s.Output.SetEchoed(data), (_) => { }) { }
 
         public RPMSMode(
             bool SignedIn,
             Action<RPMSService, string> ReceiveComplete,
-            Action OnEnter
-        ) : this(SignedIn, ReceiveComplete, OnEnter, 
-            (s, data) =>
-            {
-                _ = s._js.WriteToXtermAsync(data);
-            }) { }
+            Action<RPMSService, string> Receiving
+        ) : this(SignedIn, ReceiveComplete, Receiving, (_) => { }) { }
     }
 
     public static class Modes
     {
-        public static readonly RPMSMode Disconnected = new (
+        public static readonly RPMSMode Disconnected = new(
             SignedIn: false,
             ReceiveComplete: (s, data) =>
             {
@@ -58,12 +48,14 @@ public class RPMSService : IDisposable
                     s.SetMode(Modes.Access);
                 }
             },
-            OnEnter: () => Console.WriteLine("Disconnected")
-        );        
+            Receiving: (s, data) => s.Output.SetEchoed(data),
+            OnEnter: (_) => Console.WriteLine("Disconnected")
+        );       
         public static readonly RPMSMode DefaultInput = new (
             SignedIn: true,
             ReceiveComplete: (_, _) => { },
-            OnEnter: () => Console.WriteLine("DefaultInput")
+            Receiving: (s, data) => s.Output.SetEchoed(data),
+            OnEnter: (_) => Console.WriteLine("DefaultInput")
         );
         public static readonly RPMSMode DefaultReceive = new (
             SignedIn: true,
@@ -75,9 +67,8 @@ public class RPMSService : IDisposable
                 }
                 else if (data.Contains(s.EndOfFeedStr))
                 {
-                    if (s.CurrentPrompt.Contains("DEVICE:"))
+                    if (s.Output.Prompt().Contains("DEVICE:"))
                     {
-                        s.SendRaw("0;512;999999999999\r");
                         s.SetMode(Modes.Report);
                     }
                     else
@@ -94,12 +85,8 @@ public class RPMSService : IDisposable
                     s.SendEndOfFeed();
                 }
             },
-            OnEnter: () => Console.WriteLine("DefaultReceive"),
-            Receiving: (s, data) =>
-            {
-                s.SetLastReceived(data);
-                _ = s._js.WriteToXtermAsync(data, true);
-            }
+            Receiving: (s, data) => s.Output.SetReceived(data),
+            OnEnter: (_) => Console.WriteLine("DefaultReceive")
         );
         public static readonly RPMSMode Access = new(
             SignedIn: false,
@@ -107,7 +94,8 @@ public class RPMSService : IDisposable
             {
                 if (data.Contains("VERIFY CODE")) s.SetMode(Modes.Verify);
             },
-            OnEnter: () => Console.WriteLine("Access")
+            Receiving: (s, data) => s.Output.SetEchoed(data),
+            OnEnter: (_) => Console.WriteLine("Access")
         );
         public static readonly RPMSMode Verify = new(
             SignedIn: false,
@@ -131,42 +119,51 @@ public class RPMSService : IDisposable
                     }
                 }
             },
-            OnEnter: () => Console.WriteLine("Verify")
+            Receiving: (s, data) => s.Output.SetEchoed(data),
+            OnEnter: (_) => Console.WriteLine("Verify")
         );
         public static readonly RPMSMode ScrollWrite = new(
             SignedIn: true,
             ReceiveComplete: (_, _) => { },
-            OnEnter: () => Console.WriteLine("ScrollWrite")
+            Receiving: (s, data) => s.Output.SetEchoed(data),
+            OnEnter: (_) => Console.WriteLine("ScrollWrite")
         );
         public static readonly RPMSMode Report = new(
             SignedIn: true,
             ReceiveComplete: (s, data) =>
             {
-                if (data.Contains("\x07"))
+                string lastLine = data.LastLine();
+                if (lastLine.Contains("\x07") || lastLine.Contains(s.EndOfFeedStr))
                 {
-                    if (s.CurrentPrompt.Trim() == "\x07")
+                    if (lastLine.Trim() == "\x07")
                     {
                         s.SendRaw("\r");
                     }
                     else
                     {
-                        _ = s._js.DownloadLogAsync();
                         s.SetMode(Modes.DefaultInput);
                     }
                 }
+                else
+                {
+                    s.SendEndOfFeed();
+                }
             },
-            OnEnter: () => Console.WriteLine("Report"),
-            Receiving: (s, data) =>
+            Receiving: (s, data) => s.Output.Append(data),
+            OnEnter: (s) =>
             {
-                _ = s._js.WriteToXtermAsync(data, true);
+                Console.WriteLine("Report");
+                //s.SendRaw("0;512;999999999999\r");
             }
         );
     }
 
     private readonly IJSRuntime _js;
+    public ShellOutput Output;
     public RPMSService(IJSRuntime js)
     {
         _js = js;
+        Output = new ShellOutput(_js);
     }
 
     private SshClient _client;
@@ -174,23 +171,15 @@ public class RPMSService : IDisposable
     public ShellStream Stream => _stream;
 
     public RPMSMode CurrentMode { get; private set; } = Modes.Disconnected;
-
+    public event Action ModeChanged;
     public void SetMode(RPMSMode newMode)
     {
         if (newMode == CurrentMode)
             return;
         CurrentMode = newMode;
-        newMode.OnEnter();
+        newMode.OnEnter(this);
+        ModeChanged?.Invoke();
     }
-
-    public void SetLastReceived(string data)
-    {
-        if (data != EndOfFeedStr)
-        {
-            LastReceivedRaw = data;
-        }
-    }
-    public string LastReceivedRaw { get; set; } = string.Empty;
 
     public string EndOfFeedStr = "\xFF\b";
 
@@ -294,35 +283,33 @@ public class RPMSService : IDisposable
         }
     }
 
+    public async Task<IEnumerable<T>> GetReportAsync<T>()
+    {
+        Console.WriteLine("running report");
+        string prompt = Output.Prompt();
+        if (!prompt.Contains("DEVICE", StringComparison.OrdinalIgnoreCase)) throw new RPMSException($"Must be at Device prompt. Current Prompt: {prompt}");
+        _stream.Write("0;512;99999999999" + "\r");
+        //SetMode(Modes.Report);
+        while (IsInMode(Modes.Report))
+        {
+            await Task.Delay(10); // let other code run
+        }
+        Console.WriteLine("report complete parsing...");
+        return Output.BufferToObject<T>();
+    }
+
     public void SendEndOfFeed()
     {
         _stream.Write(EndOfFeedStr);
     }
 
-    public string CurrentPrompt
-    {
-        get
-        {
-            var data = LastReceivedRaw;
-            if (string.IsNullOrEmpty(data))
-                return string.Empty;
-
-            ReadOnlySpan<char> span = data.AsSpan();
-            int lastIndex = span.LastIndexOfAny('\r', '\n');
-
-            return lastIndex >= 0
-                ? span[(lastIndex + 1)..].ToString()
-                : data;
-        }
-    }
-
     public bool CurrentPromptContains(string value, StringComparison comparison = StringComparison.Ordinal) => 
-        LastReceivedRaw.LastLineContains(value, comparison: comparison);
-    public string CurrentPromptContains(string[] values, StringComparison comparison = StringComparison.Ordinal) => 
-        LastReceivedRaw.LastLineContains(values, comparison: comparison);
+        Output.Received.LastLineContains(value, comparison: comparison);
+    public string CurrentPromptContains(string[] values, StringComparison comparison = StringComparison.Ordinal) =>
+        Output.Received.LastLineContains(values, comparison: comparison);
     public void CurrentPromptContains(params (string text, Action action, bool exitLoop)[] handlers)
     {
-        var prompt = LastReceivedRaw.LastLineSpan();
+        var prompt = Output.Received.LastLineSpan();
 
         foreach (var (text, action, exitLoop) in handlers)
         {

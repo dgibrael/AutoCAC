@@ -1,7 +1,7 @@
 ﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
-window.writeRPMSXterm = function (text, enableLogging = false) {
+window.writeRPMSXterm = function (text) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
         console.warn("Target div not found:", rpmsTxtDivId);
@@ -11,13 +11,6 @@ window.writeRPMSXterm = function (text, enableLogging = false) {
         rpmsTerm.open(container);
     }
     rpmsTerm.write(text);
-    if (enableLogging) {
-        if (!window.deflator) {
-            window.deflator = new pako.Deflate({ to: "string" });
-        }
-        window.deflator.push(text, false);
-    }
-
 };
 
 window.clearRPMSXterm = function () {
@@ -108,22 +101,6 @@ window.downloadRPMSContent = function () {
         downloadTextFile(content, "output.txt", "text/plain")
     }
 };
-
-window.downloadRPMSLog = function () {
-    if (!window.deflator?.result) {
-        window.deflator.push("", true);
-    }
-
-    let content = pako.inflate(window.deflator.result, { to: "string" });
-
-    if (content != null) {
-        downloadTextFile(content, "output.txt", "text/plain")
-    }
-
-    // Reset for next session
-    window.deflator = new pako.Deflate({ to: "string" });
-};
-
 
 window.runCSharp = function (methodName, data) {
     if (data === undefined) {

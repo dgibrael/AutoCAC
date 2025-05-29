@@ -1,20 +1,38 @@
 ﻿using AutoCAC.Extensions;
 using System.Text;
 using Newtonsoft.Json;
-
+using Microsoft.JSInterop;
 namespace AutoCAC.Utilities
 {
     public class ShellOutput
     {
+        private readonly IJSRuntime _js;
+        public ShellOutput(IJSRuntime js)
+        {
+            _js = js;
+        }
         private readonly StringBuilder _buffer = new();
 
-        public string Echoed { get; set; } = "";
-        public string Received { get; set; } = "";
+        public string Echoed { get; private set; } = "";
+        public string Received { get; private set; } = "";
         public string Buffered => _buffer.ToString();
+
+        public void SetReceived(string data)
+        {
+            Received = data;
+            _ = WriteToTerminalAsync(data);
+        }
+
+        public void SetEchoed(string data)
+        {
+            Echoed = data;
+            _ = WriteToTerminalAsync(data);
+        }
 
         public void Append(string data)
         {
             _buffer.Append(data);
+            _ = WriteToTerminalAsync(data);
         }
 
         public void ClearBuffer() => _buffer.Clear();
@@ -40,26 +58,35 @@ namespace AutoCAC.Utilities
             builder.Append('[');
             builder.Append(trimmedSpan);
             builder.Append(']');
-
-            string json = builder.ToString();
-
-            json = json
+            builder
                 .Replace('"', '\'')
                 .Replace('\x1F', '"')
                 .Replace("\f", "")
-                .Replace("\\", "&#92");
+                .Replace("\\", "&#92")
+                .Replace("\n", "")
+                .Replace("\r", "");
 
+            string json = builder.ToString();
+            //_ = WriteToTerminalAsync(json.LastLine());
             ClearBuffer();
             return json;
         }
 
-        public List<T> BufferToObject<T>()
+        public IEnumerable<T> BufferToObject<T>()
         {
             string json = BufferToJson();
-            return JsonConvert.DeserializeObject<List<T>>(json) ?? new List<T>();
+            return JsonConvert.DeserializeObject<IEnumerable<T>>(json) ?? new List<T>();
+        }
+        public IEnumerable<IDictionary<string, object>> BufferToObject()
+        {
+            return BufferToObject<IDictionary<string, object>>();
         }
 
         public string Prompt() => Received.LastLine();
 
+        private async Task WriteToTerminalAsync(string data)
+        {
+            await _js.WriteToXtermAsync(data);
+        }
     }
 }

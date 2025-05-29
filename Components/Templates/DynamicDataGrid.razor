@@ -1,0 +1,150 @@
+﻿@using AutoCAC.Extensions
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject IHttpClientFactory ClientFactory
+@typeparam TItem
+
+@if (Data == null || !Data.Any())
+{
+    <p>No data to display.</p>
+}
+else
+{
+    <RadzenRow>
+        <RadzenColumn Size="12">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                <RadzenButton Icon="download" Text="Download" Click="@DownloadExcel" Variant="Variant.Flat" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
+
+    <RadzenDataGrid @ref="grid" TItem="TItem" Data="@Data" ColumnWidth="200px" AllowPaging="true" 
+    ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30}) AllowFiltering="true"
+    AllowSorting="true"
+    >
+        <Columns>
+            @if (isDictionary)
+            {
+                @foreach (var column in parsedColumns)
+                {
+                    <RadzenDataGridColumn TItem="TItem" Title="@column.Title" Type="@column.Type" Property="@PropertyAccess.GetDynamicPropertyExpression(column.Property, column.Type)">
+                        <Template Context="context">
+                            @((context as IDictionary<string, object>)[column.Property])
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+            }
+            else
+            {
+                @foreach (var prop in typeof(TItem).GetProperties())
+                {
+                    <RadzenDataGridColumn TItem="TItem" Property="@prop.Name" Title="@prop.Name" />
+                }
+            }
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    [Parameter] public IEnumerable<TItem> Data { get; set; }
+
+    private RadzenDataGrid<TItem> grid;
+    private bool isDictionary = false;
+
+    private record ParsedColumn(string Title, string Property, Type Type);
+    private List<ParsedColumn> parsedColumns = new();
+
+    protected override void OnParametersSet()
+    {
+        isDictionary = typeof(TItem) == typeof(IDictionary<string, object>);
+
+        if (isDictionary && Data?.Any() == true)
+        {
+            var firstRow = (IDictionary<string, object>)Data.First();
+            if (firstRow != null)
+            {
+                foreach (var rawKey in firstRow.Keys)
+                {
+                    string property = rawKey;
+                    string title = rawKey;
+                    Type type = typeof(string); // Default
+
+                    int start = rawKey.IndexOf('<');
+                    int end = rawKey.IndexOf('>');
+                    if (rawKey=="id")
+                    {
+                        type = typeof(int);
+                    }
+                    else if (rawKey.StartsWith("<") && rawKey.Contains(">"))
+                    {
+                        string typeName = rawKey.Substring(1, end - 1).Trim().ToLower();
+                        title = rawKey.Substring(end + 1).Trim();
+                        type = typeName switch
+                        {
+                            "int"=> typeof(int?),
+                            "long"=> typeof(long?),
+                            "bool" => typeof(bool?),
+                            "datetime" or "date" => typeof(DateTime?),
+                            "double" => typeof(double?),
+                            "decimal" => typeof(decimal?),
+                            "guid" => typeof(Guid?),
+                            _ => typeof(string)
+                        };
+                    }
+                    parsedColumns.Add(new ParsedColumn(Title: title, Property: property, Type: type));
+                }
+                var columnsNeedingConversion = parsedColumns
+                    .Where(c => c.Type != typeof(string))
+                    .ToList();
+                var removedFromConversion = new HashSet<ParsedColumn>();
+                foreach (IDictionary<string, object> dict in Data)
+                {
+                    foreach (var column in columnsNeedingConversion)
+                    {
+                        if (removedFromConversion.Contains(column)) continue;
+                        if (dict.TryGetValue(column.Property, out var value) && value is string strVal)
+                        {
+                            try
+                            {
+                                var targetType = Nullable.GetUnderlyingType(column.Type) ?? column.Type;
+                                object typedValue = Convert.ChangeType(strVal, targetType);
+                                dict[column.Property] = typedValue;
+                            }
+                            catch
+                            {
+                                // Conversion failed, fallback to string and update column type
+                                dict[column.Property] = strVal;
+
+                                int index = parsedColumns.IndexOf(column);
+                                parsedColumns[index] = column with { Type = typeof(string) };
+
+                                removedFromConversion.Add(column);
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    private async Task DownloadExcel()
+    {
+        var client = ClientFactory.CreateClient("WindowsAuthClient");
+        var content = isDictionary ? ((IEnumerable<IDictionary<string, object>>)Data).FormatForExcelFromDict() : Data.FormatForExcelFromObject();
+        var uri = new Uri(Nav.BaseUri + "export-excel");
+
+        var response = await client.PostAsync(uri, content);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Optionally log or show error
+            return;
+        }
+
+        var fileBytes = await response.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(fileBytes);
+        await JS.DownloadExcel(base64);
+    }
+}

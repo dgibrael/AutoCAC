@@ -154,7 +154,7 @@
         {
             for (int i = 0; i < attempts; i++)
             {
-                var curPrompt = RPMS.CurrentPrompt;
+                var curPrompt = RPMS.Output.Prompt();
                 if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
                 {
                     if (menu != null)
@@ -210,13 +210,6 @@
         {
             HandleError(ex);
         }
-    }
-
-    private int maxReadLoops = 12000;
-
-    public void SetMaxReadTime(int timeInMs)
-    {
-        maxReadLoops = timeInMs / 10;
     }
 
     public async Task ScrollTo(string elementId = "bottom")
@@ -292,7 +285,7 @@
 
     public string CheckPrompt(StringComparison comparison, params string[] expectedPrompts)
     {
-        string prompt = RPMS.CurrentPrompt;
+        string prompt = RPMS.Output.Prompt();
 
         foreach (var expected in expectedPrompts)
         {
@@ -307,7 +300,7 @@
 
     public void CheckPromptAndThrow(string expectedPrompt, StringComparison comparison = StringComparison.Ordinal)
     {
-        string prompt = RPMS.CurrentPrompt;
+        string prompt = RPMS.Output.Prompt();
         if (!prompt.Contains(expectedPrompt, comparison))
         {
             throw new RPMSException();
@@ -319,7 +312,7 @@
         Func<Task> onNoMatch = null,
         StringComparison comparison = StringComparison.Ordinal)
     {
-        string prompt = RPMS.CurrentPrompt;
+        string prompt = RPMS.Output.Prompt();
         foreach (var (expectedPrompt, action) in promptActions)
         {
             if (prompt.Contains(expectedPrompt, comparison))

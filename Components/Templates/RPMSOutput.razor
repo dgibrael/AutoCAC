@@ -1,13 +1,15 @@
 ﻿@implements IDisposable
 @inject IJSRuntime JS
 @using AutoCAC.Extensions
-
+@using static RPMSService
 <div id="RPMSOutputDiv">
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
-        <RadzenButton Text="Download Terminal Contents" Click="DownloadRPMSReceived" />
+        <RadzenButton Text="Download Terminal Contents" Click="DownloadReceived" />
+        <RadzenButton Text="Download Report" Click="DownloadReport" Disabled="@(!Layout.RPMS.IsInMode(RPMSService.Modes.Report))" />
     </RadzenRow>
+    <DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 </div>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
@@ -16,6 +18,7 @@
     [Parameter] public EventCallback OnLoginSuccess { get; set; }
     [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
     [Parameter] public bool CollapsedInitial { get; set; } = false;
+    private IEnumerable<IDictionary<string, object>> ParsedData;
 
     private void ScrollToInput()
     {
@@ -27,7 +30,8 @@
         if (firstRender)
         {
             await JS.ReinitXterm();
-            await JS.WriteToXtermAsync(Layout.RPMS.LastReceivedRaw);
+            await JS.WriteToXtermAsync(Layout.RPMS.Output.Received);
+            Layout.RPMS.ModeChanged += OnModeChanged;
             if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
@@ -39,7 +43,20 @@
         }
     }
 
-    public async Task DownloadRPMSReceived()
+    public void OnModeChanged()
+    {
+        if(Layout.RPMS.IsInMode(RPMSService.Modes.Report))
+        {
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public async Task DownloadReport()
+    {
+        ParsedData = await Layout.RPMS.GetReportAsync<IDictionary<string, object>>();
+    }
+
+    public async Task DownloadReceived()
     {
         await JS.DownloadXtermContentAsync();
     }

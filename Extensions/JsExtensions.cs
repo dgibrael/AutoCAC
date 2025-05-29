@@ -4,19 +4,14 @@ namespace AutoCAC.Extensions
 {
     public static class JsExtensions
     {
-        public static async Task WriteToXtermAsync(this IJSRuntime js, string message, bool log = false)
+        public static async Task WriteToXtermAsync(this IJSRuntime js, string message)
         {
-            await js.InvokeVoidAsync("writeRPMSXterm", message, log);
+            await js.InvokeVoidAsync("writeRPMSXterm", message);
         }
 
         public static async Task ClearXtermAsync(this IJSRuntime js)
         {
             await js.InvokeVoidAsync("clearRPMSXterm");
-        }
-
-        public static async Task DownloadLogAsync(this IJSRuntime js)
-        {
-            await js.InvokeVoidAsync("downloadRPMSLog");
         }
 
         public static async Task DownloadXtermContentAsync(this IJSRuntime js)

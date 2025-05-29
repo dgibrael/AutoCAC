@@ -16,10 +16,10 @@ public static class TerminalInterop
         {
             return Task.CompletedTask;
         }
-        bool recordInput = RPMS.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
+        bool finishedWriting = RPMS.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
         try
         {
-            if (recordInput)
+            if (finishedWriting)
             {
                 RPMS.SendRaw(input);
                 RPMS.SetMode(RPMSService.Modes.DefaultReceive);
