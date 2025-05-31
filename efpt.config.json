@@ -23,6 +23,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[OrderDialog]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[PharmacyOrderableItem]",
          "ObjectType": 0
       },
@@ -44,6 +48,7 @@
    "UseHandleBars": false,
    "UseHierarchyId": false,
    "UseInflector": true,
+   "UseInternalAccessModifiersForSprocsAndFunctions": false,
    "UseLegacyPluralizer": false,
    "UseManyToManyEntity": false,
    "UseNoDefaultConstructor": false,

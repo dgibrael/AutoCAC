@@ -17,6 +17,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
+    public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
+
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
@@ -25,7 +27,7 @@ public partial class mainContext : DbContext
     {
         modelBuilder.Entity<Drug>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F4C71E973");
+            entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F4AC5D145");
 
             entity.ToTable("Drug");
 
@@ -71,7 +73,7 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<Ndf>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__NDF__3213E83F81BE9A03");
+            entity.HasKey(e => e.Id).HasName("PK__NDF__3213E83F6A0B8A19");
 
             entity.ToTable("NDF");
 
@@ -91,9 +93,27 @@ public partial class mainContext : DbContext
             entity.Property(e => e.ProductName).IsUnicode(false);
         });
 
+        modelBuilder.Entity<OrderDialog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__OrderDia__3213E83F28D7C0B2");
+
+            entity.ToTable("OrderDialog");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.DisplayGroup).IsUnicode(false);
+            entity.Property(e => e.DisplayText).IsUnicode(false);
+            entity.Property(e => e.Items).IsUnicode(false);
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.Package).IsUnicode(false);
+            entity.Property(e => e.Responses).IsUnicode(false);
+            entity.Property(e => e.Type).IsUnicode(false);
+        });
+
         modelBuilder.Entity<PharmacyOrderableItem>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Pharmacy__3213E83F84C03603");
+            entity.HasKey(e => e.Id).HasName("PK__Pharmacy__3213E83F26033076");
 
             entity.ToTable("PharmacyOrderableItem");
 
