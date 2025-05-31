@@ -83,7 +83,7 @@ else
                     await CreateNewDrug();
                     return;
                 case "Yes//":
-                    string lastStr = Layout.RPMS.Output.Received;
+                    string lastStr = Layout.RPMS.Output.Buffered;
                     if(lastStr.Contains("Lookup: GENERIC NAME"))
                     {
                         var parameters = new Dictionary<string, object>

@@ -5,7 +5,6 @@
 <h3>Test ShellOutput Parsing</h3>
 <div id="rpmsOutputTxtDiv"></div>
 <button class="btn btn-primary" @onclick="ParseData">Parse Mock Data</button>
-<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 
 @code {
     private ShellOutput shellOutput;
@@ -20,6 +19,7 @@
     {
         shellOutput.Append("{\u001Fname\u001F:\u001FAlice\u001F,\u001F<INT>age\u001F:\u001F30\u001F},{\u001Fname\u001F:\u001FBob\u001F,\u001F<INT>age\u001F:\u001F25\u001F}");
         // Parse it into a list of objects
-        ParsedData = shellOutput.BufferToObject();
+        //ParsedData = shellOutput.BufferToObject();
+        //<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
     }
 }

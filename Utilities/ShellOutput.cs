@@ -12,16 +12,9 @@ namespace AutoCAC.Utilities
             _js = js;
         }
         private readonly StringBuilder _buffer = new();
-
+        public bool BufferFrozen { get; set; } = false;
         public string Echoed { get; private set; } = "";
-        public string Received { get; private set; } = "";
         public string Buffered => _buffer.ToString();
-
-        public void SetReceived(string data)
-        {
-            Received = data;
-            _ = WriteToTerminalAsync(data);
-        }
 
         public void SetEchoed(string data)
         {
@@ -35,7 +28,13 @@ namespace AutoCAC.Utilities
             _ = WriteToTerminalAsync(data);
         }
 
-        public void ClearBuffer() => _buffer.Clear();
+        public void ClearBuffer()
+        {
+            if (!BufferFrozen)
+            {
+                _buffer.Clear();
+            }
+        }
 
         public string BufferToJson()
         {
@@ -67,22 +66,34 @@ namespace AutoCAC.Utilities
                 .Replace("\r", "");
 
             string json = builder.ToString();
-            //_ = WriteToTerminalAsync(json.LastLine());
+            BufferFrozen = false;
             ClearBuffer();
             return json;
         }
-
-        public IEnumerable<T> BufferToObject<T>()
+        public string Prompt() => Buffered.LastLine();
+        public string CurrentValue()
         {
-            string json = BufferToJson();
-            return JsonConvert.DeserializeObject<IEnumerable<T>>(json) ?? new List<T>();
-        }
-        public IEnumerable<IDictionary<string, object>> BufferToObject()
-        {
-            return BufferToObject<IDictionary<string, object>>();
-        }
+            string lastStr = Buffered;
+            int colonIdx = lastStr.IndexOf(':')+1;
+            if (colonIdx<=0)
+            {
+                return "";
+            }
 
-        public string Prompt() => Received.LastLine();
+            int replaceIdx = lastStr.LastIndexOf("Replace");
+            if (replaceIdx>colonIdx)
+            {
+                return lastStr[colonIdx..replaceIdx].Trim();
+            }
+
+            int slashIdx = lastStr.LastIndexOf("//");
+            if (slashIdx>colonIdx)
+            {
+                return lastStr[colonIdx..slashIdx].Trim();
+            }
+
+            return "";
+        }
 
         private async Task WriteToTerminalAsync(string data)
         {

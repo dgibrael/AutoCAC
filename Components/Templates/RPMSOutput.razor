@@ -7,15 +7,14 @@
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
         <RadzenButton Text="Download Terminal Contents" Click="DownloadReceived" />
-        <RadzenButton Text="Download Report" Click="DownloadReport" Disabled="@(!Layout.RPMS.IsInMode(RPMSService.Modes.Report))" />
+        <RadzenButton Text="Download Report" Click="DownloadReport" Disabled="@(!Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt))" />
     </RadzenRow>
     <DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 </div>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-
-    // Optional callback after successful login
     [Parameter] public EventCallback OnLoginSuccess { get; set; }
+    [Parameter] public EventCallback OnModeChanged { get; set; }
     [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
     [Parameter] public bool CollapsedInitial { get; set; } = false;
     private IEnumerable<IDictionary<string, object>> ParsedData;
@@ -30,8 +29,8 @@
         if (firstRender)
         {
             await JS.ReinitXterm();
-            await JS.WriteToXtermAsync(Layout.RPMS.Output.Received);
-            Layout.RPMS.ModeChanged += OnModeChanged;
+            await JS.WriteToXtermAsync(Layout.RPMS.Output.Buffered);
+            Layout.RPMS.ModeChanged += HandleModeChanged;
             if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
@@ -43,17 +42,23 @@
         }
     }
 
-    public void OnModeChanged()
+    public async void HandleModeChanged(RPMSService.RPMSMode previousMode)
     {
-        if(Layout.RPMS.IsInMode(RPMSService.Modes.Report))
+        if (OnModeChanged.HasDelegate)
         {
-            InvokeAsync(StateHasChanged);
+            await OnModeChanged.InvokeAsync(previousMode);
+        }
+
+        if (Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt) || previousMode == RPMSService.Modes.ReportPrompt)
+        {
+            await InvokeAsync(StateHasChanged);
         }
     }
 
     public async Task DownloadReport()
     {
-        ParsedData = await Layout.RPMS.GetReportAsync<IDictionary<string, object>>();
+        var parsedJson = await Layout.RPMS.GetReportAsync();
+        ParsedData = parsedJson.JsonStrToObject<IDictionary<string, object>>();
     }
 
     public async Task DownloadReceived()

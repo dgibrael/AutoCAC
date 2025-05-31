@@ -1,4 +1,4 @@
-﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
+﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:500 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
 window.writeRPMSXterm = function (text) {

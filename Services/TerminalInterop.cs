@@ -12,9 +12,10 @@ public static class TerminalInterop
             RPMS.OpenConnection();
             return Task.CompletedTask;
         }
-        else if (RPMS.IsInMode(RPMSService.Modes.Report))
+        else if (RPMS.IsInMode(RPMSService.Modes.Report) || RPMS.IsInMode(RPMSService.Modes.ReportPrompt))
         {
-            return Task.CompletedTask;
+            RPMS.Output.BufferFrozen = false;
+            RPMS.SetMode(RPMSService.Modes.DefaultInput);
         }
         bool finishedWriting = RPMS.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
         try
@@ -37,5 +38,4 @@ public static class TerminalInterop
         }
         return Task.CompletedTask;
     }
-
 }

@@ -20,7 +20,8 @@ else
     </RadzenRow>
 
     <RadzenDataGrid @ref="grid" TItem="TItem" Data="@Data" ColumnWidth="200px" AllowPaging="true" 
-    ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30}) AllowFiltering="true"
+    ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) AllowFiltering="true"
+        AllowMultiColumnSorting="true" ShowMultiColumnSortingIndex="true"
     AllowSorting="true"
     >
         <Columns>

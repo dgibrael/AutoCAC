@@ -1,4 +1,6 @@
-﻿namespace AutoCAC.Extensions
+﻿using Newtonsoft.Json;
+
+namespace AutoCAC.Extensions
 {
     public static class StringExtensions
     {
@@ -38,7 +40,7 @@
                 : span;
         }
         public static bool LastLineContains(this string data, string value,
-            StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+            StringComparison comparison = StringComparison.Ordinal)
         {
             if (string.IsNullOrEmpty(data) || string.IsNullOrEmpty(value))
                 return false;
@@ -47,7 +49,7 @@
         }
 
         public static string LastLineContains(this string data, string[] values,
-            StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+            StringComparison comparison = StringComparison.Ordinal)
         {
             if (string.IsNullOrEmpty(data) || values == null || values.Length == 0)
                 return null;
@@ -65,6 +67,55 @@
             return null;
         }
 
+        public static string GetAfterLastDelimiter(this string data, string delimiter)
+        {
+            if (string.IsNullOrEmpty(data))
+                return string.Empty;
 
+            ReadOnlySpan<char> span = data.AsSpan();
+            int lastIndex = span.LastIndexOf(delimiter.AsSpan());
+
+            return lastIndex >= 0
+                ? span[(lastIndex + 1)..].ToString()
+                : data;
+        }
+
+        public static string GetBeforeLastDelimiter(this string data, string delimiter)
+        {
+            if (string.IsNullOrEmpty(data))
+                return string.Empty;
+            ReadOnlySpan<char> span = data.AsSpan();
+            int lastIndex = span.LastIndexOf(delimiter.AsSpan());
+
+            return lastIndex >= 0
+                ? span[..lastIndex].ToString()
+                : data;
+        }
+
+        public static string GetBeforeIdx(this string data, int lastIndex)
+        {
+            ReadOnlySpan<char> span = data.AsSpan();
+            return lastIndex >= 0
+                ? span[..lastIndex].ToString()
+                : data;
+        }
+
+        public static string GetAfterIdx(this string data, int lastIndex)
+        {
+            ReadOnlySpan<char> span = data.AsSpan();
+            return lastIndex >= 0
+                ? span[(lastIndex + 1)..].ToString()
+                : data;
+        }
+
+        public static IEnumerable<T> JsonStrToObject<T>(this string json)
+        {
+            return JsonConvert.DeserializeObject<IEnumerable<T>>(json) ?? new List<T>();
+        }
+
+        public static IEnumerable<IDictionary<string, object>> JsonStrToObject(this string json)
+        {
+            return JsonConvert.DeserializeObject<IEnumerable<IDictionary<string, object>>>(json);
+        }
     }
 }
