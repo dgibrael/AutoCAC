@@ -1,4 +1,6 @@
 ﻿using Newtonsoft.Json;
+using System.Text;
+using System;
 
 namespace AutoCAC.Extensions
 {
@@ -116,6 +118,36 @@ namespace AutoCAC.Extensions
         public static IEnumerable<IDictionary<string, object>> JsonStrToObject(this string json)
         {
             return JsonConvert.DeserializeObject<IEnumerable<IDictionary<string, object>>>(json);
+        }
+
+        public static string JsonStrFromReport(this string data)
+        {
+            if (string.IsNullOrEmpty(data))
+                return "";
+
+            var span = data.AsSpan();
+
+            int lastClose = span.LastIndexOf('}');
+            if (lastClose < 0) return "";
+
+            int firstOpen = span.IndexOf('{');
+            if (firstOpen < 0) return "";
+
+            var trimmedSpan = span[firstOpen..(lastClose + 1)];
+
+            var builder = new StringBuilder();
+            builder.Append('[');
+            builder.Append(trimmedSpan);
+            builder.Append(']');
+            builder
+                .Replace('"', '\'')
+                .Replace('\x1F', '"')
+                .Replace("\f", "")
+                .Replace("\\", "&#92")
+                .Replace("\n", "")
+                .Replace("\r", "");
+
+            return builder.ToString();
         }
     }
 }

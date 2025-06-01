@@ -36,40 +36,6 @@ namespace AutoCAC.Utilities
             }
         }
 
-        public string BufferToJson()
-        {
-            string buffer = Buffered;
-
-            if (string.IsNullOrEmpty(buffer))
-                return "";
-
-            var span = buffer.AsSpan();
-
-            int lastClose = span.LastIndexOf('}');
-            if (lastClose < 0) return "";
-
-            int firstOpen = span.IndexOf('{');
-            if (firstOpen < 0) return "";
-
-            var trimmedSpan = span[firstOpen..(lastClose + 1)];
-
-            var builder = new StringBuilder();
-            builder.Append('[');
-            builder.Append(trimmedSpan);
-            builder.Append(']');
-            builder
-                .Replace('"', '\'')
-                .Replace('\x1F', '"')
-                .Replace("\f", "")
-                .Replace("\\", "&#92")
-                .Replace("\n", "")
-                .Replace("\r", "");
-
-            string json = builder.ToString();
-            BufferFrozen = false;
-            ClearBuffer();
-            return json;
-        }
         public string Prompt() => Buffered.LastLine();
         public string CurrentValue()
         {

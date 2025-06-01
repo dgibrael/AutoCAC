@@ -10,6 +10,7 @@ using AutoCAC;
 using AutoCAC.Extensions;
 using AutoCAC.Utilities;
 using Microsoft.Identity.Client;
+using System;
 
 public class RPMSService : IDisposable
 {
@@ -150,7 +151,6 @@ public class RPMSService : IDisposable
                     }
                     else
                     {
-                        s.Output.BufferFrozen = true;
                         s.SetMode(Modes.DefaultInput);
                     }
                 }
@@ -161,7 +161,8 @@ public class RPMSService : IDisposable
             Name: "ReportPrompt",
             SignedIn: true,
             ReceiveComplete: (s, data) => { },
-            Receiving: (s, data) => { }
+            Receiving: (s, data) => { },
+            OnEnter: (s) => s.Output.ClearBuffer()
         );
     }
 
@@ -178,16 +179,17 @@ public class RPMSService : IDisposable
     public ShellStream Stream => _stream;
 
     public RPMSMode CurrentMode { get; private set; } = Modes.Disconnected;
+    public RPMSMode PreviousMode { get; private set; } = Modes.Disconnected;
 
-    public event Action<RPMSMode> ModeChanged;
+    public event Action ModeChanged;
     public void SetMode(RPMSMode newMode)
     {
         if (newMode == CurrentMode)
             return;
-        var previous = CurrentMode;
+        PreviousMode = CurrentMode;
         CurrentMode = newMode;
         newMode.OnEnter(this);
-        ModeChanged?.Invoke(previous);
+        ModeChanged?.Invoke();
     }
 
     public string EndOfFeedStr = "\xFF\b";
@@ -250,11 +252,6 @@ public class RPMSService : IDisposable
                 await Task.Delay(10, token);
             }
         }
-        if (!_client.IsConnected || !_stream.CanRead)
-        {
-            SetMode(Modes.Disconnected);
-            StopListening();
-        }
     }
 
 
@@ -293,15 +290,17 @@ public class RPMSService : IDisposable
 
     public async Task<string> GetReportAsync()
     {
-        Console.WriteLine("running report");
-        SetMode(Modes.Report);
+        Output.BufferFrozen = true;
         Send("0;512;99999999999");
+        SetMode(Modes.Report);
         while (IsInMode(Modes.Report))
         {
             await Task.Delay(10); // let other code run
         }
-        Console.WriteLine("report complete parsing...");
-        return Output.BufferToJson();
+        string buffer = Output.Buffered;
+        Output.BufferFrozen = false;
+        Output.ClearBuffer();
+        return buffer;
     }
 
     public void SendEndOfFeed()

@@ -7,17 +7,13 @@
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
         <RadzenButton Text="Download Terminal Contents" Click="DownloadReceived" />
-        <RadzenButton Text="Download Report" Click="DownloadReport" Disabled="@(!Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt))" />
     </RadzenRow>
-    <DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 </div>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     [Parameter] public EventCallback OnLoginSuccess { get; set; }
     [Parameter] public EventCallback OnModeChanged { get; set; }
     [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
-    [Parameter] public bool CollapsedInitial { get; set; } = false;
-    private IEnumerable<IDictionary<string, object>> ParsedData;
 
     private void ScrollToInput()
     {
@@ -42,23 +38,12 @@
         }
     }
 
-    public async void HandleModeChanged(RPMSService.RPMSMode previousMode)
+    public async void HandleModeChanged()
     {
         if (OnModeChanged.HasDelegate)
         {
-            await OnModeChanged.InvokeAsync(previousMode);
+            await InvokeAsync(() => OnModeChanged.InvokeAsync());
         }
-
-        if (Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt) || previousMode == RPMSService.Modes.ReportPrompt)
-        {
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    public async Task DownloadReport()
-    {
-        var parsedJson = await Layout.RPMS.GetReportAsync();
-        ParsedData = parsedJson.JsonStrToObject<IDictionary<string, object>>();
     }
 
     public async Task DownloadReceived()

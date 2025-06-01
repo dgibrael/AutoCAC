@@ -1,4 +1,4 @@
-﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:500 });
+﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:200 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
 window.writeRPMSXterm = function (text) {
@@ -34,7 +34,6 @@ window.reinitRPMSXterm = function () {
     rpmsTerm.onData(function (input) {
         runCSharp("UserInput", input);
     });
-    window.deflator = new pako.Deflate({ to: "string" });
 };
 
 

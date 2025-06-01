@@ -4,11 +4,10 @@
 @inject IJSRuntime JS
 <h3>Test ShellOutput Parsing</h3>
 <div id="rpmsOutputTxtDiv"></div>
-<button class="btn btn-primary" @onclick="ParseData">Parse Mock Data</button>
 
 @code {
     private ShellOutput shellOutput;
-    private IEnumerable<IDictionary<string, object>> ParsedData;
+    //private IEnumerable<IDictionary<string, object>> ParsedData;
 
     protected override void OnInitialized()
     {
@@ -21,5 +20,7 @@
         // Parse it into a list of objects
         //ParsedData = shellOutput.BufferToObject();
         //<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
+        //<button class="btn btn-primary" @onclick="ParseData">Parse Mock Data</button>
+
     }
 }
