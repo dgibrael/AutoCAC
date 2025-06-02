@@ -1,0 +1,193 @@
+﻿@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Data.SqlClient
+@using System.Text.Json
+@using AutoCAC.Extensions
+@inject IDbContextFactory<mainContext> DbFactory
+@inject LoadDataGridService LoadDataGridService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+
+<RadzenStack>
+    <RadzenHeading Size="H5" Text="QuickOrder Search" />
+
+    <EditForm Model="@searchModel" OnValidSubmit="OnSearch">
+        @foreach (var pair in searchModel.Pairs)
+        {
+            <div class="row mb-2">
+                <div class="col">
+                    <RadzenDropDown @bind-Value="pair.Dialog"
+                    Data="@dialogOptions"
+                    ValueProperty="Dialog"
+                    TextProperty="CleanDialog"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    Placeholder="Select Dialog"
+                    Style="width:100%" />
+
+                </div>
+                <div class="col">
+                    <RadzenTextBox @bind-Value="pair.Search" Placeholder="Enter Value/Text" Style="width:100%" />
+                </div>
+                <div class="col-auto">
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger" Click="@(() => RemovePair(pair))" />
+                </div>
+            </div>
+        }
+        <RadzenButton Text="Add Filter" Click="@AddPair" Style="margin-right:10px" />
+        <RadzenButton Text="Search" ButtonType="ButtonType.Submit" />
+    </EditForm>
+
+    <RadzenDataGrid @ref="grid" Data="@data" Count="@count" LoadData="@LoadData" TItem="AutoCAC.Models.QuickOrder" ExpandMode="DataGridExpandMode.Single"
+    AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
+    AllowFiltering="true" AllowMultiColumnSorting="true" ShowMultiColumnSortingIndex="true" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="AutoCAC.Models.QuickOrder" Property="DisplayText" Title="Display Name" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.QuickOrder" Property="Name" Title="Name" Width="250px"/>
+            <RadzenDataGridColumn TItem="AutoCAC.Models.QuickOrder" Property="Id" Title="IEN" Width="50px" />
+        </Columns>
+        <Template Context="q">
+            @foreach (var item in q.ParsedResponses)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Value) || !string.IsNullOrWhiteSpace(item.Text))
+                {
+                    <div>
+                        <strong>@item.Dialog.Replace("OR GTX ", "")</strong>:
+                        <span style="white-space: normal">@(!string.IsNullOrWhiteSpace(item.Value) ? item.Value : item.Text)</span>
+                    </div>
+                }
+            }
+        </Template>
+    </RadzenDataGrid>
+</RadzenStack>
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    [Parameter] public string Package { get; set; }
+
+    private RadzenDataGrid<AutoCAC.Models.QuickOrder> grid;
+    protected IEnumerable<AutoCAC.Models.QuickOrder> data;
+    protected int count;
+    private bool? shouldCount = true;
+
+    private IEnumerable<DialogOption> dialogOptions = new List<DialogOption>();
+    private SearchModel searchModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        dialogOptions = await GetDialogOptionsAsync();
+        AddPair();
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        await Layout.SetLoading(true);
+        var query = BuildQuickOrderQuery();
+        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+
+        data = result.Data;
+        count = result.Count;
+        shouldCount = null;
+
+        await Layout.SetLoading(false);
+    }
+
+    public class DialogOption
+    {
+        public string Dialog { get; set; }       // Full "OR GTX ..." used for value
+        public string CleanDialog { get; set; }  // Displayed to user
+    }
+
+    private IQueryable<AutoCAC.Models.QuickOrder> BuildQuickOrderQuery()
+    {
+        string sql;
+        object[] parameters;
+        if (searchModel?.Pairs?.Any(p => !string.IsNullOrWhiteSpace(p.Dialog) && !string.IsNullOrWhiteSpace(p.Search)) != true)
+        {
+            sql = "SELECT * FROM QuickOrder WHERE Package = @package";
+            return DbFactory.QueryFromSql<AutoCAC.Models.QuickOrder>(sql, new SqlParameter("@package", Package));
+        }
+
+        var filterJson = JsonSerializer.Serialize(searchModel.Pairs);
+
+        sql = @"
+            SELECT q.*
+            FROM QuickOrder q
+            WHERE q.Package = @Package
+              AND NOT EXISTS (
+                SELECT 1
+                FROM OPENJSON(@filters)
+                WITH (
+                    Dialog NVARCHAR(255),
+                    Search NVARCHAR(255)
+                ) AS f
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM OPENJSON(q.Responses)
+                    WITH (
+                        Dialog NVARCHAR(255),
+                        Value NVARCHAR(255),
+                        Text NVARCHAR(MAX)
+                    ) AS r
+                    WHERE r.Dialog = f.Dialog
+                      AND (
+                          ISNULL(r.Value, '') LIKE '%' + f.Search + '%'
+                          OR ISNULL(r.Text, '') LIKE '%' + f.Search + '%'
+                      )
+                )
+            )";
+
+        parameters = new[] {
+            new SqlParameter("@filters", filterJson),
+            new SqlParameter("@package", Package)
+        };
+
+        return DbFactory.QueryFromSql<AutoCAC.Models.QuickOrder>(sql, parameters);
+    }
+
+    private void AddPair() => searchModel.Pairs.Add(new DialogSearchPair());
+    private async Task RemovePair(DialogSearchPair p)
+    {
+        searchModel.Pairs.Remove(p);
+        shouldCount = true;
+        await grid.FirstPage(true);
+    }
+
+    private async Task OnSearch()
+    {
+        shouldCount = true;
+        await grid.FirstPage(true);
+    }
+
+   private async Task<IEnumerable<DialogOption>> GetDialogOptionsAsync()
+    {
+        var sql = @"
+            SELECT Dialog, REPLACE(Dialog, 'OR GTX ', '') AS CleanDialog
+            FROM (
+                SELECT JSON_VALUE(b.value, '$.Dialog') AS Dialog, JSON_VALUE(b.value, '$.Value') Val
+                FROM QuickOrder a
+                CROSS APPLY OPENJSON(a.Responses) b
+                WHERE a.Package = @package
+            ) AS Sub
+            WHERE Dialog IS NOT NULL
+            GROUP BY Dialog
+            ORDER BY COUNT(DISTINCT Val) DESC";
+
+        return await DbFactory.ReadSqlAsync<DialogOption>(sql, new { package = Package });
+    }
+
+    public class SearchModel
+    {
+        public List<DialogSearchPair> Pairs { get; set; } = new();
+    }
+
+    public class DialogSearchPair
+    {
+        public string Dialog { get; set; }
+        public string Search { get; set; }
+    }
+}
+

@@ -1,26 +1,13 @@
-﻿@page "/test"
+﻿@page "/"
 @using AutoCAC.Utilities
-@using AutoCAC.Components.Templates
+@using AutoCAC.Components.OrderDialogs
 @inject IJSRuntime JS
 <h3>Test ShellOutput Parsing</h3>
-<div id="rpmsOutputTxtDiv"></div>
+<QuickOrder Package="OUTPATIENT PHARMACY" />
 
 @code {
-    private ShellOutput shellOutput;
-    //private IEnumerable<IDictionary<string, object>> ParsedData;
-
     protected override void OnInitialized()
     {
-        shellOutput = new ShellOutput(JS);
-    }
-
-    private void ParseData()
-    {
-        shellOutput.Append("{\u001Fname\u001F:\u001FAlice\u001F,\u001F<INT>age\u001F:\u001F30\u001F},{\u001Fname\u001F:\u001FBob\u001F,\u001F<INT>age\u001F:\u001F25\u001F}");
-        // Parse it into a list of objects
-        //ParsedData = shellOutput.BufferToObject();
-        //<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
-        //<button class="btn btn-primary" @onclick="ParseData">Parse Mock Data</button>
-
+        
     }
 }

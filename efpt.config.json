@@ -19,6 +19,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[MenuBuild]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[NDF]",
          "ObjectType": 0
       },
@@ -29,6 +33,10 @@
       {
          "Name": "[dbo].[PharmacyOrderableItem]",
          "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[QuickOrder]",
+         "ObjectType": 3
       },
       {
          "Name": "[dbo].[vw_NdcLookup]",

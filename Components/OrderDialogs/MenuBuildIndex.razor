@@ -1,0 +1,53 @@
+﻿@page "/menubuild"
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<h5>Select a menu from below to build. If you recently created a new menu in RPMS, go to ^Update Serever > Order Dialogs. This will take ~1 minute to update</h5>
+<RadzenStack>
+    <RadzenRow>
+        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.OrderDialog" Data="@data" Count="@count" LoadData="@LoadData" RowSelect="OnRowSelect"
+                        AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
+        FilterMode="FilterMode.Simple" AllowFiltering="true" AllowSorting="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Id" Title="IEN" Width="100px" />
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    protected IEnumerable<AutoCAC.Models.OrderDialog> data;
+    protected int count = 0;
+    protected RadzenDataGrid<AutoCAC.Models.OrderDialog> grid0;
+    bool? shouldCount = true;
+
+    protected async Task LoadData(LoadDataArgs args)
+    {
+        await Layout.SetLoading(true);
+        string sql = "Select * From OrderDialog Where [Type]='menu'";
+        var query = DbFactory.QueryFromSql<AutoCAC.Models.OrderDialog>(sql);
+        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+        data = result.Data;
+        count = result.Count;
+        shouldCount = null;
+        await Layout.SetLoading(false);
+    }
+
+    protected async Task OnRowSelect(AutoCAC.Models.OrderDialog args)
+    {
+        NavigationManager.NavigateTo($"menubuild/{args.Id}");
+    }
+
+}

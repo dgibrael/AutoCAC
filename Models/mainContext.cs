@@ -15,11 +15,15 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Drug> Drugs { get; set; }
 
+    public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
+
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
 
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
+
+    public virtual DbSet<QuickOrder> QuickOrders { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
@@ -27,7 +31,7 @@ public partial class mainContext : DbContext
     {
         modelBuilder.Entity<Drug>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F4AC5D145");
+            entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F85628773");
 
             entity.ToTable("Drug");
 
@@ -71,9 +75,31 @@ public partial class mainContext : DbContext
             entity.Property(e => e.VaPrintName).IsUnicode(false);
         });
 
+        modelBuilder.Entity<MenuBuild>(entity =>
+        {
+            entity.HasKey(e => new { e.MenuId, e.RowNum, e.ColNum });
+
+            entity.ToTable("MenuBuild");
+
+            entity.Property(e => e.MenuId).HasColumnName("Menu_id");
+            entity.Property(e => e.DisplayOnly).HasMaxLength(255);
+            entity.Property(e => e.DisplayText).HasMaxLength(255);
+            entity.Property(e => e.ItemId).HasColumnName("Item_id");
+            entity.Property(e => e.Mnemonic).HasMaxLength(255);
+
+            entity.HasOne(d => d.Item).WithMany(p => p.MenuBuildItems)
+                .HasForeignKey(d => d.ItemId)
+                .HasConstraintName("FK_MenuBuildItem_OrderDialog");
+
+            entity.HasOne(d => d.Menu).WithMany(p => p.MenuBuildMenus)
+                .HasForeignKey(d => d.MenuId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_MenuBuildMenu_OrderDialog");
+        });
+
         modelBuilder.Entity<Ndf>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__NDF__3213E83F6A0B8A19");
+            entity.HasKey(e => e.Id).HasName("PK__NDF__3213E83F3D09905B");
 
             entity.ToTable("NDF");
 
@@ -95,7 +121,7 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<OrderDialog>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__OrderDia__3213E83F28D7C0B2");
+            entity.HasKey(e => e.Id).HasName("PK__OrderDia__3213E83F092BEE58");
 
             entity.ToTable("OrderDialog");
 
@@ -113,7 +139,7 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<PharmacyOrderableItem>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Pharmacy__3213E83F26033076");
+            entity.HasKey(e => e.Id).HasName("PK__Pharmacy__3213E83F86EA7B67");
 
             entity.ToTable("PharmacyOrderableItem");
 
@@ -134,6 +160,20 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Schedule).IsUnicode(false);
             entity.Property(e => e.ScheduleType).IsUnicode(false);
             entity.Property(e => e.Synonym).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<QuickOrder>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("QuickOrder");
+
+            entity.Property(e => e.DisplayGroup).IsUnicode(false);
+            entity.Property(e => e.DisplayText).IsUnicode(false);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.Package).IsUnicode(false);
+            entity.Property(e => e.Responses).IsUnicode(false);
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

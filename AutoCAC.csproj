@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Negotiate" Version="8.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="8.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.14" />

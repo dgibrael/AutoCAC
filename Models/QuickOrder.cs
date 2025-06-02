@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace AutoCAC.Models;
 
-public partial class OrderDialog
+public partial class QuickOrder
 {
     public int Id { get; set; }
 
@@ -13,19 +13,9 @@ public partial class OrderDialog
 
     public string? DisplayText { get; set; }
 
-    public string? Type { get; set; }
-
     public string? DisplayGroup { get; set; }
 
     public string? Package { get; set; }
 
-    public double? ColumnWidth { get; set; }
-
-    public string? Items { get; set; }
-
     public string? Responses { get; set; }
-
-    public virtual ICollection<MenuBuild> MenuBuildItems { get; set; } = new List<MenuBuild>();
-
-    public virtual ICollection<MenuBuild> MenuBuildMenus { get; set; } = new List<MenuBuild>();
 }
