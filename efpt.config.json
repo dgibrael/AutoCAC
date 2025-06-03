@@ -35,10 +35,6 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[QuickOrder]",
-         "ObjectType": 3
-      },
-      {
          "Name": "[dbo].[vw_NdcLookup]",
          "ObjectType": 3
       }

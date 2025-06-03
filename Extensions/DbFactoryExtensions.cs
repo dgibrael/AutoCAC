@@ -32,6 +32,13 @@ namespace AutoCAC.Extensions
             return context.Set<T>().FromSqlRaw(sql, parameters).AsNoTracking();
         }
 
+        public static IQueryable<T> QueryFromObj<T>(
+            this IDbContextFactory<mainContext> factory) where T : class
+        {
+            var context = factory.CreateDbContext();
+            return context.Set<T>().AsNoTracking();
+        }
+
     }
 }
 

@@ -1,0 +1,203 @@
+﻿@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Data.SqlClient
+@using System.Text.Json
+@using AutoCAC.Extensions
+@inject IDbContextFactory<mainContext> DbFactory
+@inject LoadDataGridService LoadDataGridService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+
+<RadzenStack>
+    <RadzenHeading Size="H5" Text="Select Quick Order to insert or enter a description in the field at the bottom" />
+
+    <RadzenDropDown
+    @bind-Value="selectedPackage"
+    Data="@packageOptions"
+    Placeholder="Filter by Package"
+    Change="OnPackageChanged" />
+
+    <RadzenTextBox 
+    @bind-Value="searchText" 
+    Placeholder="Filter by keywords" 
+    Style="width:100%"
+    @oninput="@HandleInputChange" 
+    @onkeypress="@HandleKeyPress"
+    />
+
+    <RadzenDataGrid @ref="grid" Data="@data" Count="@count" LoadData="@LoadData" TItem="AutoCAC.Models.OrderDialog" ExpandMode="DataGridExpandMode.Single"
+    AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px" IsLoading="@isLoading"
+    AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" />
+            <RadzenDataGridColumn TItem="OrderDialog" Filterable="false" Sortable="false" Width="50px">
+                <Template Context="dialog">
+                    <RadzenRow>
+                        <RadzenButton Icon="check" Text="Select" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                        Click="@(() => SelectDialog(dialog))" />
+                        <RadzenButton Text="Copy to new" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Base"
+                        Click="@(() => CopyDialog(dialog))" />
+                    </RadzenRow>
+
+                </Template>
+            </RadzenDataGridColumn>
+
+        </Columns>
+        <Template Context="q">
+            @if (q.ParsedItems is List<ResponseItem> responses)
+            {
+                @foreach (var item in responses)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.Value) || !string.IsNullOrWhiteSpace(item.Text))
+                    {
+                        <div>
+                            <strong>@item.Dialog.Replace("OR GTX ", "")</strong>:
+                            <span style="white-space: normal">@(!string.IsNullOrWhiteSpace(item.Value) ? item.Value : item.Text)</span>
+                        </div>
+                    }
+                }                
+            }
+        </Template>
+    </RadzenDataGrid>
+    <RadzenRow>
+        <RadzenLabel Text="Placeholder text"></RadzenLabel>
+        <RadzenTextBox 
+        @bind-Value="placeholderMsg" 
+        Style="width:100%"
+        />
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenButton Icon="cancel" Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
+        Click="CloseDialog" />
+        <RadzenButton Text="Create PlaceHolder" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+        Click="CreatePlaceholder" />
+    </RadzenRow>
+</RadzenStack>
+
+@code {
+    private RadzenDataGrid<AutoCAC.Models.OrderDialog> grid;
+    protected IEnumerable<AutoCAC.Models.OrderDialog> data;
+    protected int count;
+    private bool? shouldCount = true;
+    private List<string> packageOptions = new();
+    private string selectedPackage;
+    private string placeholderMsg;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        packageOptions = await context.OrderDialogs
+            .Where(o => o.Type == "quick order")
+            .Select(o => o.Package)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync();
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        isLoading = true;
+        var query = BuildQuickOrderQuery();
+        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+
+        data = result.Data;
+        count = result.Count;
+        shouldCount = null;
+
+        isLoading = false;
+    }
+
+    private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
+    {
+        var query = DbFactory.QueryFromSql<OrderDialog>("Select * From OrderDialog Where Type='quick order' ");
+        placeholderMsg = "";
+        if (!string.IsNullOrWhiteSpace(selectedPackage))
+        {
+            placeholderMsg = $"Package: {selectedPackage}";
+            query = query.Where(q => q.Package == selectedPackage);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            placeholderMsg = $"{(string.IsNullOrWhiteSpace(placeholderMsg) ? "" : $"{placeholderMsg}; ")}Keywords: {searchText}";
+            var keywords = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var keyword in keywords)
+            {
+                var temp = keyword; 
+                query = query.Where(q => q.Responses.Contains(temp) || q.DisplayText.Contains(temp) || q.Name.Contains(temp));
+            }
+        }
+
+        return query.AsNoTracking();
+    }
+
+    private string searchText;
+    private System.Timers.Timer searchDebounceTimer;
+
+    private void HandleInputChange(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? string.Empty;
+        searchText = input;
+
+        searchDebounceTimer?.Stop();
+        searchDebounceTimer?.Dispose();
+
+        searchDebounceTimer = new System.Timers.Timer(300);
+        searchDebounceTimer.Elapsed += async (_, _) =>
+        {
+            searchDebounceTimer.Dispose();
+            await InvokeAsync(async () =>
+            {
+                shouldCount = true;
+                await grid.FirstPage(true);
+            });
+        };
+        searchDebounceTimer.AutoReset = false;
+        searchDebounceTimer.Start();
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            searchDebounceTimer?.Stop();
+            shouldCount = true;
+            await grid.FirstPage(true);
+        }
+    }
+
+    private async Task OnPackageChanged(object value)
+    {
+        selectedPackage = value?.ToString();
+        shouldCount = true;
+        await grid.FirstPage(true);
+    }
+
+    private void SelectDialog(OrderDialog selected)
+    {
+        DialogService.Close(selected);
+    }
+
+    private void CopyDialog(OrderDialog selected)
+    {
+        placeholderMsg = $"Copy {selected.Name}; {placeholderMsg}";
+        DialogService.Close(placeholderMsg);
+    }
+
+    private void CreatePlaceholder()
+    {
+        DialogService.Close(placeholderMsg);
+    }
+
+    private void CloseDialog()
+    {
+        DialogService.Close(null);
+    }
+}

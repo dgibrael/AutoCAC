@@ -1,0 +1,231 @@
+﻿@page "/menubuild/{Id:int}"
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@using AutoCAC.Components.OrderDialogs
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<h3>Menu Builder: @currentMenu?.DisplayText (@Id)</h3>
+
+<div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
+    @for (int row = 1; row <= maxRow; row++)
+    {
+        var currentRow = row;
+        for (int col = 1; col <= maxCol; col++)
+        {
+            var currentCol = col;
+            var cell = menuItems?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
+            <div class="border p-2 rounded shadow">
+                @if (cell is not null)
+                {
+                    if (cell.DisplayOnly == "YES-HEADER")
+                    {
+                        <strong>@cell.DisplayText</strong>
+                    }
+                    else if (cell.DisplayOnly == "YES")
+                    {
+                        <span>@cell.DisplayText</span>
+                    }
+                    else if (cell.DisplayOnly == "PLACEHOLDER")
+                    {
+                        <strong>Create order:</strong> <i>@cell.DisplayText</i>
+                    }
+                    else if (cell.Item is not null)
+                    {
+                        <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(cell.Item))">@($"{cell.Mnemonic} {cell.Item.DisplayText}")</RadzenButton>
+                    }
+                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteItem(cell))" class="rz-ml-2"/>
+                }
+                else
+                {
+                    <RadzenSplitButton Text="Add"
+                    AlwaysOpenPopup="true"
+                    Size="ButtonSize.Small"
+                    ButtonStyle="ButtonStyle.Primary"
+                    Click="@(item => OnSplitButtonClick(currentRow, currentCol, item))"
+                    Style="width: 100%;">
+                        <ChildContent>
+                            <RadzenSplitButtonItem Text="Text" Value="Text" />
+                            <RadzenSplitButtonItem Text="Menu" Value="Menu" />
+                            <RadzenSplitButtonItem Text="Order Set" Value="Order Set" />
+                            <RadzenSplitButtonItem Text="Quick Order" Value="Quick Order" />
+                        </ChildContent>
+                    </RadzenSplitButton>
+
+
+                }
+            </div>
+        }
+    }
+</div>
+<RadzenButton Text="Add Row" ButtonStyle="ButtonStyle.Secondary" Click="@AddRow" Style="margin-top: 10px;" />
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private List<AutoCAC.Models.MenuBuild> menuItems;
+    private OrderDialog currentMenu;
+    private mainContext db;
+    private int maxRow = 1;
+    private int maxCol = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        db = await DbFactory.CreateDbContextAsync();
+
+        currentMenu = await db.OrderDialogs.FirstOrDefaultAsync(o => o.Id == Id);
+        menuItems = await db.MenuBuilds
+            .Include(mb => mb.Item)
+            .Where(mb => mb.MenuId == Id)
+            .ToListAsync();
+
+        // Column count based on OrderDialog.ColumnWidth
+        if (currentMenu?.ColumnWidth is double width)
+        {
+            maxCol = width < 27.0 ? 4 :
+                     width < 40.0 ? 3 :
+                     width < 79.0 ? 2 : 1;
+        }
+
+        // Max row from items (default to 0)
+        maxRow = menuItems.Any() 
+        ? menuItems.Max(m => m.RowNum)
+        : 1;
+    }
+
+    private void AddRow()
+    {
+        maxRow++;
+        StateHasChanged();
+    }
+
+    private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem item)
+    {
+        switch (item.Value)
+        {
+            case "Text":
+                var txtField = new TextField();
+                var txtresult = await DialogService.OpenAsync<GenericFormDialog<TextField>>(
+                    "Enter text",
+                    new Dictionary<string, object> { { "Model", txtField } }
+                );
+
+                if (txtresult is TextField tf && !string.IsNullOrWhiteSpace(tf.Txt))
+                {
+                    await AddItem(new AutoCAC.Models.MenuBuild
+                    {
+                        MenuId = Id,
+                        DisplayText = tf.Txt,
+                        DisplayOnly = tf.Header ? "YES-HEADER" : "YES",
+                        RowNum = row,
+                        ColNum = col
+                    });
+                }
+                break;
+
+            case "Menu":
+                Console.WriteLine($"Add MENU at [{row}, {col}]");
+                break;
+            case "Order Set":
+                Console.WriteLine($"Add ORDER SET at [{row}, {col}]");
+                break;
+            case "Quick Order":
+                var qo = await DialogService.OpenAsync<QuickOrderSearch>("Quick order", options: new DialogOptions{ Width = "75%", Resizable = true});
+                if (qo != null)
+                {
+                    if (qo is string qostr)
+                    {
+                        await AddItem(new AutoCAC.Models.MenuBuild
+                        {
+                            MenuId = Id,
+                            DisplayText = qostr,
+                            DisplayOnly = "PLACEHOLDER",
+                            RowNum = row,
+                            ColNum = col
+                        });
+                    }
+                    else if (qo is AutoCAC.Models.OrderDialog qoDialog)
+                    {
+                        await AddItem(new AutoCAC.Models.MenuBuild
+                        {
+                            MenuId = Id,
+                            ItemId = qoDialog.Id,
+                            RowNum = row,
+                            ColNum = col
+                        });
+                    }
+                }
+                break;            
+            case "Placeholder":
+                Console.WriteLine($"Add QUICK ORDER at [{row}, {col}]");
+                break;
+        }
+    }
+
+    public async Task AddItem(AutoCAC.Models.MenuBuild item)
+    {
+        db.MenuBuilds.Add(item);
+        await db.SaveChangesAsync();
+
+        // Explicitly load the related OrderDialog entity
+        if (item.ItemId.HasValue)
+        {
+            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
+        }
+
+        menuItems.Add(item);
+        StateHasChanged();
+    }
+
+
+    public class TextField
+    {
+        public string Txt { get; set; }
+        public bool Header { get; set; } = true;
+    }
+
+    public async Task DeleteItem(AutoCAC.Models.MenuBuild item)
+    {
+        bool? confirmed = await DialogService.Confirm("Are you sure you want to delete this item?", "Confirm Delete");
+        if (confirmed == true)
+        {
+            db.MenuBuilds.Remove(item);
+            await db.SaveChangesAsync();
+
+            menuItems.Remove(item);
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowOrderDetails(OrderDialog order)
+    {
+        if (order.Type == "quick order")
+        {
+            var responses = order.ParsedItems as List<ResponseItem>;
+
+            await DialogService.OpenAsync("Quick Order Details", ds =>
+                @<div style="padding: 1rem; max-height: 500px; overflow-y: auto;">
+                    @foreach (var item in responses)
+                    {
+                        if (!string.IsNullOrWhiteSpace(item.Value) || !string.IsNullOrWhiteSpace(item.Text))
+                        {
+                            <div>
+                                <strong>@item.Dialog.Replace("OR GTX ", "")</strong>:
+                                <span style="white-space: normal">
+                                    @(!string.IsNullOrWhiteSpace(item.Value) ? item.Value : item.Text)
+                                </span>
+                            </div>
+                        }
+                    }
+                </div>
+            );            
+        }
+    }
+}
+

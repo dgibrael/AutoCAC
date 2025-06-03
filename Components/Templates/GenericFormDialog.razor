@@ -1,0 +1,108 @@
+﻿@using System.Reflection
+@typeparam TModel
+@inject DialogService DialogService
+
+@if (Model != null)
+{
+    <EditForm Model="@Model" OnValidSubmit="@HandleValidSubmit">
+        <DataAnnotationsValidator />
+
+        @foreach (var prop in EditableProperties)
+        {
+            <div class="mb-3">
+                <RadzenLabel Text="@prop.Name" Component="@prop.Name" />
+                @RenderInputComponent(prop)
+            </div>
+        }
+
+        <div class="mt-3">
+            <RadzenButton Text="Submit" Type="Submit" Style="margin-right: 10px" />
+            <RadzenButton Text="Cancel" Click="@CloseDialog" ButtonStyle="ButtonStyle.Secondary" />
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public TModel Model { get; set; } = default!;
+
+    private List<PropertyInfo> EditableProperties = new();
+
+    protected override void OnInitialized()
+    {
+        EditableProperties = typeof(TModel)
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            .Where(p => p.CanRead && p.CanWrite)
+            .ToList();
+    }
+
+    private RenderFragment RenderInputComponent(PropertyInfo prop) => builder =>
+    {
+        var propType = prop.PropertyType;
+        var propName = prop.Name;
+        var value = prop.GetValue(Model);
+
+        if (propType == typeof(string))
+        {
+            builder.OpenComponent<RadzenTextBox>(0);
+            builder.AddAttribute(1, "Value", (string?)value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, val => prop.SetValue(Model, val)));
+            builder.AddAttribute(3, "Name", propName);
+            builder.AddAttribute(4, "Style", "width: 100%");
+            builder.CloseComponent();
+        }
+        else if (propType == typeof(int))
+        {
+            builder.OpenComponent<RadzenNumeric<int>>(0);
+            builder.AddAttribute(1, "Value", (int?)value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int>(this, val => prop.SetValue(Model, val)));
+            builder.AddAttribute(3, "Name", propName);
+            builder.AddAttribute(4, "Style", "width: 100%");
+            builder.CloseComponent();
+        }
+        else if (propType == typeof(decimal))
+        {
+            builder.OpenComponent<RadzenNumeric<decimal>>(0);
+            builder.AddAttribute(1, "Value", (decimal?)value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal>(this, val => prop.SetValue(Model, val)));
+            builder.AddAttribute(3, "Name", propName);
+            builder.AddAttribute(4, "Style", "width: 100%");
+            builder.CloseComponent();
+        }
+        else if (propType == typeof(DateTime))
+        {
+            builder.OpenComponent<RadzenDatePicker<DateTime>>(0);
+            builder.AddAttribute(1, "Value", (DateTime?)value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<DateTime>(this, val => prop.SetValue(Model, val)));
+            builder.AddAttribute(3, "Name", propName);
+            builder.AddAttribute(4, "Style", "width: 100%");
+            builder.CloseComponent();
+        }
+        else if (propType == typeof(bool))
+        {
+            builder.OpenComponent<RadzenCheckBox<bool>>(0);
+            builder.AddAttribute(1, "Value", (bool?)value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, val => prop.SetValue(Model, val)));
+            builder.AddAttribute(3, "Name", propName);
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.AddContent(0, $"Unsupported type: {propType.Name}");
+        }
+    };
+
+    private object GetPropertyValue(PropertyInfo prop) => prop.GetValue(Model);
+
+    private void HandleValidSubmit()
+    {
+        DialogService.Close(Model);
+    }
+
+    private void CloseDialog()
+    {
+        DialogService.Close(null);
+    }
+}
+
+
+

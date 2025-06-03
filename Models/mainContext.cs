@@ -23,8 +23,6 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
-    public virtual DbSet<QuickOrder> QuickOrders { get; set; }
-
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -160,20 +158,6 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Schedule).IsUnicode(false);
             entity.Property(e => e.ScheduleType).IsUnicode(false);
             entity.Property(e => e.Synonym).IsUnicode(false);
-        });
-
-        modelBuilder.Entity<QuickOrder>(entity =>
-        {
-            entity
-                .HasNoKey()
-                .ToView("QuickOrder");
-
-            entity.Property(e => e.DisplayGroup).IsUnicode(false);
-            entity.Property(e => e.DisplayText).IsUnicode(false);
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.Name).IsUnicode(false);
-            entity.Property(e => e.Package).IsUnicode(false);
-            entity.Property(e => e.Responses).IsUnicode(false);
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>
