@@ -21,6 +21,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
 
+    public virtual DbSet<OrderMenu> OrderMenus { get; set; }
+
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
@@ -133,6 +135,24 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Package).IsUnicode(false);
             entity.Property(e => e.Responses).IsUnicode(false);
             entity.Property(e => e.Type).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<OrderMenu>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("OrderMenu");
+
+            entity.Property(e => e.DisplayOnly).HasMaxLength(4000);
+            entity.Property(e => e.DisplayText).HasMaxLength(4000);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Item).HasMaxLength(4000);
+            entity.Property(e => e.ItemDisplay).IsUnicode(false);
+            entity.Property(e => e.Mnemonic).HasMaxLength(4000);
+            entity.Property(e => e.OrderDialogId)
+                .HasMaxLength(4000)
+                .HasColumnName("OrderDialogID");
+            entity.Property(e => e.Seq).HasMaxLength(4000);
         });
 
         modelBuilder.Entity<PharmacyOrderableItem>(entity =>

@@ -44,7 +44,7 @@
         if (propType == typeof(string))
         {
             builder.OpenComponent<RadzenTextBox>(0);
-            builder.AddAttribute(1, "Value", (string?)value);
+            builder.AddAttribute(1, "Value", (string)value);
             builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, val => prop.SetValue(Model, val)));
             builder.AddAttribute(3, "Name", propName);
             builder.AddAttribute(4, "Style", "width: 100%");

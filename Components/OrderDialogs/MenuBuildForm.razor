@@ -14,37 +14,40 @@
 <h3>Menu Builder: @currentMenu?.DisplayText (@Id)</h3>
 
 <div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
-    @for (int row = 1; row <= maxRow; row++)
+    @for (int row = 1; row <= MaxRow; row++)
     {
         var currentRow = row;
         for (int col = 1; col <= maxCol; col++)
         {
             var currentCol = col;
-            var cell = menuItems?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
-            <div class="border p-2 rounded shadow">
-                @if (cell is not null)
+            var newCell = newItems?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
+            var oldCell = oldItems?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
+            var oldDescription = DescribeOldItem(oldCell);
+            <RadzenCard title="@oldDescription">
+                @if (newCell is not null)
                 {
-                    if (cell.DisplayOnly == "YES-HEADER")
+                    if (newCell.DisplayOnly == "YES-HEADER")
                     {
-                        <strong>@cell.DisplayText</strong>
+                        <strong>@newCell.DisplayText</strong>
                     }
-                    else if (cell.DisplayOnly == "YES")
+                    else if (newCell.DisplayOnly == "YES")
                     {
-                        <span>@cell.DisplayText</span>
+                        <span>@newCell.DisplayText</span>
                     }
-                    else if (cell.DisplayOnly == "PLACEHOLDER")
+                    else if (newCell.DisplayOnly == "PLACEHOLDER")
                     {
-                        <strong>Create order:</strong> <i>@cell.DisplayText</i>
+                        <strong>Create order:</strong> <i>@newCell.DisplayText</i>
                     }
-                    else if (cell.Item is not null)
+                    else if (newCell.Item is not null)
                     {
-                        <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(cell.Item))">@($"{cell.Mnemonic} {cell.Item.DisplayText}")</RadzenButton>
+                        <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">@($"{newCell.Mnemonic} {newCell.Item.DisplayText}")</RadzenButton>
                     }
-                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteItem(cell))" class="rz-ml-2"/>
+                    <RadzenButton Text="@($"{(string.IsNullOrWhiteSpace(oldDescription) ? "Cancel item" : $"Revert back to {oldDescription}")}")" Icon="undo" 
+                    ButtonStyle="ButtonStyle.Info" Click="@(() => DeleteItem(newCell))" class="rz-ml-2"/>
                 }
                 else
                 {
-                    <RadzenSplitButton Text="Add"
+                    <RadzenSplitButton Text="@($"{(string.IsNullOrWhiteSpace(oldDescription) ? "ADD" : $"Change from {oldDescription}")}")"
                     AlwaysOpenPopup="true"
                     Size="ButtonSize.Small"
                     ButtonStyle="ButtonStyle.Primary"
@@ -52,15 +55,18 @@
                     Style="width: 100%;">
                         <ChildContent>
                             <RadzenSplitButtonItem Text="Text" Value="Text" />
-                            <RadzenSplitButtonItem Text="Menu" Value="Menu" />
-                            <RadzenSplitButtonItem Text="Order Set" Value="Order Set" />
-                            <RadzenSplitButtonItem Text="Quick Order" Value="Quick Order" />
+                            <RadzenSplitButtonItem Text="Order Dialog" Value="Order Dialog" />
+                            <RadzenSplitButtonItem Text="Empty Cell" Value="Delete" />
+                            <RadzenSplitButtonItem Text="Move below items UP" Value="MoveUp" />
                         </ChildContent>
                     </RadzenSplitButton>
-
-
                 }
-            </div>
+                <RadzenButton 
+                    Text="Shift Down" 
+                    ButtonStyle="ButtonStyle.Light" 
+                    Style="margin-top: 5px;" 
+                    Click="@(() => MoveItems(currentRow-1, currentCol, MoveTarget.Below, 1))" />
+            </RadzenCard>
         }
     }
 </div>
@@ -69,10 +75,16 @@
 @code {
     [Parameter] public int Id { get; set; }
 
-    private List<AutoCAC.Models.MenuBuild> menuItems;
+    private List<AutoCAC.Models.MenuBuild> newItems;
+    private List<AutoCAC.Models.OrderMenu> oldItems;
     private OrderDialog currentMenu;
     private mainContext db;
-    private int maxRow = 1;
+    private int additionalRows = 0;
+    private int MaxRow => Math.Max(
+        newItems?.Any()==true ? newItems.Max(mb => mb.RowNum) : 1,
+        oldItems?.Any()==true ? oldItems.Max(om => om.RowNum ?? 1) : 1
+    ) + additionalRows;
+
     private int maxCol = 1;
 
     protected override async Task OnInitializedAsync()
@@ -80,9 +92,12 @@
         db = await DbFactory.CreateDbContextAsync();
 
         currentMenu = await db.OrderDialogs.FirstOrDefaultAsync(o => o.Id == Id);
-        menuItems = await db.MenuBuilds
+        newItems = await db.MenuBuilds
             .Include(mb => mb.Item)
             .Where(mb => mb.MenuId == Id)
+            .ToListAsync();
+        oldItems = await db.OrderMenus
+            .Where(om => om.Id == Id)
             .ToListAsync();
 
         // Column count based on OrderDialog.ColumnWidth
@@ -92,18 +107,68 @@
                      width < 40.0 ? 3 :
                      width < 79.0 ? 2 : 1;
         }
-
-        // Max row from items (default to 0)
-        maxRow = menuItems.Any() 
-        ? menuItems.Max(m => m.RowNum)
-        : 1;
     }
 
     private void AddRow()
     {
-        maxRow++;
+        additionalRows++;
         StateHasChanged();
     }
+
+    public enum MoveTarget
+    {
+        Above,
+        Below
+    }
+
+    private async Task MoveItems(int startRow, int col, MoveTarget target, int moveRows = -1)
+    {
+        var affectedItems = newItems
+            .Where(mb => mb.ColNum == col && (
+                target == MoveTarget.Above ? mb.RowNum < startRow :
+                target == MoveTarget.Below ? mb.RowNum > startRow : false))
+            .OrderByDescending(mb => mb.RowNum * moveRows) // key trick: update in order that avoids PK collisions
+            .ToList();
+
+        if (affectedItems.Any())
+        {
+            using var transaction = await db.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Delete originals
+                foreach (var item in affectedItems)
+                {
+                    db.MenuBuilds.Remove(item);
+                }
+                await db.SaveChangesAsync();
+
+                // Re-insert modified
+                foreach (var item in affectedItems)
+                {
+                    item.RowNum += moveRows;
+                    db.MenuBuilds.Add(item);
+                }
+                await db.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+
+            newItems = await db.MenuBuilds
+                .Include(mb => mb.Item)
+                .Where(mb => mb.MenuId == Id)
+                .ToListAsync();
+
+            StateHasChanged();
+        }
+    }
+
 
     private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem item)
     {
@@ -128,15 +193,8 @@
                     });
                 }
                 break;
-
-            case "Menu":
-                Console.WriteLine($"Add MENU at [{row}, {col}]");
-                break;
-            case "Order Set":
-                Console.WriteLine($"Add ORDER SET at [{row}, {col}]");
-                break;
-            case "Quick Order":
-                var qo = await DialogService.OpenAsync<QuickOrderSearch>("Quick order", options: new DialogOptions{ Width = "75%", Resizable = true});
+            case "Order Dialog":
+                var qo = await DialogService.OpenAsync<OrderDialogSelect>("Order Dialog", options: new DialogOptions{ Width = "75%", Resizable = true});
                 if (qo != null)
                 {
                     if (qo is string qostr)
@@ -161,9 +219,17 @@
                         });
                     }
                 }
-                break;            
-            case "Placeholder":
-                Console.WriteLine($"Add QUICK ORDER at [{row}, {col}]");
+                break;
+            case "Delete":
+                await AddItem(new AutoCAC.Models.MenuBuild
+                {
+                    MenuId = Id,
+                    RowNum = row,
+                    ColNum = col
+                });
+                break;
+            case "MoveUp":
+                await MoveItems(row, col, MoveTarget.Below);
                 break;
         }
     }
@@ -179,7 +245,7 @@
             item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
         }
 
-        menuItems.Add(item);
+        newItems.Add(item);
         StateHasChanged();
     }
 
@@ -192,13 +258,13 @@
 
     public async Task DeleteItem(AutoCAC.Models.MenuBuild item)
     {
-        bool? confirmed = await DialogService.Confirm("Are you sure you want to delete this item?", "Confirm Delete");
+        bool? confirmed = await DialogService.Confirm("Are you sure you want to undo changes for this item?", "Undo Change");
         if (confirmed == true)
         {
             db.MenuBuilds.Remove(item);
             await db.SaveChangesAsync();
 
-            menuItems.Remove(item);
+            newItems.Remove(item);
             StateHasChanged();
         }
     }
@@ -227,5 +293,20 @@
             );            
         }
     }
+    private string DescribeOldItem(AutoCAC.Models.OrderMenu oldCell)
+    {
+        if (oldCell == null)
+            return "";
+
+        const string prefix = "Existing ";
+
+        return oldCell.DisplayOnly switch
+        {
+            "YES-HEADER" => $"{prefix}Header: {oldCell.DisplayText}",
+            "YES" => $"{prefix}Text: {oldCell.DisplayText}",
+            _ => $"{prefix}Order: {oldCell.ItemDisplay}"
+        };
+    }
+
 }
 

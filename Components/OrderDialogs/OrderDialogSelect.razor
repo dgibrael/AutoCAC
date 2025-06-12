@@ -13,14 +13,7 @@
 @inject TooltipService TooltipService
 
 <RadzenStack>
-    <RadzenHeading Size="H5" Text="Select Quick Order to insert or enter a description in the field at the bottom" />
-
-    <RadzenDropDown
-    @bind-Value="selectedPackage"
-    Data="@packageOptions"
-    Placeholder="Filter by Package"
-    Change="OnPackageChanged" />
-
+    <RadzenHeading Size="H5" Text="Select Order Dialog to insert or enter a description in the field at the bottom" />
     <RadzenTextBox 
     @bind-Value="searchText" 
     Placeholder="Filter by keywords" 
@@ -30,13 +23,19 @@
     />
 
     <RadzenDataGrid @ref="grid" Data="@data" Count="@count" LoadData="@LoadData" TItem="AutoCAC.Models.OrderDialog" ExpandMode="DataGridExpandMode.Single"
-    AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px" IsLoading="@isLoading"
-    AllowSorting="true">
+    AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="150px" IsLoading="@isLoading"
+    AllowSorting="true" AllowFiltering="true" LoadColumnFilterData="@LoadColumnFilterData">
         <Columns>
-            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" />
-            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package" />
-            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" />
-            <RadzenDataGridColumn TItem="OrderDialog" Filterable="false" Sortable="false" Width="50px">
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" 
+            WhiteSpace="WhiteSpace.Wrap" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package" Width="75px"
+            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true"/>
+
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Type" Title="Type"
+            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true" Width="75px" />
+
+            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" WhiteSpace="WhiteSpace.Wrap" />
+            <RadzenDataGridColumn TItem="OrderDialog" Filterable="false" Sortable="false" Width="75px">
                 <Template Context="dialog">
                     <RadzenRow>
                         <RadzenButton Icon="check" Text="Select" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
@@ -85,48 +84,44 @@
     protected IEnumerable<AutoCAC.Models.OrderDialog> data;
     protected int count;
     private bool? shouldCount = true;
-    private List<string> packageOptions = new();
-    private string selectedPackage;
     private string placeholderMsg;
     private bool isLoading = false;
 
     protected override async Task OnInitializedAsync()
     {
         using var context = DbFactory.CreateDbContext();
-        packageOptions = await context.OrderDialogs
-            .Where(o => o.Type == "quick order")
-            .Select(o => o.Package)
-            .Distinct()
-            .OrderBy(p => p)
-            .ToListAsync();
     }
 
     private async Task LoadData(LoadDataArgs args)
     {
         isLoading = true;
         var query = BuildQuickOrderQuery();
+        placeholderMsg = string.IsNullOrWhiteSpace(searchText) ? "" : $"Keywords: {searchText}; ";
+        if (!string.IsNullOrWhiteSpace(args.Filter))
+        {
+            placeholderMsg += $"Column Filters: {args.Filter}"; 
+        }
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
-
         data = result.Data;
         count = result.Count;
         shouldCount = null;
-
         isLoading = false;
+    }
+
+    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
+    {
+        var baseQuery = BuildQuickOrderQuery();
+        var results = await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
+
+        args.Data = results;
+        args.Count = results.Count;
     }
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
     {
-        var query = DbFactory.QueryFromSql<OrderDialog>("Select * From OrderDialog Where Type='quick order' ");
-        placeholderMsg = "";
-        if (!string.IsNullOrWhiteSpace(selectedPackage))
-        {
-            placeholderMsg = $"Package: {selectedPackage}";
-            query = query.Where(q => q.Package == selectedPackage);
-        }
-
+        var query = DbFactory.QueryFromSql<OrderDialog>("Select * From OrderDialog");
         if (!string.IsNullOrWhiteSpace(searchText))
         {
-            placeholderMsg = $"{(string.IsNullOrWhiteSpace(placeholderMsg) ? "" : $"{placeholderMsg}; ")}Keywords: {searchText}";
             var keywords = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var keyword in keywords)
             {
@@ -173,13 +168,6 @@
         }
     }
 
-    private async Task OnPackageChanged(object value)
-    {
-        selectedPackage = value?.ToString();
-        shouldCount = true;
-        await grid.FirstPage(true);
-    }
-
     private void SelectDialog(OrderDialog selected)
     {
         DialogService.Close(selected);
@@ -200,4 +188,5 @@
     {
         DialogService.Close(null);
     }
+
 }
