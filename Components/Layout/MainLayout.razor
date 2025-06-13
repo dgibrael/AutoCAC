@@ -11,8 +11,9 @@
 @using System.Text
 @inject IJSRuntime JS
 
-<RadzenComponents />
-<RadzenDialog />
+<CascadingValue Value="this" Name="MainLayout">
+    <RadzenComponents />
+</CascadingValue>
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
     <RadzenHeader>

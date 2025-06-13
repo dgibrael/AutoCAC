@@ -1,10 +1,11 @@
 ﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:200 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
+let rpmsBufferedText = "";
 
 window.writeRPMSXterm = function (text) {
+    rpmsBufferedText += text;
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
-        console.warn("Target div not found:", rpmsTxtDivId);
         return;
     }
     if (!rpmsTerm._core || !rpmsTerm._core._renderService?.dimensions) {
@@ -14,10 +15,9 @@ window.writeRPMSXterm = function (text) {
 };
 
 window.clearRPMSXterm = function () {
+    rpmsBufferedText = "";
     if (rpmsTerm) {
         rpmsTerm.clear();
-    } else {
-        console.warn("Terminal not initialized.");
     }
 };
 
@@ -28,8 +28,12 @@ window.reinitRPMSXterm = function () {
         return;
     }
 
-    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
+    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200 });
     rpmsTerm.open(container);
+
+    if (rpmsBufferedText) {
+        rpmsTerm.write(rpmsBufferedText);
+    }
 
     rpmsTerm.onData(function (input) {
         runCSharp("UserInput", input);

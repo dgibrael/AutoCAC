@@ -180,8 +180,18 @@ public class RPMSService : IDisposable
 
     public RPMSMode CurrentMode { get; private set; } = Modes.Disconnected;
     public RPMSMode PreviousMode { get; private set; } = Modes.Disconnected;
+    public bool JustSignedIn => !PreviousMode.SignedIn && CurrentMode.SignedIn;
 
     public event Action ModeChanged;
+    public void UnSubscribeToModeChanged(Action handler)
+    {
+        ModeChanged -= handler; // Prevent duplicate
+    }
+    public void SubscribeToModeChanged(Action handler)
+    {
+        ModeChanged -= handler;
+        ModeChanged += handler;
+    }
     public void SetMode(RPMSMode newMode)
     {
         if (newMode == CurrentMode)

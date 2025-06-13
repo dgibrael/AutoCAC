@@ -9,6 +9,7 @@
 @using AutoCAC.Components.Templates
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
+@implements IDisposable
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
@@ -23,7 +24,7 @@ else
     <span>Select drug from National Drug Formulary above to continue</span>
 }
 <hr>
-<RPMSOutput OnLoginSuccess="AfterLogin" SignedOutMsg="After selecting drug above, enter access and verify code to continue." />
+<RPMSOutput />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
@@ -46,6 +47,10 @@ else
         {
             await RPMSDrugAddUpdate();
         }
+        else
+        {
+            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
+        }
         return;
     }
 
@@ -53,15 +58,22 @@ else
     {
         if (selectedDrug != null)
         {
-            if (selectedDrug.Id == 0)
+            try
             {
-                await NewDrug();
+                if (selectedDrug.Id == 0)
+                {
+                    await NewDrug();
+                }
+                else
+                {
+                    await NdcChange();
+                    await Layout.Send(selectedNdf.Ndc);
+                    Layout.RPMS.WriteToXterm($"(Dispense unit: {selectedDrug.DispenseUnit}): ");
+                }
             }
-            else
+            finally
             {
-                await NdcChange();
-                await Layout.Send(selectedNdf.Ndc);
-                Layout.RPMS.WriteToXterm($"Follow RPMS Prompts. (Dispense unit: {selectedDrug.DispenseUnit}): ");
+                Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
             }
         }
         else
@@ -211,8 +223,20 @@ else
         throw new Exception("Drug not found");
     }
     
-    private async Task AfterLogin()
+    private async void HandleModeChanged()
+    {
+        if (Layout.RPMS.JustSignedIn)
+        {
+            await RunRPMSCommands();   
+        }
+    }
+
+    private async Task RunRPMSCommands()
     {
         await RPMSDrugAddUpdate();
+    }
+    public void Dispose()
+    {
+        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }

@@ -1,6 +1,8 @@
 ﻿@page "/benchmarkprice"
 @inject FtpUploadService FtpService
 @using AutoCAC.Components.Templates
+@using static RPMSService
+@implements IDisposable
 
 <h4>Step 1: Download Cost Change Report from McKesson</h4>
 <ul>
@@ -51,14 +53,14 @@ else
 @if(fileUploaded)
 {
     <h4>Step 4: Login to RPMS (if not already)</h4>
-    <RPMSOutput OnLoginSuccess="AfterLogin" />
+    <RPMSOutput />
 }
 else
 {
     <h4><i>Step 4: Login to RPMS (if not already)</i> If you have already uploaded the Cost Change file from McKesson earlier, you can skip steps 2-3 by clicking below.</h4>
     <RadzenButton Text="File not uploaded, continue anyway"
     Variant="Variant.Outlined"
-    Click="@ContinueWithoutUpload" />
+    Click="@ContinueWithoutUploadAsync" />
 }
 
 @code {
@@ -83,6 +85,7 @@ else
     private string aixDirectory = "/usr2/cchc/pub/import/";
     private string fileName = "smoextr.csv";
     private bool fileUploaded = false;
+
     private async Task HandleLogin()
     {
         try
@@ -106,7 +109,7 @@ else
             await Layout.SetLoading(true);
             await using var stream = file.OpenReadStream(50 * 1024 * 1024);
             await FtpService.UploadFileAsync(stream, aixDirectory+fileName);
-            fileUploaded = true;
+            await SetFileUploaded();
         }
         catch (Exception ex)
         {
@@ -118,30 +121,59 @@ else
         }
     }
 
-    private void ContinueWithoutUpload()
+    private async Task ContinueWithoutUploadAsync()
+    {
+        await SetFileUploaded();
+    }
+
+    private async Task SetFileUploaded()
     {
         fileUploaded = true;
+        if (Layout.RPMS.CurrentMode.SignedIn)
+        {
+            await RunRPMSCommands();
+        }
+        else
+        {
+            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
+        }
         StateHasChanged();
     }
 
-
-    private async Task AfterLogin()
+    private async Task RunRPMSCommands()
     {
-        await Layout.GoToMenu("AAC");
-        Layout.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
-        await Layout.Send("YES");
-        await Layout.HandlePrompt(new()
+        try
         {
-            ("Replace", async () => { await Layout.Send("...", aixDirectory, ""); }),
-            ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(aixDirectory); })
-        });
-        await Layout.HandlePrompt(new()
+            await Layout.GoToMenu("AAC");
+            Layout.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
+            await Layout.Send("YES");
+            await Layout.HandlePrompt(new()
+            {
+                ("Replace", async () => { await Layout.Send("...", aixDirectory, ""); }),
+                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(aixDirectory); })
+            });
+            await Layout.HandlePrompt(new()
+            {
+                ("Replace", async () => { await Layout.Send("...", fileName, ""); }),
+                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(fileName); })
+            });
+            await Layout.Send();
+        }
+        finally
         {
-            ("Replace", async () => { await Layout.Send("...", fileName, ""); }),
-            ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(fileName); })
-        });
-        await Layout.Send();
+            Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+        }
+    }
+    private async void HandleModeChanged()
+    {
+        if (Layout.RPMS.JustSignedIn)
+        {
+            await RunRPMSCommands();   
+        }
+    }
+
+    public void Dispose()
+    {
+        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }
-
-

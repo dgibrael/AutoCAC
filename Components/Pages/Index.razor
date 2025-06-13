@@ -8,15 +8,41 @@
 @using AutoCAC.Components.Templates
 @using AutoCAC.Extensions
 @using static RPMSService
+@implements IDisposable
 
 <PageTitle>Index</PageTitle>
-<RPMSOutput OnLoginSuccess="AfterLogin" OnModeChanged="OnModeChanged" />
+<RPMSOutputLauncher />
 <DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private IEnumerable<IDictionary<string, object>> ParsedData;
-    private async Task AfterLogin()
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (Layout.RPMS.CurrentMode.SignedIn)
+            {
+                await RunRPMSCommands();
+            }
+            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
+        }
+    }
+    private async void HandleModeChanged()
+    {
+        if (Layout.RPMS.JustSignedIn)
+        {
+            await RunRPMSCommands();   
+        }
+        else if (Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt))
+        {
+            await DownloadReport();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task RunRPMSCommands()
     {
         await Layout.GoToMenu();
     }
@@ -33,6 +59,15 @@
             await DownloadReport();
             await InvokeAsync(StateHasChanged);
         }
+    }
+    private void OpenTestDialog()
+    {
+        //DialogService.Open<RPMSOutput>("Test RPMS Status", options: new DialogOptions{ Width = "75%", Resizable = true});
+    }
+
+    public void Dispose()
+    {
+        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }
 

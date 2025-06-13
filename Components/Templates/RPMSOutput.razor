@@ -2,6 +2,7 @@
 @inject IJSRuntime JS
 @using AutoCAC.Extensions
 @using static RPMSService
+
 <div id="RPMSOutputDiv">
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
@@ -11,10 +12,6 @@
 </div>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    [Parameter] public EventCallback OnLoginSuccess { get; set; }
-    [Parameter] public EventCallback OnModeChanged { get; set; }
-    [Parameter] public string SignedOutMsg { get; set; } = "Enter Access and Verify Code to Continue";
-
     private void ScrollToInput()
     {
         _ = Layout.ScrollToRPMS();
@@ -25,24 +22,10 @@
         if (firstRender)
         {
             await JS.ReinitXterm();
-            await JS.WriteToXtermAsync(Layout.RPMS.Output.Buffered);
-            Layout.RPMS.ModeChanged += HandleModeChanged;
             if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
             }
-            else if (Layout.RPMS.CurrentMode.SignedIn && OnLoginSuccess.HasDelegate)
-            {
-                await OnLoginSuccess.InvokeAsync();
-            }
-        }
-    }
-
-    public async void HandleModeChanged()
-    {
-        if (OnModeChanged.HasDelegate)
-        {
-            await InvokeAsync(() => OnModeChanged.InvokeAsync());
         }
     }
 
