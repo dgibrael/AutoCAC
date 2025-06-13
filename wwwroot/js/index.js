@@ -1,9 +1,13 @@
 ﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:200 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 let rpmsBufferedText = "";
+const rpmsMaxBufferLength = 10000;
 
 window.writeRPMSXterm = function (text) {
     rpmsBufferedText += text;
+    if (rpmsBufferedText.length > rpmsMaxBufferLength) {
+        rpmsBufferedText = rpmsBufferedText.slice(-rpmsMaxBufferLength);
+    }
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
         return;
