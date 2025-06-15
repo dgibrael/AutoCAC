@@ -3,25 +3,24 @@
 @using AutoCAC.Extensions
 @using static RPMSService
 
-<div id="RPMSOutputDiv">
+<button onclick="showDialog()" class="rz-button">Open RPMS Output</button>
+<dialog id="RPMSOutputDiv" class="rz-w-75">
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
         <RadzenButton Text="Download Terminal Contents" Click="DownloadReceived" />
     </RadzenRow>
-</div>
+    <button onclick="hideDialog()">Close</button>
+</dialog>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    private void ScrollToInput()
-    {
-        _ = Layout.ScrollToRPMS();
-    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await JS.ReinitXterm();
+            await JS.WriteToXtermAsync(Layout.RPMS.Output.Buffered);
             if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
                 Layout.RPMS.OpenConnection();
@@ -34,7 +33,46 @@
         await JS.DownloadXtermContentAsync();
     }
 
+    private Func<Task> _queuedAction;
+
+    public async Task RunWhenSignedIn(Func<Task> action)
+    {
+        // Store the action to execute after sign-in
+        _queuedAction = action;
+
+        // Always unsubscribe first (defensive cleanup)
+        Layout.RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
+
+        if (Layout.RPMS.CurrentMode.SignedIn)
+        {
+            await _queuedAction();
+            _queuedAction = null;
+        }
+        else
+        {
+            Layout.RPMS.SubscribeToModeChanged(HandleRunWhenSignedIn);
+        }
+    }
+
+    private async void HandleRunWhenSignedIn()
+    {
+        if (_queuedAction is not null && Layout.RPMS.JustSignedIn)
+        {
+            try
+            {
+                await _queuedAction();
+            }
+            finally
+            {
+                Layout.RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
+                _queuedAction = null;
+            }
+        }
+    }
+
     public void Dispose()
     {
+        Layout.RPMS.ClearAllModeChangedSubscriptions();
+        _queuedAction = null;
     }
 }

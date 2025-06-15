@@ -46,5 +46,15 @@ namespace AutoCAC.Extensions
             await js.InvokeVoidAsync("downloadExcel", base64, fileName);
         }
 
+        public static async Task DialogShow(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
+        {
+            await js.InvokeVoidAsync("showDialog", dialogId);
+        }
+
+        public static async Task DialogHide(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
+        {
+            await js.InvokeVoidAsync("hideDialog", dialogId);
+        }
+
     }
 }

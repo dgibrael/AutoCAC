@@ -109,7 +109,7 @@
             Detail = ex.Message,         // "Could not connect to RPMS."
             Duration = 4000
         });
-        StateHasChanged();
+        _ = InvokeAsync(StateHasChanged);
         if (reThrow)
         {
             throw ex;

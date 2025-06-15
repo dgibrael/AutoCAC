@@ -183,15 +183,30 @@ public class RPMSService : IDisposable
     public bool JustSignedIn => !PreviousMode.SignedIn && CurrentMode.SignedIn;
 
     public event Action ModeChanged;
-    public void UnSubscribeToModeChanged(Action handler)
-    {
-        ModeChanged -= handler; // Prevent duplicate
-    }
+    private readonly List<Action> _modeChangedSubscribers = new();
+
     public void SubscribeToModeChanged(Action handler)
     {
-        ModeChanged -= handler;
+        UnSubscribeToModeChanged(handler); // idempotent
+        _modeChangedSubscribers.Add(handler);
         ModeChanged += handler;
     }
+
+    public void UnSubscribeToModeChanged(Action handler)
+    {
+        ModeChanged -= handler;
+        _modeChangedSubscribers.Remove(handler);
+    }
+
+    public void ClearAllModeChangedSubscriptions()
+    {
+        foreach (var handler in _modeChangedSubscribers.ToList())
+        {
+            ModeChanged -= handler;
+        }
+        _modeChangedSubscribers.Clear();
+    }
+
     public void SetMode(RPMSMode newMode)
     {
         if (newMode == CurrentMode)

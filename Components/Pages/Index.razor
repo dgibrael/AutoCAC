@@ -1,5 +1,5 @@
 @page "/"
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JS
 @inject NavigationManager NavigationManager
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
@@ -8,66 +8,28 @@
 @using AutoCAC.Components.Templates
 @using AutoCAC.Extensions
 @using static RPMSService
-@implements IDisposable
 
 <PageTitle>Index</PageTitle>
-<RPMSOutputLauncher />
+<RPMSOutput @ref="RPMSRef" />
 <DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private IEnumerable<IDictionary<string, object>> ParsedData;
+    private RPMSOutput RPMSRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            if (Layout.RPMS.CurrentMode.SignedIn)
-            {
-                await RunRPMSCommands();
-            }
-            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
-        }
-    }
-    private async void HandleModeChanged()
-    {
-        if (Layout.RPMS.JustSignedIn)
-        {
-            await RunRPMSCommands();   
-        }
-        else if (Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt))
-        {
-            await DownloadReport();
-            await InvokeAsync(StateHasChanged);
+            await RPMSRef.RunWhenSignedIn(RunRPMSCommands);
         }
     }
 
     private async Task RunRPMSCommands()
     {
-        await Layout.GoToMenu();
-    }
-    private async Task DownloadReport()
-    {
-        string parsedJson = await Layout.RPMS.GetReportAsync();
-        parsedJson = parsedJson.JsonStrFromReport();
-        ParsedData = parsedJson.JsonStrToObject<IDictionary<string, object>>();
-    }
-    private async void OnModeChanged()
-    {
-        if (Layout.RPMS.IsInMode(RPMSService.Modes.ReportPrompt))
-        {
-            await DownloadReport();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-    private void OpenTestDialog()
-    {
-        //DialogService.Open<RPMSOutput>("Test RPMS Status", options: new DialogOptions{ Width = "75%", Resizable = true});
-    }
 
-    public void Dispose()
-    {
-        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+        await Layout.GoToMenu();
     }
 }
 

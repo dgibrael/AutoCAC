@@ -1,15 +1,10 @@
-﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback:200 });
+﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
-let rpmsBufferedText = "";
-const rpmsMaxBufferLength = 10000;
 
 window.writeRPMSXterm = function (text) {
-    rpmsBufferedText += text;
-    if (rpmsBufferedText.length > rpmsMaxBufferLength) {
-        rpmsBufferedText = rpmsBufferedText.slice(-rpmsMaxBufferLength);
-    }
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
+        console.warn("Target div not found:", rpmsTxtDivId);
         return;
     }
     if (!rpmsTerm._core || !rpmsTerm._core._renderService?.dimensions) {
@@ -19,9 +14,10 @@ window.writeRPMSXterm = function (text) {
 };
 
 window.clearRPMSXterm = function () {
-    rpmsBufferedText = "";
     if (rpmsTerm) {
         rpmsTerm.clear();
+    } else {
+        console.warn("Terminal not initialized.");
     }
 };
 
@@ -32,12 +28,8 @@ window.reinitRPMSXterm = function () {
         return;
     }
 
-    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200 });
+    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
     rpmsTerm.open(container);
-
-    if (rpmsBufferedText) {
-        rpmsTerm.write(rpmsBufferedText);
-    }
 
     rpmsTerm.onData(function (input) {
         runCSharp("UserInput", input);
@@ -126,3 +118,25 @@ window.downloadExcel = function (base64, filename="data.xlsx") {
     document.body.removeChild(link);
 };
 
+window.showDialog = function (id = "RPMSOutputDiv") {
+    const dlg = document.getElementById(id);
+    if (!dlg) return;
+
+    // Define a named handler so we can remove it later
+    function handleOutsideClick(e) {
+        if (e.target === dlg) {
+            dlg.close();
+        }
+    }
+
+    // Ensure no duplicate listeners
+    dlg.removeEventListener('click', handleOutsideClick);
+    dlg.addEventListener('click', handleOutsideClick);
+
+    dlg.showModal();
+};
+
+
+window.hideDialog = function (id = "RPMSOutputDiv") {
+    document.getElementById(id).close();
+};

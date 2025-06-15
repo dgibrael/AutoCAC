@@ -45,7 +45,7 @@ else
         selectedDrug = selected;
         if (Layout.RPMS.CurrentMode.SignedIn)
         {
-            await RPMSDrugAddUpdate();
+            await RunRPMSCommands();
         }
         else
         {
@@ -54,7 +54,7 @@ else
         return;
     }
 
-    private async Task RPMSDrugAddUpdate()
+    private async Task RunRPMSCommands()
     {
         if (selectedDrug != null)
         {
@@ -75,10 +75,6 @@ else
             {
                 Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
             }
-        }
-        else
-        {
-            await Layout.ScrollTo("top");
         }
     }
 
@@ -231,10 +227,6 @@ else
         }
     }
 
-    private async Task RunRPMSCommands()
-    {
-        await RPMSDrugAddUpdate();
-    }
     public void Dispose()
     {
         Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);

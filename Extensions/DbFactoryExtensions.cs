@@ -23,6 +23,25 @@ namespace AutoCAC.Extensions
             return await connection.QueryAsync<T>(sql, parameters);
         }
 
+        public static async Task<T> GetFirstValueAsync<T>(
+            this IDbContextFactory<mainContext> factory,
+            string sql,
+            object parameters = null)
+        {
+            await using var context = factory.CreateDbContext();
+            var connection = context.Database.GetDbConnection();
+
+            if (connection.State != ConnectionState.Open)
+                await connection.OpenAsync();
+            return await connection.ExecuteScalarAsync<T>(sql, parameters);
+        }
+
+        public static Task<string> GetFirstValueAsync(
+            this IDbContextFactory<mainContext> factory,
+            string sql,
+            object parameters = null) =>
+            factory.GetFirstValueAsync<string>(sql, parameters);
+
         public static IQueryable<T> QueryFromSql<T>(
             this IDbContextFactory<mainContext> factory,
             string sql,
@@ -37,6 +56,20 @@ namespace AutoCAC.Extensions
         {
             var context = factory.CreateDbContext();
             return context.Set<T>().AsNoTracking();
+        }
+
+        public static async Task<int> ExecuteSqlAsync(
+            this IDbContextFactory<mainContext> factory,
+            string sql,
+            object parameters = null)
+        {
+            await using var context = factory.CreateDbContext();
+            var connection = context.Database.GetDbConnection();
+
+            if (connection.State != ConnectionState.Open)
+                await connection.OpenAsync();
+
+            return await connection.ExecuteAsync(sql, parameters);
         }
 
     }
