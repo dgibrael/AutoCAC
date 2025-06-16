@@ -35,6 +35,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[MenuItemChanges]",
+         "ObjectType": 3
+      },
+      {
          "Name": "[dbo].[OrderMenu]",
          "ObjectType": 3
       },

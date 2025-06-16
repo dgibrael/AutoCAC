@@ -17,6 +17,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
 
+    public virtual DbSet<MenuItemChange> MenuItemChanges { get; set; }
+
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
@@ -95,6 +97,27 @@ public partial class mainContext : DbContext
                 .HasForeignKey(d => d.MenuId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_MenuBuildMenu_OrderDialog");
+        });
+
+        modelBuilder.Entity<MenuItemChange>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("MenuItemChanges");
+
+            entity.Property(e => e.ChangeType)
+                .HasMaxLength(6)
+                .IsUnicode(false);
+            entity.Property(e => e.MenuId).HasColumnName("Menu_id");
+            entity.Property(e => e.NewDisplayOnly).HasMaxLength(255);
+            entity.Property(e => e.NewDisplayText).HasMaxLength(255);
+            entity.Property(e => e.NewItemDisplay).IsUnicode(false);
+            entity.Property(e => e.NewMnemonic).HasMaxLength(255);
+            entity.Property(e => e.OldDisplayOnly).HasMaxLength(4000);
+            entity.Property(e => e.OldDisplayText).HasMaxLength(4000);
+            entity.Property(e => e.OldItemDisplay).IsUnicode(false);
+            entity.Property(e => e.OldItemId).HasMaxLength(4000);
+            entity.Property(e => e.OldMnemonic).HasMaxLength(4000);
         });
 
         modelBuilder.Entity<Ndf>(entity =>

@@ -302,7 +302,6 @@ public class RPMSService : IDisposable
 
     public async Task SendAsync(string command = "")
     {
-        if (!IsInMode(Modes.DefaultInput)) throw new RPMSException($"Must be in write mode. Currently in {CurrentMode}");
         _stream.Write(command + "\r");
         SendEndOfFeed();
         SetMode(Modes.DefaultReceive);

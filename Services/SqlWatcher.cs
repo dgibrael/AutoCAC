@@ -62,22 +62,26 @@ public class SqlWatcher : IDisposable
         IDbContextFactory<mainContext> factory,
         int jobId,
         string tableName,
-        Action onChange)
+        Action onChange,
+        bool setToRequested = false
+        )
     {
-        const string upsertSql = @"
-        MERGE INTO dbo.DataImportStatus AS target
-        USING (SELECT @jobId AS JobId, @tableName AS TableName) AS source
-        ON target.JobId = source.JobId AND target.TableName = source.TableName
-        WHEN MATCHED THEN
-            UPDATE SET Status = 'REQUESTED'
-        WHEN NOT MATCHED THEN
-            INSERT (JobId, TableName, Status) VALUES (@jobId, @tableName, 'REQUESTED');";
+        if (setToRequested)
+        {
+            const string upsertSql = @"
+            MERGE INTO dbo.DataImportStatus AS target
+            USING (SELECT @jobId AS JobId, @tableName AS TableName) AS source
+            ON target.JobId = source.JobId AND target.TableName = source.TableName
+            WHEN MATCHED THEN
+                UPDATE SET Status = 'REQUESTED'
+            WHEN NOT MATCHED THEN
+                INSERT (JobId, TableName, Status) VALUES (@jobId, @tableName, 'REQUESTED');";
 
-        var param = new { jobId, tableName };
+            var param = new { jobId, tableName };
 
-        // Fire-and-forget the upsert (await not allowed in static constructor-style method)
-        _ = factory.ExecuteSqlAsync(upsertSql, param);
-
+            // Fire-and-forget the upsert (await not allowed in static constructor-style method)
+            _ = factory.ExecuteSqlAsync(upsertSql, param);
+        }
         var query = @"SELECT Status FROM dbo.DataImportStatus 
                       WHERE JobId = @jobId AND TableName = @tableName";
 

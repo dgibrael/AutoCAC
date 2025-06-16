@@ -10,26 +10,7 @@
 @using static RPMSService
 
 <PageTitle>Index</PageTitle>
-<RPMSOutput @ref="RPMSRef" />
-<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
-
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    private IEnumerable<IDictionary<string, object>> ParsedData;
-    private RPMSOutput RPMSRef;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await RPMSRef.RunWhenSignedIn(RunRPMSCommands);
-        }
-    }
-
-    private async Task RunRPMSCommands()
-    {
-
-        await Layout.GoToMenu();
-    }
 }
 

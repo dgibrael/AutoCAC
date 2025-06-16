@@ -1,12 +1,41 @@
 ﻿@page "/test"
-@using AutoCAC.Utilities
-@using AutoCAC.Components.OrderDialogs
 @inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@using AutoCAC.Components.Templates
+@using AutoCAC.Extensions
+@using static RPMSService
 
+<PageTitle>Index</PageTitle>
+@if(!string.IsNullOrWhiteSpace(CompleteMsg))
+{
+    <p>@CompleteMsg</p>
+}
+<RPMSOutput @ref="RPMSRef">
+    <span>FDFJHDJSHFKJHDKJ FHKSDJHFKJDSF</span>
+</RPMSOutput>
+<DynamicDataGrid TItem="IDictionary<string, object>" Data="ParsedData"/>
 
 @code {
-    protected override void OnInitialized()
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    private IEnumerable<IDictionary<string, object>> ParsedData;
+    private RPMSOutput RPMSRef;
+    private string CompleteMsg = "";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        
+        if (firstRender)
+        {
+            await RPMSRef.RunUpdateFromRPMS("OrderDialog", PostUpdateCommand);
+        }
+    }
+
+    private async Task PostUpdateCommand()
+    {
+        CompleteMsg = "Complete";
+        await InvokeAsync(StateHasChanged);
     }
 }
+

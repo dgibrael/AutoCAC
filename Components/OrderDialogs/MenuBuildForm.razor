@@ -12,7 +12,11 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 
 <h3>Menu Builder: @currentMenu?.DisplayText (@Id)</h3>
-
+<RadzenButton 
+    Text="Commit Changes"
+    Icon="list_alt"
+    ButtonStyle="ButtonStyle.Primary"
+    Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}/commit"))" />
 <div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
     @for (int row = 1; row <= MaxRow; row++)
     {
@@ -36,7 +40,7 @@
                     }
                     else if (newCell.DisplayOnly == "PLACEHOLDER")
                     {
-                        <strong>Create order:</strong> <i>@newCell.DisplayText</i>
+                        <RadzenButton Variant="Variant.Flat" Click="@(() => EditPlaceholder(newCell))">@($"Placeholder: {newCell.DisplayText}")</RadzenButton>
                     }
                     else if (newCell.Item is not null)
                     {
@@ -71,10 +75,34 @@
     }
 </div>
 <RadzenButton Text="Add Row" ButtonStyle="ButtonStyle.Secondary" Click="@AddRow" Style="margin-top: 10px;" />
-
+<RPMSOutput @ref="RPMSRef">
+    @{
+        if (newItems?.Any()==true)
+        {
+            <RadzenColumn>
+                <RadzenCarousel ButtonShade="Radzen.Shade.Darker" Style="height: 30px; text-align: center" AllowPaging="false" Auto="false">
+                    <Items>
+                        @foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER"))
+                        {
+                            <RadzenCarouselItem>
+                                <RadzenTextBox 
+                                    @bind-Value="item.DisplayText" 
+                                    Style="width: 75%;" 
+                                    Change="@(() => SaveItem(item))" />
+                            </RadzenCarouselItem>
+                        }
+                    </Items>
+                </RadzenCarousel>
+            </RadzenColumn>
+            <RadzenColumn>
+                <RadzenButton Text="Transfer from RPMS to DB" Click="@OrderDialogsRpmsToDb" />
+            </RadzenColumn>
+        }
+    }
+</RPMSOutput>
 @code {
     [Parameter] public int Id { get; set; }
-
+    private RPMSOutput RPMSRef;
     private List<AutoCAC.Models.MenuBuild> newItems;
     private List<AutoCAC.Models.OrderMenu> oldItems;
     private OrderDialog currentMenu;
@@ -175,8 +203,12 @@
         switch (item.Value)
         {
             case "Text":
-                var txtField = new TextField();
-                var txtresult = await DialogService.OpenAsync<GenericFormDialog<TextField>>(
+                var txtField = new TextField
+                {
+                    MaxLength = (int)currentMenu.ColumnWidth
+                };
+
+                var txtresult = await DialogService.OpenAsync<TextEntryModal>(
                     "Enter text",
                     new Dictionary<string, object> { { "Model", txtField } }
                 );
@@ -249,11 +281,46 @@
         StateHasChanged();
     }
 
+    private async Task EditPlaceholder(MenuBuild item)
+    {
+        var result = await DialogService.OpenAsync<OrderDialogSelect>(
+            item.DisplayText,
+            new Dictionary<string, object>
+            {
+                { "SearchText", item.DisplayText }
+            },
+            new DialogOptions { Width = "75%", Resizable = true }
+        );
+        if (result == null) return;
+
+
+        if (result is string newText && !string.IsNullOrWhiteSpace(newText))
+        {
+            item.DisplayText = newText;
+            item.ItemId = null;
+        }
+        else if (result is OrderDialog selectedDialog)
+        {
+            item.DisplayText = null;
+            item.ItemId = selectedDialog.Id;
+            item.DisplayOnly = null;
+        }
+
+        db.MenuBuilds.Update(item);
+        await db.SaveChangesAsync();
+        if (item.ItemId.HasValue)
+        {
+            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
 
     public class TextField
     {
         public string Txt { get; set; }
         public bool Header { get; set; } = true;
+        public int MaxLength { get; set; }
     }
 
     public async Task DeleteItem(AutoCAC.Models.MenuBuild item)
@@ -267,6 +334,12 @@
             newItems.Remove(item);
             StateHasChanged();
         }
+    }
+
+    private async Task SaveItem(MenuBuild item)
+    {
+        db.MenuBuilds.Update(item);
+        await db.SaveChangesAsync();
     }
 
     private async Task ShowOrderDetails(OrderDialog order)
@@ -290,7 +363,7 @@
                         }
                     }
                 </div>
-            );            
+    );            
         }
     }
     private string DescribeOldItem(AutoCAC.Models.OrderMenu oldCell)
@@ -307,6 +380,18 @@
             _ => $"{prefix}Order: {oldCell.ItemDisplay}"
         };
     }
+
+    private async Task OrderDialogsRpmsToDb()
+    {
+        await RPMSRef.RunUpdateFromRPMS("OrderDialog", async () =>
+        {
+            foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())
+            {
+                await EditPlaceholder(item);
+            }
+        });
+    }
+
 
 }
 

@@ -15,7 +15,7 @@
 <RadzenStack>
     <RadzenHeading Size="H5" Text="Select Order Dialog to insert or enter a description in the field at the bottom" />
     <RadzenTextBox 
-    @bind-Value="searchText" 
+    @bind-Value="_searchText" 
     Placeholder="Filter by keywords" 
     Style="width:100%"
     @oninput="@HandleInputChange" 
@@ -82,13 +82,15 @@
 @code {
     private RadzenDataGrid<AutoCAC.Models.OrderDialog> grid;
     protected IEnumerable<AutoCAC.Models.OrderDialog> data;
+    [Parameter] public string SearchText { get; set; }
+    private string _searchText;
     protected int count;
     private bool? shouldCount = true;
     private string placeholderMsg;
     private bool isLoading = false;
-
     protected override async Task OnInitializedAsync()
     {
+        _searchText = SearchText;
         using var context = DbFactory.CreateDbContext();
     }
 
@@ -96,7 +98,7 @@
     {
         isLoading = true;
         var query = BuildQuickOrderQuery();
-        placeholderMsg = string.IsNullOrWhiteSpace(searchText) ? "" : $"Keywords: {searchText}; ";
+        placeholderMsg = string.IsNullOrWhiteSpace(_searchText) ? "" : $"Keywords: {_searchText}; ";
         if (!string.IsNullOrWhiteSpace(args.Filter))
         {
             placeholderMsg += $"Column Filters: {args.Filter}"; 
@@ -120,9 +122,9 @@
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
     {
         var query = DbFactory.QueryFromSql<OrderDialog>("Select * From OrderDialog");
-        if (!string.IsNullOrWhiteSpace(searchText))
+        if (!string.IsNullOrWhiteSpace(_searchText))
         {
-            var keywords = searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var keywords = _searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var keyword in keywords)
             {
                 var temp = keyword; 
@@ -133,13 +135,13 @@
         return query.AsNoTracking();
     }
 
-    private string searchText;
+    
     private System.Timers.Timer searchDebounceTimer;
 
     private void HandleInputChange(ChangeEventArgs e)
     {
         var input = e.Value?.ToString() ?? string.Empty;
-        searchText = input;
+        _searchText = input;
 
         searchDebounceTimer?.Stop();
         searchDebounceTimer?.Dispose();

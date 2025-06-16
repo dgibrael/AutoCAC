@@ -130,8 +130,8 @@ window.showDialog = function (id = "RPMSOutputDiv") {
     }
 
     // Ensure no duplicate listeners
-    dlg.removeEventListener('click', handleOutsideClick);
-    dlg.addEventListener('click', handleOutsideClick);
+    dlg.removeEventListener('mousedown', handleOutsideClick);
+    dlg.addEventListener('mousedown', handleOutsideClick);
 
     dlg.showModal();
 };

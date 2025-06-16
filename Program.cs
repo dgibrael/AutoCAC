@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using AutoCAC;
 using Microsoft.AspNetCore.Mvc;
 using AutoCAC.Utilities;
-
+using Microsoft.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,9 +50,10 @@ builder.Services.AddScoped<FtpUploadService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+var connString = builder.Configuration.GetConnectionString("mainConnection");
 builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
 {
-    options.UseSqlServer(builder.Configuration.GetConnectionString("mainConnection"));
+    options.UseSqlServer(connString);
 });
 builder.Services.AddScoped<LoadDataGridService>();
 
@@ -95,5 +96,13 @@ app.MapPost("/export-excel", async (HttpContext http, [FromBody] List<Dictionary
 
     await http.Response.Body.WriteAsync(fileBytes);
 });
+
+SqlDependency.Start(connString);
+
+app.Lifetime.ApplicationStopping.Register(() =>
+{
+    SqlDependency.Stop(connString);
+});
+
 
 app.Run();

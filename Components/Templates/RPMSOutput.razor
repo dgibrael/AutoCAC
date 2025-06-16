@@ -2,9 +2,20 @@
 @inject IJSRuntime JS
 @using AutoCAC.Extensions
 @using static RPMSService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 
-<button onclick="showDialog()" class="rz-button">Open RPMS Output</button>
-<dialog id="RPMSOutputDiv" class="rz-w-75">
+@if (pctComplete.HasValue)
+{
+   <RadzenProgressBar Value="@pctComplete.Value" Unit="@_dataStatus" />
+}
+@if(ShowButton)
+{
+    <button onclick="showDialog()" class="rz-button">Open RPMS Output</button>
+}
+<dialog id="RPMSOutputDiv" class="rz-w-75 rz-p-0">
+    @ChildContent
     <div id="rpmsOutputTxtDiv"></div>
     <RadzenRow class="rz-mb-2">
         <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
@@ -14,7 +25,8 @@
 </dialog>
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public bool ShowButton { get; set; } = true;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -52,6 +64,69 @@
         {
             Layout.RPMS.SubscribeToModeChanged(HandleRunWhenSignedIn);
         }
+    }
+
+    private int TaskNumber { get; set; }
+    private SqlWatcher watcher;
+    private string TableName { get; set; }
+    private Func<Task> _onUpdateComplete;
+    private string _dataStatus = "%";
+    private async Task UpdateFromRPMS(string tableName)
+    {
+        string menu = "";
+        TableName = tableName;
+        switch (tableName)
+        {
+            case ("OrderDialog"):
+                menu = "Order Dialog Update App";
+                break;
+        }
+        await Layout.GoToMenu(menu);
+        await Layout.Send();
+        await JS.DialogHide();
+        var _outputLst = Layout.RPMS.Output.Buffered.Split("\r\n").ToList();
+        var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));
+        if (taskLine != null && int.TryParse(taskLine.Split(":").Last().Trim(), out int taskNumber))
+        {
+            TaskNumber = taskNumber;
+            watcher = SqlWatcher.CreateForDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange, true);
+        }
+    }
+    private double? pctComplete;
+    private async void OnStatusChange()
+    {
+        var _status = await DbFactory.GetFirstValueAsync(@"Select Status From DataImportStatus 
+                    Where JobID = @TaskNumber and TableName = @TableName", new { TaskNumber, TableName});
+        _dataStatus = "% " + _status;
+        switch (_status)
+        {
+            case ("REQUESTED"):
+                pctComplete = 0;
+                break;
+            case ("RECEIVING"):
+                pctComplete = 10;
+                break;
+            case ("PARSING"):
+                pctComplete = 50;
+                break;
+            case ("UPDATING"):
+                pctComplete = 75;
+                break;
+            case ("DONE"):
+                pctComplete = 100;
+                if (_onUpdateComplete!=null) await _onUpdateComplete();
+                break;
+        }
+        await InvokeAsync(StateHasChanged);
+        watcher?.Dispose();
+        watcher = SqlWatcher.CreateForDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange);
+    }
+
+    public async Task RunUpdateFromRPMS(string tableName, Func<Task>? onComplete = null)
+    {
+        _onUpdateComplete = onComplete;
+        await JS.DialogShow();
+        await RunWhenSignedIn(() => UpdateFromRPMS(tableName));
     }
 
     private async void HandleRunWhenSignedIn()
