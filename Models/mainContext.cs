@@ -17,7 +17,7 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
 
-    public virtual DbSet<MenuItemChange> MenuItemChanges { get; set; }
+    public virtual DbSet<MenuBuildMetum> MenuBuildMeta { get; set; }
 
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
@@ -79,45 +79,39 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<MenuBuild>(entity =>
         {
-            entity.HasKey(e => new { e.MenuId, e.RowNum, e.ColNum });
+            entity.HasKey(e => e.Id).HasName("PK__MenuBuil__3214EC07338C1A0A");
 
             entity.ToTable("MenuBuild");
 
-            entity.Property(e => e.MenuId).HasColumnName("Menu_id");
-            entity.Property(e => e.DisplayOnly).HasMaxLength(255);
+            entity.HasIndex(e => new { e.MenuId, e.RowNum, e.ColNum }, "UQ_MenuBuild_MenuRowCol").IsUnique();
+
+            entity.Property(e => e.DisplayOnly).HasMaxLength(50);
             entity.Property(e => e.DisplayText).HasMaxLength(255);
             entity.Property(e => e.ItemId).HasColumnName("Item_id");
-            entity.Property(e => e.Mnemonic).HasMaxLength(255);
+            entity.Property(e => e.MenuId).HasColumnName("Menu_id");
+            entity.Property(e => e.Mnemonic).HasMaxLength(50);
 
-            entity.HasOne(d => d.Item).WithMany(p => p.MenuBuildItems)
+            entity.HasOne(d => d.Item).WithMany(p => p.MenuBuilds)
                 .HasForeignKey(d => d.ItemId)
                 .HasConstraintName("FK_MenuBuildItem_OrderDialog");
 
-            entity.HasOne(d => d.Menu).WithMany(p => p.MenuBuildMenus)
+            entity.HasOne(d => d.Menu).WithMany(p => p.MenuBuilds)
                 .HasForeignKey(d => d.MenuId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_MenuBuildMenu_OrderDialog");
+                .HasConstraintName("FK_MenuBuild_MenuBuildMeta");
         });
 
-        modelBuilder.Entity<MenuItemChange>(entity =>
+        modelBuilder.Entity<MenuBuildMetum>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToView("MenuItemChanges");
+            entity.HasKey(e => e.Id).HasName("PK__MenuBuil__3213E83F297792AB");
 
-            entity.Property(e => e.ChangeType)
-                .HasMaxLength(6)
-                .IsUnicode(false);
-            entity.Property(e => e.MenuId).HasColumnName("Menu_id");
-            entity.Property(e => e.NewDisplayOnly).HasMaxLength(255);
-            entity.Property(e => e.NewDisplayText).HasMaxLength(255);
-            entity.Property(e => e.NewItemDisplay).IsUnicode(false);
-            entity.Property(e => e.NewMnemonic).HasMaxLength(255);
-            entity.Property(e => e.OldDisplayOnly).HasMaxLength(4000);
-            entity.Property(e => e.OldDisplayText).HasMaxLength(4000);
-            entity.Property(e => e.OldItemDisplay).IsUnicode(false);
-            entity.Property(e => e.OldItemId).HasMaxLength(4000);
-            entity.Property(e => e.OldMnemonic).HasMaxLength(4000);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Columns).HasDefaultValue((byte)3);
+            entity.Property(e => e.DisplayText).IsUnicode(false);
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.RequestStatus)
+                .HasMaxLength(200)
+                .IsUnicode(false)
+                .HasDefaultValue("PENDING");
         });
 
         modelBuilder.Entity<Ndf>(entity =>

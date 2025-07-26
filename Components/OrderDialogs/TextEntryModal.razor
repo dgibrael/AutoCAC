@@ -1,7 +1,7 @@
 ﻿@inject DialogService DialogService
 @using AutoCAC.Components
 
-<RadzenTemplateForm Data="@Model" TItem="MenuBuildForm.TextField" Submit="@HandleValidSubmit">
+<RadzenTemplateForm Data="@Model" TItem="MenuBuildEdit.TextField" Submit="@HandleValidSubmit">
     <ChildContent>
         <RadzenLabel Text="Display Text" Component="Txt" />
         <RadzenTextBox @bind-Value="Model.Txt"
@@ -24,9 +24,9 @@
 </RadzenTemplateForm>
 
 @code {
-    [Parameter] public MenuBuildForm.TextField Model { get; set; }
+    [Parameter] public MenuBuildEdit.TextField Model { get; set; }
 
-    private void HandleValidSubmit(MenuBuildForm.TextField value)
+    private void HandleValidSubmit(MenuBuildEdit.TextField value)
     {
         DialogService.Close(value);
     }

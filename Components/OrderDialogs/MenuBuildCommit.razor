@@ -10,6 +10,7 @@
 @using AutoCAC.Components.OrderDialogs
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject IJSRuntime JS
+@using System.Text
 
 <h3>Review and Commit changes to RPMS for @currentMenu?.DisplayText (@Id)</h3>
 <RadzenRow>
@@ -26,6 +27,12 @@
             ButtonStyle="ButtonStyle.Success"
             Click="@ShowDialogAndRun" />
     </RadzenColumn>
+    <RadzenColumn>
+        <RadzenButton 
+            Text="Download RPMS script"
+            ButtonStyle="ButtonStyle.Info"
+            Click="@DownloadRPMSScript" />
+    </RadzenColumn>
 </RadzenRow>
 <RPMSOutput @ref="RPMSRef"/>
 <div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
@@ -35,72 +42,25 @@
         for (int col = 1; col <= maxCol; col++)
         {
             var currentCol = col;
-            var cell = changeLst?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
+            var cell = addLst?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
             <RadzenCard>
-                @switch (cell?.ChangeType)
+                @switch (cell?.DisplayOnly)
                 {
-                    case "DELETE":
-                       <del class="rz-color-danger">
-                            @(string.IsNullOrWhiteSpace(cell.OldDisplayText) ? cell.OldItemDisplay : cell.OldDisplayText)
-                        </del>
+                    case "PLACEHOLDER":
+                        <h3 class="rz-color-danger">
+                            PLACEHOLDER!! REPLACE BEFORE COMMITTING @cell.DisplayText
+                        </h3>
                         break;
-                    case "ADD":
-                        switch (cell?.NewDisplayOnly)
-                        {
-                            case "PLACEHOLDER":
-                                <h3 class="rz-color-danger">
-                                    PLACEHOLDER!! REPLACE BEFORE COMMITTING @cell.NewDisplayText
-                                </h3>
-                                break;
-                            case "YES-HEADER":
-                                <strong class="rz-color-success">@cell.NewDisplayText</strong>
-                                break;
-                            case "YES":
-                                <span class="rz-color-success">@cell.NewDisplayText</span>
-                                break;
-                            default:
-                                <i class="rz-color-success">@cell.NewItemDisplay</i>
-                                break;
-                        }
+                    case "YES-HEADER":
+                        <strong class="rz-color-success">@cell.DisplayText</strong>
                         break;
-                    case "CHANGE":
-                        <RadzenRow>
-                           <del class="rz-color-danger">
-                                @(string.IsNullOrWhiteSpace(cell.OldDisplayText) ? cell.OldItemDisplay : cell.OldDisplayText)
-                            </del>
-                        </RadzenRow>
-                        <RadzenRow>
-                            @switch (cell?.NewDisplayOnly)
-                            {
-                                case "PLACEHOLDER":
-                                    <h3 class="rz-color-danger">
-                                        PLACEHOLDER!! REPLACE BEFORE COMMITTING @cell.NewDisplayText
-                                    </h3>
-                                    break;
-                                case "YES-HEADER":
-                                    <strong class="rz-color-success">@cell.NewDisplayText</strong>
-                                    break;
-                                case "YES":
-                                    <span class="rz-color-success">@cell.NewDisplayText</span>
-                                    break;
-                                default:
-                                    <i class="rz-color-success">@cell.NewItemDisplay</i>
-                                    break;
-                            }
-                        </RadzenRow>
+                    case "YES":
+                        <span class="rz-color-success">@cell.DisplayText</span>
                         break;
                     default:
-                        switch (cell?.OldDisplayOnly)
+                        if(cell != null)
                         {
-                            case "YES-HEADER":
-                                <strong class="rz-color-light">@cell.OldDisplayText</strong>
-                                break;
-                            case "YES":
-                                <span class="rz-color-light">@cell.OldDisplayText</span>
-                                break;
-                            default:
-                                <i class="rz-color-light">@cell?.OldItemDisplay</i>
-                                break;
+                            <i class="rz-color-success">@cell?.Item.DisplayText</i>
                         }
                         break;
                 }
@@ -108,38 +68,40 @@
         }
     }
 </div>
+<pre>@RPMSScript</pre>
 @code {
     [Parameter] public int Id { get; set; }
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private RPMSOutput RPMSRef;
-    private OrderDialog currentMenu;
+    private MenuBuildMetum currentMenu;
     private mainContext db;
-    private List<AutoCAC.Models.MenuItemChange> changeLst;
+    private List<AutoCAC.Models.MenuBuild> addLst;
     private int maxRow = 1;
     private int maxCol = 1;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private string RPMSScript = "";
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
-            db = await DbFactory.CreateDbContextAsync();
-            currentMenu = await db.OrderDialogs.FirstOrDefaultAsync(o => o.Id == Id);
-            await GetChangesTbl();
-            //await RPMSRef.RunUpdateFromRPMS("OrderDialog", GetChangesTbl);
-        }
+        db = await DbFactory.CreateDbContextAsync();
+        currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
+        await GetAddTbl();
+        GetRPMSScript();
+        await InvokeAsync(StateHasChanged);
+        //await RPMSRef.RunUpdateFromRPMS("OrderDialog", GetChangesTbl);
     }
 
-    private async Task GetChangesTbl()
+    private async Task GetAddTbl()
     {
-        changeLst = await (
-            from c in db.MenuItemChanges
+        addLst = await (
+            from c in db.MenuBuilds
             where c.MenuId == Id
             orderby c.ColNum, c.RowNum
             select c
-        ).ToListAsync();
+        )
+        .Include(x => x.Item)
+        .ToListAsync();
 
-        maxRow = changeLst.Max(mb => mb.RowNum.Value);
-        maxCol = changeLst.Max(mb => mb.ColNum.Value);
+        maxRow = addLst.Max(mb => mb.RowNum);
+        maxCol = addLst.Max(mb => mb.ColNum);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -147,36 +109,85 @@
     {
         await Layout.GoToMenu("Menu Items Edit");
         var menuId = $"`{currentMenu.Id}";
-        await Layout.Send(menuId);
-        //var deleteList = changeLst.Where(c => c.ChangeType == "DELETE").ToList();
-        var addList = changeLst.Where(c => c.ChangeType == "ADD").ToList();
-        //var updateList = changeLst.Where(c => c.ChangeType == "CHANGE").ToList();
+        await Layout.RPMS.SendAsync(menuId);
+        //var deleteList = addLst.Where(c => c.ChangeType == "DELETE").ToList();
+        //var updateList = addLst.Where(c => c.ChangeType == "CHANGE").ToList();
         string seq = "";
         string itemid = "";
         string dispTxt = "";
         string dispOnly = "";
         string mnem = "";
-        foreach (var a in addList)
+        foreach (var a in addLst)
         {
             seq = $"{a.RowNum}.{a.ColNum}";
-            itemid = a.NewItemId.HasValue ? $"`{a.NewItemId}" : "";
-            dispTxt = !string.IsNullOrWhiteSpace(a.NewDisplayText) ? a.NewDisplayText : "";
-            dispOnly = !string.IsNullOrWhiteSpace(a.NewDisplayOnly) && a.NewDisplayOnly.StartsWith("YES") ? a.NewDisplayOnly : "";
-            mnem = !string.IsNullOrWhiteSpace(a.NewMnemonic) ? a.NewMnemonic : "";
-            
-            Layout.CheckPromptAndThrow("Select SEQUENCE:");
-            await Layout.Send(seq);
-            Layout.CheckPromptAndThrow("ITEM:");
-            await Layout.Send(itemid);
-            Layout.CheckPromptAndThrow("DISPLAY TEXT:");
-            await Layout.Send(dispTxt);
-            Layout.CheckPromptAndThrow("DISPLAY ONLY");
-            await Layout.Send(dispOnly);
-            Layout.CheckPromptAndThrow("MNEMONIC:");
-            await Layout.Send(mnem);
+            itemid = a.ItemId.HasValue ? $"`{a.ItemId}" : "";
+            dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
+            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) && a.DisplayOnly.StartsWith("YES") ? a.DisplayOnly : "";
+            mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
+
+            Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+            await Layout.RPMS.SendAsync(seq);
+            Layout.RPMS.CheckPromptAndThrow("ITEM:");
+            await Layout.RPMS.SendAsync(itemid);
+            Layout.RPMS.CheckPromptAndThrow("DISPLAY TEXT:");
+            await Layout.RPMS.SendAsync(dispTxt);
+            Layout.RPMS.CheckPromptAndThrow("DISPLAY ONLY");
+            await Layout.RPMS.SendAsync(dispOnly);
+            Layout.RPMS.CheckPromptAndThrow("MNEMONIC:");
+            await Layout.RPMS.SendAsync(mnem);
         }
+    }
 
+    private void GetRPMSScript()
+    {
+        List<string> lst = new List<string>();
+        string rowNum = "";
+        string colNum = "";
+        string itemid = "";
+        string dispTxt = "";
+        string dispOnly = "";
+        string headerTxt = "";
+        string mnem = "";
+        foreach (var a in addLst)
+        {
+            lst.Add("ADD");
+            rowNum = a.RowNum.ToString();
+            colNum = a.ColNum.ToString();
+            itemid = a.ItemId.HasValue ? $"`{a.ItemId}" : "";
+            dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
+            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) && a.DisplayOnly.StartsWith("YES") ? a.DisplayOnly : "";
+            headerTxt = dispOnly switch
+            {
+                "YES" => "NO",
+                "YES-HEADER" => "YES",
+                _ => ""
+            };
+            mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
+            if (dispOnly != "")
+            {
+                lst.Add("Text or Header");
+                lst.Add(dispTxt);
+                lst.Add(rowNum);
+                lst.Add(colNum);
+                lst.Add(headerTxt);
+            }
+            else
+            {
+                lst.Add("Menu Items");
+                lst.Add(itemid);
+                lst.Add(rowNum);
+                lst.Add(colNum);
+                lst.Add(dispTxt);
+                lst.Add(mnem);
+            }
+            lst.Add("^");
+        }
+        RPMSScript = string.Join("\r\n", lst)+"\r\n";
+    }
 
+    private async Task DownloadRPMSScript()
+    {
+        await JS.DownloadString(RPMSScript);
     }
 
     private async Task ShowDialogAndRun()

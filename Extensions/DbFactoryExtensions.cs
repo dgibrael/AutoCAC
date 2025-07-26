@@ -5,7 +5,7 @@ using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using AutoCAC.Models;
-
+using AutoCAC.Utilities;
 namespace AutoCAC.Extensions
 {
     public static class DbFactoryExtensions
@@ -44,32 +44,60 @@ namespace AutoCAC.Extensions
 
         public static IQueryable<T> QueryFromSql<T>(
             this IDbContextFactory<mainContext> factory,
-            string sql,
-            params object[] parameters) where T : class
+            FormattableString sql) where T : class
         {
             var context = factory.CreateDbContext();
-            return context.Set<T>().FromSqlRaw(sql, parameters).AsNoTracking();
+            return context.Set<T>().FromSqlInterpolated(sql);
         }
 
         public static IQueryable<T> QueryFromObj<T>(
             this IDbContextFactory<mainContext> factory) where T : class
         {
             var context = factory.CreateDbContext();
-            return context.Set<T>().AsNoTracking();
+            return context.Set<T>();
         }
 
         public static async Task<int> ExecuteSqlAsync(
             this IDbContextFactory<mainContext> factory,
-            string sql,
-            object parameters = null)
+            FormattableString sql)
         {
             await using var context = factory.CreateDbContext();
-            var connection = context.Database.GetDbConnection();
+            return await context.Database.ExecuteSqlInterpolatedAsync(sql);
+        }
+
+        public static async Task<int> ExecuteSqlTransactionsAsync(
+            this IDbContextFactory<mainContext> factory,
+            IEnumerable<FormattableString> commands)
+        {
+            await using var context = factory.CreateDbContext();
+            var db = context.Database;
+            var connection = db.GetDbConnection();
 
             if (connection.State != ConnectionState.Open)
                 await connection.OpenAsync();
 
-            return await connection.ExecuteAsync(sql, parameters);
+            await using var transaction = await connection.BeginTransactionAsync();
+            db.UseTransaction(transaction); // Attach transaction to EF context
+
+            var totalAffectedRows = 0;
+
+            try
+            {
+                foreach (var sql in commands)
+                {
+                    var affected = await db.ExecuteSqlInterpolatedAsync(sql);
+                    totalAffectedRows += affected;
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            return totalAffectedRows;
         }
 
     }

@@ -82,7 +82,7 @@
                 break;
         }
         await Layout.GoToMenu(menu);
-        await Layout.Send();
+        await Layout.RPMS.SendAsync();
         await JS.DialogHide();
         var _outputLst = Layout.RPMS.Output.Buffered.Split("\r\n").ToList();
         var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));

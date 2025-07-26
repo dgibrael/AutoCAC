@@ -7,6 +7,8 @@ namespace AutoCAC.Models;
 
 public partial class MenuBuild
 {
+    public int Id { get; set; }
+
     public int MenuId { get; set; }
 
     public int? ItemId { get; set; }
@@ -23,5 +25,5 @@ public partial class MenuBuild
 
     public virtual OrderDialog? Item { get; set; }
 
-    public virtual OrderDialog Menu { get; set; } = null!;
+    public virtual MenuBuildMetum Menu { get; set; } = null!;
 }

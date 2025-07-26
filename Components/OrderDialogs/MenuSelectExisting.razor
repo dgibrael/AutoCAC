@@ -24,16 +24,10 @@
 
     <RadzenDataGrid @ref="grid" Data="@data" Count="@count" LoadData="@LoadData" TItem="AutoCAC.Models.OrderDialog" ExpandMode="DataGridExpandMode.Single"
     AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="150px" IsLoading="@isLoading"
-    AllowSorting="true" AllowFiltering="true" LoadColumnFilterData="@LoadColumnFilterData">
+    AllowSorting="true" LoadColumnFilterData="@LoadColumnFilterData">
         <Columns>
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" 
             WhiteSpace="WhiteSpace.Wrap" />
-            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package" Width="75px"
-            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true"/>
-
-            <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Type" Title="Type"
-            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true" Width="75px" />
-
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" WhiteSpace="WhiteSpace.Wrap" />
             <RadzenDataGridColumn TItem="OrderDialog" Filterable="false" Sortable="false" Width="75px">
                 <Template Context="dialog">
@@ -43,34 +37,10 @@
             </RadzenDataGridColumn>
 
         </Columns>
-        <Template Context="q">
-            @if (q.ParsedItems is List<ResponseItem> responses)
-            {
-                @foreach (var item in responses)
-                {
-                    if (!string.IsNullOrWhiteSpace(item.Value) || !string.IsNullOrWhiteSpace(item.Text))
-                    {
-                        <div>
-                            <strong>@item.Dialog.Replace("OR GTX ", "")</strong>:
-                            <span style="white-space: normal">@(!string.IsNullOrWhiteSpace(item.Value) ? item.Value : item.Text)</span>
-                        </div>
-                    }
-                }                
-            }
-        </Template>
     </RadzenDataGrid>
-    <RadzenRow>
-        <RadzenLabel Text="Placeholder text"></RadzenLabel>
-        <RadzenTextBox 
-        @bind-Value="placeholderMsg" 
-        Style="width:100%"
-        />
-    </RadzenRow>
     <RadzenRow>
         <RadzenButton Icon="cancel" Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
         Click="CloseDialog" />
-        <RadzenButton Text="Create PlaceHolder" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-        Click="CreatePlaceholder" />
     </RadzenRow>
 </RadzenStack>
 
@@ -92,7 +62,7 @@
     private async Task LoadData(LoadDataArgs args)
     {
         isLoading = true;
-        var query = BuildQuickOrderQuery();
+        var query = BuildQuery();
         placeholderMsg = string.IsNullOrWhiteSpace(_searchText) ? "" : $"Keywords: {_searchText}; ";
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
         data = result.Data;
@@ -103,23 +73,23 @@
 
     private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
     {
-        var baseQuery = BuildQuickOrderQuery();
+        var baseQuery = BuildQuery();
         var results = await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
 
         args.Data = results;
         args.Count = results.Count;
     }
 
-    private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
+    private IQueryable<AutoCAC.Models.OrderDialog> BuildQuery()
     {
-        var query = DbFactory.QueryFromSql<OrderDialog>($"Select * From OrderDialog");
+        var query = DbFactory.QueryFromSql<OrderDialog>($"Select * From OrderDialog Where [Type]='menu'");
         if (!string.IsNullOrWhiteSpace(_searchText))
         {
             var keywords = _searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var keyword in keywords)
             {
                 var temp = keyword; 
-                query = query.Where(q => q.Responses.Contains(temp) || q.DisplayText.Contains(temp) || q.Name.Contains(temp));
+                query = query.Where(q => q.DisplayText.Contains(temp) || q.Name.Contains(temp));
             }
         }
         return query.AsNoTracking();
@@ -163,17 +133,6 @@
     private void SelectDialog(OrderDialog selected)
     {
         DialogService.Close(selected);
-    }
-
-    private void CopyDialog(OrderDialog selected)
-    {
-        placeholderMsg = $"Copy {selected.Name}; {placeholderMsg}";
-        DialogService.Close(placeholderMsg);
-    }
-
-    private void CreatePlaceholder()
-    {
-        DialogService.Close(placeholderMsg);
     }
 
     private void CloseDialog()

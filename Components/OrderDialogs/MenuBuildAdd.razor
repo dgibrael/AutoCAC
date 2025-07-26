@@ -1,0 +1,70 @@
+﻿@page "/menubuild/new"
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@using AutoCAC.Components.OrderDialogs
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+<RadzenTemplateForm Data="@currentMenu" TItem="MenuBuildMetum" Submit="@SaveMenuMeta">
+    <RadzenRow style="margin-bottom: 1rem">
+        <RadzenColumn Size="2">
+            <RadzenLabel Text="Display Name:" />
+        </RadzenColumn>
+        <RadzenColumn Size="10">
+            <RadzenTextBox @bind-Value="currentMenu.DisplayText" />
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow style="margin-bottom: 1rem">
+        <RadzenColumn Size="2">
+            <RadzenLabel Text="Name:" />
+        </RadzenColumn>
+        <RadzenColumn Size="10">
+            <RadzenTextBox @bind-Value="currentMenu.Name" />
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow style="margin-bottom: 1rem">
+        <RadzenColumn Size="2">
+            <RadzenLabel Text="Columns:" />
+        </RadzenColumn>
+        <RadzenColumn Size="10">
+            <RadzenNumeric @bind-Value="currentMenu.Columns" Max="4" Min="1"  />
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenButton Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" class="rz-mr-2" />
+    <RadzenButton Text="Cancel" Click="@CancelCreate" ButtonStyle="ButtonStyle.Light" Icon="cancel" />
+</RadzenTemplateForm>
+
+@code {
+    private AutoCAC.Models.MenuBuildMetum currentMenu;
+    private mainContext db;
+
+    protected override async Task OnInitializedAsync()
+    {
+        db = await DbFactory.CreateDbContextAsync();
+        currentMenu = new MenuBuildMetum
+        {
+            Columns = 3
+        };
+    }
+
+    private void CancelCreate()
+    {
+        NavigationManager.NavigateTo("menubuild/");
+    }
+
+    private async Task SaveMenuMeta()
+    {
+        db.MenuBuildMeta.Add(currentMenu);
+        await db.SaveChangesAsync();
+        var id = currentMenu.Id;
+        NavigationManager.NavigateTo($"menubuild/{id}");
+    }
+
+}
+

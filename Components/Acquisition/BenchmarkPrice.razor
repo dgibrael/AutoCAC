@@ -145,19 +145,19 @@ else
         try
         {
             await Layout.GoToMenu("AAC");
-            Layout.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
-            await Layout.Send("YES");
+            Layout.RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
+            await Layout.RPMS.SendAsync("YES");
             await Layout.HandlePrompt(new()
             {
-                ("Replace", async () => { await Layout.Send("...", aixDirectory, ""); }),
-                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(aixDirectory); })
+                ("Replace", async () => { await Layout.RPMS.SendAsync("...", aixDirectory, ""); }),
+                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.RPMS.SendAsync(aixDirectory); })
             });
             await Layout.HandlePrompt(new()
             {
-                ("Replace", async () => { await Layout.Send("...", fileName, ""); }),
-                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.Send(fileName); })
+                ("Replace", async () => { await Layout.RPMS.SendAsync("...", fileName, ""); }),
+                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.RPMS.SendAsync(fileName); })
             });
-            await Layout.Send();
+            await Layout.RPMS.SendAsync();
         }
         finally
         {

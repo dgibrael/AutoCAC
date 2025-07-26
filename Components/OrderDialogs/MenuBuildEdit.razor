@@ -1,0 +1,510 @@
+﻿@page "/menubuild/{Id:int}"
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@using AutoCAC.Utilities
+@using AutoCAC.Components.OrderDialogs
+@using Microsoft.AspNetCore.Components.Web
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+@if (currentMenu != null)
+{
+    @* Menu metadata display/edit *@
+    @if (!editMode)
+    {
+        <RadzenButton Text="Edit Menu Attributes" Click="ToggleEditAsync" ButtonStyle="ButtonStyle.Light" Icon="edit" />
+        <div class="rz-my-3">
+            <p><strong>Display Name:</strong> @currentMenu.DisplayText</p>
+            <p><strong>Name:</strong> @currentMenu.Name</p>
+            <p><strong>Columns:</strong> @currentMenu.Columns</p>
+        </div>
+    }
+    else
+    {
+        <RadzenTemplateForm Data="@currentMenu" TItem="MenuBuildMetum" Submit="@SaveMenuMeta">
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn Size="2">
+                    <RadzenLabel Text="Display Name:" />
+                </RadzenColumn>
+                <RadzenColumn Size="10">
+                    <RadzenTextBox @bind-Value="currentMenu.DisplayText" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn Size="2">
+                    <RadzenLabel Text="Name:" />
+                </RadzenColumn>
+                <RadzenColumn Size="10">
+                    <RadzenTextBox @bind-Value="currentMenu.Name" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn Size="2">
+                    <RadzenLabel Text="Columns:" />
+                </RadzenColumn>
+                <RadzenColumn Size="10">
+                    <RadzenNumeric @bind-Value="currentMenu.Columns" Min="1" Max="4" />
+                </RadzenColumn>
+            </RadzenRow>
+            <RadzenButton Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" class="rz-mr-2" />
+            <RadzenButton Text="Cancel" Click="ToggleEditAsync" ButtonStyle="ButtonStyle.Light" Icon="cancel" />
+        </RadzenTemplateForm>
+    }
+
+    <h3>Menu Builder: @currentMenu?.DisplayText</h3>
+    <RadzenRow>
+        <RadzenButton Text="Copy Existing Menu" Click="@CopyExistingMenu" Icon="copy_all" />
+        <RadzenButton Text="Commit Changes"
+                      Icon="list_alt"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}/commit"))" />
+    </RadzenRow>
+
+    @* Grid with drag-and-drop *@
+    <div class="grid" style="display: grid; grid-template-columns: 30px repeat(@currentMenu.Columns, 1fr); gap: 20px;">
+        @for (int row = 1; row <= MaxRow; row++)
+        {
+            var currentRow = row;
+            <div class="grid-cell"><span>@currentRow</span></div>
+            for (int col = 1; col <= currentMenu.Columns; col++)
+            {
+                var currentCol = col;
+                var newCell = newItems.FirstOrDefault(m => m.RowNum == currentRow && m.ColNum == currentCol);
+                <div class="grid-cell"
+                        @ondragover:preventDefault
+                        @ondragover="OnDragOver"
+                        @ondrop="e => OnDrop(e, currentRow, currentCol)"
+                        style="min-height:120px; border:1px dashed #ccc; padding:5px;">
+                    <RadzenRow>
+                        <RadzenButton ButtonStyle="ButtonStyle.Success" Text="Add Cell Above"
+                                        Style="margin-top: 5px;"
+                                        Click="@(() => MoveItemsAsync(currentRow, currentCol, 1))"
+                                        Size="ButtonSize.ExtraSmall"
+                                        Icon="add_row_above"
+                                        />
+                        <span>@($"Cell: {currentRow}.{currentCol}")</span>
+                    </RadzenRow>
+                    @if (newCell is not null)
+                    {
+                        <div draggable="true"
+                                @ondragstart="e => OnDragStart(e, newCell)"
+                                class="draggable-card">
+                            <RadzenCard>
+                                @if (newCell.DisplayOnly == "YES-HEADER")
+                                {
+                                    <strong>@newCell.DisplayText</strong>
+                                }
+                                else if (newCell.DisplayOnly == "YES")
+                                {
+                                    <span>@newCell.DisplayText</span>
+                                }
+                                else if (newCell.DisplayOnly == "PLACEHOLDER")
+                                {
+                                    <RadzenButton Variant="Variant.Flat" Click="@(() => EditPlaceholder(newCell))">
+                                        @($"Placeholder: {newCell.DisplayText}")
+                                    </RadzenButton>
+                                }
+                                else if (newCell.Item is not null)
+                                {
+                                    <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">
+                                        @($"{newCell.Mnemonic} {newCell.Item.DisplayText}")
+                                    </RadzenButton>
+                                }
+                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteItem(newCell))" class="rz-ml-2" />
+                            </RadzenCard>
+                        </div>
+                    }
+                    else
+                    {
+                        @* Empty cell – show ADD split button *@
+                        <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                                            Click="@(item => OnSplitButtonClick(currentRow, currentCol, item))"
+                                            Style="width: 100%;">
+                            <ChildContent>
+                                <RadzenSplitButtonItem Text="Add Text" Value="Text" />
+                                <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" />
+                                <RadzenSplitButtonItem Text="Delete Cell" Value="MoveUp" />
+                            </ChildContent>
+                        </RadzenSplitButton>
+                    }
+                </div>
+            }
+        }
+    </div>
+
+    <RPMSOutput @ref="RPMSRef">
+        @if (newItems.Any(i => i.DisplayOnly == "PLACEHOLDER"))
+        {
+            <RadzenColumn>
+                <RadzenCarousel ButtonShade="Radzen.Shade.Darker" Style="height: 30px; text-align: center" AllowPaging="false" Auto="false">
+                    <Items>
+                        @foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER"))
+                        {
+                            <RadzenCarouselItem>
+                                <RadzenTextBox @bind-Value="item.DisplayText"
+                                               Style="width: 75%;"
+                                               Change="@(() => SaveItem(item))" />
+                            </RadzenCarouselItem>
+                        }
+                    </Items>
+                </RadzenCarousel>
+            </RadzenColumn>
+            <RadzenColumn>
+                <RadzenButton Text="Transfer from RPMS to DB" Click="@OrderDialogsRpmsToDb" />
+            </RadzenColumn>
+        }
+    </RPMSOutput>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private RPMSOutput RPMSRef;
+    private List<MenuBuild> newItems;
+    private MenuBuildMetum currentMenu;
+    private int additionalRows = 1;
+    private bool editMode;
+    private MenuBuild dragSourceItem;
+
+    private int MaxRow => (newItems.Any() ? newItems.Max(mb => mb.RowNum) : 1) + additionalRows;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
+        await UpdateNewItems();
+        editMode = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleEditAsync()
+    {
+        if (editMode)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
+            await InvokeAsync(StateHasChanged);
+        }
+        editMode = !editMode;
+    }
+
+    private async Task SaveMenuMeta()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.MenuBuildMeta.Update(currentMenu);
+        await db.SaveChangesAsync();
+        editMode = false;
+    }
+
+    private void AddRow()
+    {
+        additionalRows++;
+        StateHasChanged();
+    }
+
+    private async Task MoveSingleItemAsync(MenuBuild item, int newRow, int newCol)
+    {
+        if (item.RowNum == newRow && item.ColNum == newCol)
+            return; // No move needed
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Re-fetch the tracked entity by Id
+        var entity = await db.MenuBuilds.FindAsync(item.Id);
+        if (entity == null)
+            return; // Safety check
+
+        entity.RowNum = newRow;
+        entity.ColNum = newCol;
+
+        await db.SaveChangesAsync();
+        await MoveItemsAsync(item.RowNum, item.ColNum, -1);
+        StateHasChanged();
+    }
+
+    private async Task MoveItemsAsync(int startRow, int col, int moveRows = -1)
+    {
+        var affectedItems = await DbFactory.ExecuteSqlAsync($"Update MenuBuild Set RowNum=RowNum+{moveRows} Where RowNum>={startRow} and ColNum={col} and Menu_id={Id}");
+        if (affectedItems == 0)
+        {
+            additionalRows+=moveRows;
+        }
+        await UpdateNewItems();
+        StateHasChanged();
+    }
+
+    private async Task UpdateNewItems()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        newItems = await db.MenuBuilds
+            .Include(mb => mb.Item)
+            .Where(mb => mb.MenuId == Id)
+            .ToListAsync();
+    }
+
+    private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem item)
+    {
+        switch (item.Value)
+        {
+            case "Text":
+                var txtField = new TextField
+                {
+                    MaxLength = currentMenu.Columns switch
+                    {
+                        4 => 26,
+                        3 => 39,
+                        2 => 79,
+                        _ => 240
+                    }
+                };
+                var txtResult = await DialogService.OpenAsync<TextEntryModal>(
+                    "Enter text",
+                    new Dictionary<string, object> { { "Model", txtField } }
+                );
+                if (txtResult is TextField tf && !string.IsNullOrWhiteSpace(tf.Txt))
+                {
+                    await AddItem(new MenuBuild
+                    {
+                        MenuId = Id,
+                        DisplayText = tf.Txt,
+                        DisplayOnly = tf.Header ? "YES-HEADER" : "YES",
+                        RowNum = row,
+                        ColNum = col
+                    });
+                }
+                break;
+
+            case "Order Dialog":
+                var qo = await DialogService.OpenAsync<OrderDialogSelect>(
+                    "Order Dialog",
+                    options: new DialogOptions { Width = "75%", Resizable = true });
+                if (qo != null)
+                {
+                    if (qo is string qoText)
+                    {
+                        await AddItem(new MenuBuild
+                        {
+                            MenuId = Id,
+                            DisplayText = qoText,
+                            DisplayOnly = "PLACEHOLDER",
+                            RowNum = row,
+                            ColNum = col
+                        });
+                    }
+                    else if (qo is OrderDialog qoDialog)
+                    {
+                        await AddItem(new MenuBuild
+                        {
+                            MenuId = Id,
+                            ItemId = qoDialog.Id,
+                            RowNum = row,
+                            ColNum = col
+                        });
+                    }
+                }
+                break;
+
+            case "MoveUp":
+                await MoveItemsAsync(row+1, col);
+                break;
+        }
+    }
+
+    public async Task AddItem(MenuBuild item)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.MenuBuilds.Add(item);
+        await db.SaveChangesAsync();
+        if (item.ItemId.HasValue)
+            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
+        newItems.Add(item);
+        StateHasChanged();
+    }
+
+    private async Task EditPlaceholder(MenuBuild item)
+    {
+        var result = await DialogService.OpenAsync<OrderDialogSelect>(
+            item.DisplayText,
+            new Dictionary<string, object> { { "SearchText", item.DisplayText } },
+            new DialogOptions { Width = "75%", Resizable = true }
+        );
+        if (result == null) return;
+
+        if (result is string newText && !string.IsNullOrWhiteSpace(newText))
+        {
+            item.DisplayText = newText;
+            item.ItemId = null;
+        }
+        else if (result is OrderDialog selectedDialog)
+        {
+            item.DisplayText = null;
+            item.ItemId = selectedDialog.Id;
+            item.DisplayOnly = null;
+        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.MenuBuilds.Update(item);
+        await db.SaveChangesAsync();
+        if (item.ItemId.HasValue)
+            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task DeleteItem(MenuBuild item)
+    {
+        bool? confirmed = await DialogService.Confirm(
+            "Are you sure you want to undo changes for this item?",
+            "Undo Change"
+        );
+        if (confirmed == true)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.MenuBuilds.Remove(item);
+            await db.SaveChangesAsync();
+            newItems.Remove(item);
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveItem(MenuBuild item)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.MenuBuilds.Update(item);
+        await db.SaveChangesAsync();
+    }
+
+    private async Task ShowOrderDetails(OrderDialog order)
+    {
+        if (order.Type == "quick order")
+        {
+            var responses = order.ParsedItems as List<ResponseItem>;
+            await DialogService.OpenAsync("Quick Order Details", ds => @<div style="padding: 1rem; max-height: 500px; overflow-y: auto;">
+            @foreach (var ri in responses)
+            {
+                if (!string.IsNullOrWhiteSpace(ri.Value) || !string.IsNullOrWhiteSpace(ri.Text))
+                {
+                        <div>
+                            <strong>@ri.Dialog.Replace("OR GTX ", "")</strong>:
+                            <span style="white-space: normal">
+                                @( !string.IsNullOrWhiteSpace(ri.Value) ? ri.Value : ri.Text )
+                            </span>
+                        </div>
+                }
+            }
+            </div>
+    );
+        }
+    }
+
+    private async Task OrderDialogsRpmsToDb()
+    {
+        await RPMSRef.RunUpdateFromRPMS("OrderDialog", async () =>
+        {
+            foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())
+            {
+                await EditPlaceholder(item);
+            }
+        });
+    }
+
+    void OnDragStart(DragEventArgs e, MenuBuild cell)
+    {
+        dragSourceItem = cell;
+        e.DataTransfer.EffectAllowed = "move";
+    }
+
+    void OnDragOver(DragEventArgs e)
+    {
+        e.DataTransfer.DropEffect = "move";
+    }
+
+    private async Task OnDrop(DragEventArgs e, int targetRow, int targetCol)
+    {
+        if (dragSourceItem == null) return;
+        if (dragSourceItem.RowNum == targetRow && dragSourceItem.ColNum == targetCol) return;
+
+        var commands = new List<FormattableString>();
+
+        // Check if target cell is occupied
+        var targetOccupied = newItems.Any(m =>
+            m.RowNum == targetRow &&
+            m.ColNum == targetCol &&
+            m.MenuId == Id);
+
+        if (targetOccupied)
+        {
+            commands.Add($@"
+                UPDATE MenuBuild 
+                SET RowNum = RowNum + 1 
+                WHERE RowNum >= {targetRow} 
+                  AND ColNum = {targetCol} 
+                  AND Menu_id = {Id}");
+        }
+
+        commands.Add($@"
+            UPDATE MenuBuild 
+            SET RowNum = {targetRow}, ColNum = {targetCol} 
+            WHERE Id = {dragSourceItem.Id}");
+
+        bool isSameCol = targetCol == dragSourceItem.ColNum;
+        bool isNextRow = targetRow == dragSourceItem.RowNum + 1;
+        bool isBecomingLast = !newItems.Any(m =>
+            m.ColNum == dragSourceItem.ColNum &&
+            m.RowNum > dragSourceItem.RowNum &&
+            m.Id != dragSourceItem.Id);
+
+        if (!(isSameCol && (isNextRow || isBecomingLast)))
+        {
+            commands.Add($@"
+                UPDATE MenuBuild 
+                SET RowNum = RowNum - 1 
+                WHERE RowNum > {dragSourceItem.RowNum} 
+                  AND ColNum = {dragSourceItem.ColNum} 
+                  AND Menu_id = {Id}");
+        }
+
+        await DbFactory.ExecuteSqlTransactionsAsync(commands);
+        await UpdateNewItems();
+
+        dragSourceItem = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+
+    public class TextField
+    {
+        public string Txt { get; set; }
+        public bool Header { get; set; } = true;
+        public int MaxLength { get; set; }
+    }
+
+    private async Task CopyExistingMenu()
+    {
+        AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<OrderDialogSelect>(
+            "Order Dialog",
+            options: new DialogOptions { Width = "75%", Resizable = true });
+        if (selectedMenu != null)
+        {
+            var commands = new List<FormattableString>
+            {
+                $"DELETE FROM MenuBuild Where Menu_id={Id}",
+                $@"Insert Into MenuBuild ([Menu_id], [Item_id], [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum])
+                                          SELECT {Id} Menu_id ,[OrderDialogID] Item_id, [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum]
+                                          FROM [main].[dbo].[OrderMenu]
+                                          Where id={selectedMenu.Id}"
+            };
+            await DbFactory.ExecuteSqlTransactionsAsync(commands);
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await UpdateNewItems();
+            currentMenu.Columns = ((byte)newItems.Max(x => x.ColNum));
+            await SaveMenuMeta();
+            additionalRows = 1;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+}

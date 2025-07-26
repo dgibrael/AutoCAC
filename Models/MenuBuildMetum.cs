@@ -5,25 +5,17 @@ using System.Collections.Generic;
 
 namespace AutoCAC.Models;
 
-public partial class OrderDialog
+public partial class MenuBuildMetum
 {
     public int Id { get; set; }
 
     public string? Name { get; set; }
 
-    public string? DisplayText { get; set; }
+    public string DisplayText { get; set; } = null!;
 
-    public string? Type { get; set; }
+    public byte Columns { get; set; }
 
-    public string? DisplayGroup { get; set; }
-
-    public string? Package { get; set; }
-
-    public double? ColumnWidth { get; set; }
-
-    public string? Items { get; set; }
-
-    public string? Responses { get; set; }
+    public string RequestStatus { get; set; } = null!;
 
     public virtual ICollection<MenuBuild> MenuBuilds { get; set; } = new List<MenuBuild>();
 }

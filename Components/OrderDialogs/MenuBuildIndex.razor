@@ -11,16 +11,23 @@
 @using AutoCAC.Extensions
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 
-<h5>Select a menu from below to build. If you recently created a new menu in RPMS, go to ^Update Serever > Order Dialogs. This will take ~1 minute to update</h5>
 <RadzenStack>
+    <RadzenRow AlignItems="AlignItems.Center">
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenText Text="Menu Builder" TextStyle="TextStyle.H3" TagName="TagName.H1" style="margin: 0" />
+        </RadzenColumn>
+        <RadzenColumn Size="12" SizeMD="6">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                <RadzenButton Icon="add_circle_outline" Text="Add" Click="@AddButtonClick" Variant="Variant.Flat" />
+            </RadzenStack>
+        </RadzenColumn>
+    </RadzenRow>
     <RadzenRow>
-        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.OrderDialog" Data="@data" Count="@count" LoadData="@LoadData" RowSelect="OnRowSelect"
-                        AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
+        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" Data="@data" Count="@count" LoadData="@LoadData" RowSelect="OnRowSelect"
+        AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
         FilterMode="FilterMode.Simple" AllowFiltering="true" AllowSorting="true">
             <Columns>
-                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Id" Title="IEN" Width="100px" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterPlaceholder="Search..." />
             </Columns>
         </RadzenDataGrid>
     </RadzenRow>
@@ -28,16 +35,17 @@
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    protected IEnumerable<AutoCAC.Models.OrderDialog> data;
+    protected IEnumerable<AutoCAC.Models.MenuBuildMetum> data;
     protected int count = 0;
-    protected RadzenDataGrid<AutoCAC.Models.OrderDialog> grid0;
+    protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
     bool? shouldCount = true;
 
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
-        string sql = "Select * From OrderDialog Where [Type]='menu'";
-        var query = DbFactory.QueryFromSql<AutoCAC.Models.OrderDialog>(sql);
+        var query = DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>()
+        .AsNoTracking()
+        ;
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
         data = result.Data;
         count = result.Count;
@@ -45,9 +53,14 @@
         await Layout.SetLoading(false);
     }
 
-    protected async Task OnRowSelect(AutoCAC.Models.OrderDialog args)
+    protected async Task OnRowSelect(AutoCAC.Models.MenuBuildMetum args)
     {
         NavigationManager.NavigateTo($"menubuild/{args.Id}");
+    }
+
+    protected async Task AddButtonClick(MouseEventArgs args)
+    {
+        NavigationManager.NavigateTo("menubuild/new");
     }
 
 }

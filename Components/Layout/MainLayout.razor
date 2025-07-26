@@ -46,6 +46,7 @@
             <RadzenPanelMenuItem Text="Home" Path="" />
             <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit" />
             <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+            <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" />
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
             <RadzenText Text="AutoCAC v1.0.0" TextStyle="Radzen.Blazor.TextStyle.Caption" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
@@ -137,75 +138,11 @@
         }
     }
 
-    public async Task Send(params string[] commands)
-    {
-        // Treat null as a single empty string command
-        if (commands == null || commands.Length == 0)
-            commands = new[] { "" };
-        foreach (var command in commands)
-        {
-            await RPMS.SendAsync(command);
-        }
-    }
-
-
     public async Task GoToMenu(string menu = null, int attempts = 30)
     {
         try
         {
-            for (int i = 0; i < attempts; i++)
-            {
-                var curPrompt = RPMS.Output.Prompt();
-                if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
-                {
-                    if (menu != null)
-                    {
-                        await Send(menu);
-                    }
-                    return;
-                }
-
-                if (curPrompt.Contains("Please enter your CURRENT verify code", StringComparison.OrdinalIgnoreCase))
-                    throw new Exception("Reset verify code in RPMS");
-
-                if (curPrompt.Contains("return", StringComparison.OrdinalIgnoreCase) ||
-                    curPrompt.Contains("do you wish to resume", StringComparison.OrdinalIgnoreCase))
-                {
-                    await Send();
-                }
-                else if (curPrompt.Contains("Select DIVISION", StringComparison.OrdinalIgnoreCase))
-                {
-                    await Send(" ");
-                }
-                else if (curPrompt.Contains("to stop", StringComparison.OrdinalIgnoreCase) ||
-                         curPrompt.Contains("halt?", StringComparison.OrdinalIgnoreCase))
-                {
-                    await Send("^");
-                }
-                else if (curPrompt.Contains("Option:"))
-                {
-                    if (curPrompt.Contains("AutoCAC App Main Menu"))
-                    {
-                        if (menu != null) 
-                        {
-                            await Send(menu);
-                        }
-                        return;
-                    }
-                    await Send("^AutoCAC App Main Menu");
-                }
-                else
-                {
-                    await Send("^");
-                }
-
-                if (attempts - i <= 3)
-                {
-                    await Task.Delay(200); // now async
-                }
-            }
-
-            throw new Exception("Could not reach main menu. Ask IRM/CAC/Informatics to assign secondary menu option: AutoCAC App Main Menu");
+            await RPMS.GoToMenu(menu, attempts);
         }
         catch (Exception ex)
         {
@@ -236,10 +173,6 @@
         await JS.InvokeVoidAsync("downloadTextFile", content, fileName, mimeType);
     }
 
-    public async Task ScrollToRPMS()
-    {
-        await ScrollTo("rpmsOutputTxtDiv");
-    }
 
     /// <summary>
     /// Runs a block of RPMS or app commands with loading UI and error handling.
@@ -284,30 +217,6 @@
         }
     }
 
-    public string CheckPrompt(StringComparison comparison, params string[] expectedPrompts)
-    {
-        string prompt = RPMS.Output.Prompt();
-
-        foreach (var expected in expectedPrompts)
-        {
-            if (prompt.Contains(expected, comparison))
-            {
-                return expected;
-            }
-        }
-        return null;
-    }
-    public string CheckPrompt(params string[] expectedPrompts) => CheckPrompt(StringComparison.Ordinal, expectedPrompts);
-
-    public void CheckPromptAndThrow(string expectedPrompt, StringComparison comparison = StringComparison.Ordinal)
-    {
-        string prompt = RPMS.Output.Prompt();
-        if (!prompt.Contains(expectedPrompt, comparison))
-        {
-            throw new RPMSException();
-        }
-    }
-
     public async Task HandlePrompt(
         List<(string Prompt, Func<Task> Action)> promptActions,
         Func<Task> onNoMatch = null,
@@ -333,57 +242,4 @@
         }
     }
 
-    public async Task<string> EnterUntil(int maxTries, StringComparison comparison, params string[] prompts)
-    {
-        for (int i = 0; i < maxTries; i++)
-        {
-            var curPrompt = CheckPrompt(comparison, prompts);
-            if (curPrompt!=null)
-            {
-                return curPrompt;
-            }
-            await Send("");
-        }
-        throw new RPMSException();
-    }
-    public async Task EnterUntil(params string[] prompts) => await EnterUntil(30, StringComparison.Ordinal, prompts);
-
-    /// <summary>
-    /// Repeatedly handles the RPMS prompt and runs the corresponding handler action.
-    /// Each handler returns a boolean: true = exit early, false = continue.
-    /// </summary>
-    /// <param name="maxLoops">Maximum number of prompt iterations.</param>
-    /// <param name="handlers">Dictionary of prompt string to handler function.</param>
-    /// <returns>Task representing the async operation.</returns>
-    /// <example>
-    /// await Layout.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
-    /// {
-    ///     ["Yes or No"] = async () => { await Layout.Send("YES"); return true; },
-    ///     ["Is this a match "] = async () => { await Layout.Send("YES"); return true; },
-    ///     ["Press Return"] = async () => { await Layout.Send(); return false; },
-    ///     ["Enter RETURN to continue"] = async () => { await Layout.Send(); return false; },
-    ///     [" edit "] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; },
-    ///     ["osages"] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; }
-    /// }, 20);
-    /// </example>
-    public async Task PromptLoopAsync(Dictionary<string, Func<Task<bool>>> handlers, int maxLoops = 30)
-    {
-        for (int i = 0; i < maxLoops; i++)
-        {
-            var prompt = CheckPrompt(handlers.Keys.ToArray());
-
-            if (!handlers.TryGetValue(prompt, out var handler))
-                throw new RPMSException();
-
-            bool shouldExit = await handler();
-            if (shouldExit)
-                return; // exits outer method
-        }
-        throw new RPMSException();
-    }
-    public async Task<bool> PromptHandleSend(bool exitLoop, params string[] commands)
-    {
-        await Send(commands);
-        return exitLoop;
-    }
 }
