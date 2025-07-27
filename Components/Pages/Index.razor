@@ -8,8 +8,34 @@
 @using AutoCAC.Components.Templates
 @using AutoCAC.Extensions
 @using static RPMSService
+@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Home</PageTitle>
+@if(UserContext.CurrentUser != null)
+{
+    <h4>User Info</h4>
+
+    <p><strong>Username: </strong>@UserContext.CurrentUser.Username</p>
+    <p><strong>Superuser: </strong>@UserContext.CurrentUser.IsSuperuser</p>
+    @if(UserContext.CurrentUser.IsActive==true)
+    {
+        <p><strong>Active: </strong>true</p>
+    }
+    else
+    {
+        <h4 class="rz-color-danger">YOU ARE NOT MARKED AS AN ACTIVE USER. YOU WILL NOT BE ABLE TO USE THIS SITE UNTIL AN ADMIN ACTIVATES YOUR ACCOUNT</h4>
+    }
+    <p><strong>Superuser: </strong>@UserContext.CurrentUser.IsSuperuser</p>
+    <ul><strong>Groups: </strong>
+        @foreach(var group in UserContext.Groups)
+        {
+            <li>@group.Name</li>
+        }
+    </ul>
+}
+
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
 }

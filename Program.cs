@@ -1,14 +1,15 @@
-using Radzen;
+using AutoCAC;
 using AutoCAC.Components;
+using AutoCAC.Services;
+using AutoCAC.Utilities;
 using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using AutoCAC;
 using Microsoft.AspNetCore.Mvc;
-using AutoCAC.Utilities;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -56,7 +57,7 @@ builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
     options.UseSqlServer(connString);
 });
 builder.Services.AddScoped<LoadDataGridService>();
-
+builder.Services.AddScoped<UserContextService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

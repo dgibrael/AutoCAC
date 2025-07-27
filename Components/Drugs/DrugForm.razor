@@ -6,7 +6,7 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @using AutoCAC.Models
-
+<AuthorizedGroups Groups=@(new[] { "PharmacistSupervisor" })>
     <RadzenColumn SizeMD=12>
         <RadzenAlert Shade="Shade.Lighter" Variant="Variant.Flat" Size="AlertSize.Small" AlertStyle="AlertStyle.Danger" Visible="@errorVisible">Cannot save Drug</RadzenAlert>
         <RadzenTemplateForm TItem="AutoCAC.Models.Drug" Data="@(drug)" Visible="@(drug != null)" Submit="@FormSubmit">
@@ -112,7 +112,7 @@
           </RadzenStack>
         </RadzenTemplateForm>
     </RadzenColumn>
-
+</AuthorizedGroups>
 @code {
     [Parameter] public Ndf SelectedNdf { get; set; }
     [Parameter] public Drug drug { get; set; }

@@ -6,10 +6,11 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject DialogService DialogService
 @using System.Text
 @inject IJSRuntime JS
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
 
 <CascadingValue Value="this" Name="MainLayout">
     <RadzenComponents />
@@ -43,10 +44,21 @@
             <RadzenText Text="AutoCAC" TextStyle="Radzen.Blazor.TextStyle.Subtitle1" class="rz-mb-0" style="color: var(--rz-sidebar-color);" />
         </RadzenStack>
         <RadzenPanelMenu>
-            <RadzenPanelMenuItem Text="Home" Path="" />
-            <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit" />
-            <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
-            <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" />
+            <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
+            @if (UserContext.CurrentUser != null)
+            {
+                if(UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
+                {
+                    <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
+                        <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
+                        <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+                    </RadzenPanelMenuItem>
+                }
+                if(UserContext.IsInGroup())
+                {
+                    <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
+                }
+            }
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
             <RadzenText Text="AutoCAC v1.0.0" TextStyle="Radzen.Blazor.TextStyle.Caption" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
@@ -86,15 +98,15 @@
         await InvokeAsync(StateHasChanged);
     }
 
-
-    public string username = "";
+    protected override async Task OnInitializedAsync()
+    {
+        await UserContext.InitializeAsync();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-            username = authState?.User?.Identity?.Name ?? "";
             TerminalInterop.RPMS = RPMS;
         }
     }

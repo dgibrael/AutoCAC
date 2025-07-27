@@ -15,6 +15,18 @@
    "T4TemplatePath": null,
    "Tables": [
       {
+         "Name": "[dbo].[auth_group]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[auth_user]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[auth_user_groups]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Drug]",
          "ObjectType": 0
       },

@@ -60,8 +60,7 @@
     <h3>Menu Builder: @currentMenu?.DisplayText</h3>
     <RadzenRow>
         <RadzenButton Text="Copy Existing Menu" Click="@CopyExistingMenu" Icon="copy_all" />
-        <RadzenButton Text="Commit Changes"
-                      Icon="list_alt"
+        <RadzenButton Text="Review Changes" Style="text-transform: none;" Icon="grading"
                       ButtonStyle="ButtonStyle.Primary"
                       Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}/commit"))" />
     </RadzenRow>

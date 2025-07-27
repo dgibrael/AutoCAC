@@ -27,7 +27,8 @@
         AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
         FilterMode="FilterMode.Simple" AllowFiltering="true" AllowSorting="true">
             <Columns>
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterPlaceholder="Search..." />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterPlaceholder="Search by Name..." />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="RequestStatus" Title="Status" FilterPlaceholder="Search by Status..." />
             </Columns>
         </RadzenDataGrid>
     </RadzenRow>

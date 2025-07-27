@@ -13,6 +13,12 @@ public partial class mainContext : DbContext
     {
     }
 
+    public virtual DbSet<AuthGroup> AuthGroups { get; set; }
+
+    public virtual DbSet<AuthUser> AuthUsers { get; set; }
+
+    public virtual DbSet<AuthUserGroup> AuthUserGroups { get; set; }
+
     public virtual DbSet<Drug> Drugs { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
@@ -31,6 +37,80 @@ public partial class mainContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<AuthGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__auth_gro__3213E83FC1044636");
+
+            entity.ToTable("auth_group");
+
+            entity.HasIndex(e => e.Name, "auth_group_name_a6ea08ec_uniq").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name)
+                .HasMaxLength(150)
+                .HasColumnName("name");
+        });
+
+        modelBuilder.Entity<AuthUser>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__auth_use__3213E83F5DF4B627");
+
+            entity.ToTable("auth_user");
+
+            entity.HasIndex(e => e.Username, "auth_user_username_6821ab7c_uniq").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DateJoined).HasColumnName("date_joined");
+            entity.Property(e => e.Email)
+                .HasMaxLength(254)
+                .HasColumnName("email");
+            entity.Property(e => e.FirstName)
+                .HasMaxLength(150)
+                .HasColumnName("first_name");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.IsStaff).HasColumnName("is_staff");
+            entity.Property(e => e.IsSuperuser).HasColumnName("is_superuser");
+            entity.Property(e => e.LastLogin).HasColumnName("last_login");
+            entity.Property(e => e.LastName)
+                .HasMaxLength(150)
+                .HasColumnName("last_name");
+            entity.Property(e => e.Password)
+                .HasMaxLength(128)
+                .HasColumnName("password");
+            entity.Property(e => e.Username)
+                .HasMaxLength(150)
+                .HasColumnName("username");
+        });
+
+        modelBuilder.Entity<AuthUserGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__auth_use__3213E83FFFAA0339");
+
+            entity.ToTable("auth_user_groups");
+
+            entity.HasIndex(e => e.GroupId, "auth_user_groups_group_id_97559544");
+
+            entity.HasIndex(e => e.UserId, "auth_user_groups_user_id_6a12ed8b");
+
+            entity.HasIndex(e => new { e.UserId, e.GroupId }, "auth_user_groups_user_id_group_id_94350c0c_uniq")
+                .IsUnique()
+                .HasFilter("([user_id] IS NOT NULL AND [group_id] IS NOT NULL)");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+
+            entity.HasOne(d => d.Group).WithMany(p => p.AuthUserGroups)
+                .HasForeignKey(d => d.GroupId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("auth_user_groups_group_id_97559544_fk_auth_group_id");
+
+            entity.HasOne(d => d.User).WithMany(p => p.AuthUserGroups)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("auth_user_groups_user_id_6a12ed8b_fk_auth_user_id");
+        });
+
         modelBuilder.Entity<Drug>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F85628773");

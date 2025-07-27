@@ -10,22 +10,25 @@
 @using AutoCAC.Models
 @using AutoCAC.Extensions
 @using Microsoft.EntityFrameworkCore
+@inject AutoCAC.Services.UserContextService UserContext
 @implements IDisposable
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
-<NdfLookup SelectionChanged="OnNdfSelected" />
-<hr>
-@if(selectedNdf != null)
-{
-    <DrugsTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
-}
-else
-{
-    <span>Select drug from National Drug Formulary above to continue</span>
-}
-<hr>
-<RPMSOutput />
+<AuthorizedGroups Groups=@(new[] { "PharmacistSupervisor" })>
+    <NdfLookup SelectionChanged="OnNdfSelected" />
+    <hr>
+    @if(selectedNdf != null)
+    {
+        <DrugsTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
+    }
+    else
+    {
+        <span>Select drug from National Drug Formulary above to continue</span>
+    }
+    <hr>
+    <RPMSOutput />
+</AuthorizedGroups>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
