@@ -506,7 +506,7 @@
 
     private async Task CopyExistingMenu()
     {
-        AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<OrderDialogSelect>(
+        AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<MenuSelectExisting>(
             "Order Dialog",
             options: new DialogOptions { Width = "75%", Resizable = true });
         if (selectedMenu != null)
