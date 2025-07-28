@@ -106,13 +106,14 @@
                                 else if (newCell.DisplayOnly == "PLACEHOLDER")
                                 {
                                     <RadzenButton Variant="Variant.Flat" Click="@(() => EditPlaceholder(newCell))">
-                                        @($"Placeholder: {newCell.DisplayText}")
+                                        @($"***{newCell.DisplayText}")
                                     </RadzenButton>
                                 }
                                 else if (newCell.Item is not null)
                                 {
+                                    var _newcelldisp = string.IsNullOrWhiteSpace(newCell.DisplayText) ? $"{newCell.Mnemonic} {newCell.Item.DisplayText}" : $"{newCell.Mnemonic} {newCell.DisplayText}";
                                     <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">
-                                        @($"{newCell.Mnemonic} {newCell.Item.DisplayText}")
+                                        @_newcelldisp
                                     </RadzenButton>
                                 }
                                 <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteItem(newCell))" class="rz-ml-2" />
@@ -171,6 +172,14 @@
     private MenuBuild dragSourceItem;
 
     private int MaxRow => (newItems.Any() ? newItems.Max(mb => mb.RowNum) : 1) + additionalRows;
+
+    private int MaxTxtLength => currentMenu?.Columns switch
+    {
+        4 => 26,
+        3 => 39,
+        2 => 79,
+        _ => 240
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -253,13 +262,7 @@
             case "Text":
                 var txtField = new TextField
                 {
-                    MaxLength = currentMenu.Columns switch
-                    {
-                        4 => 26,
-                        3 => 39,
-                        2 => 79,
-                        _ => 240
-                    }
+                    MaxLength = MaxTxtLength
                 };
                 var txtResult = await DialogService.OpenAsync<TextEntryModal>(
                     "Enter text",
@@ -279,18 +282,24 @@
                 break;
 
             case "Order Dialog":
+                var placeholderField = new PlaceholderField
+                {
+                    MaxLength = MaxTxtLength-3
+                };
                 var qo = await DialogService.OpenAsync<OrderDialogSelect>(
                     "Order Dialog",
+                    parameters: new Dictionary<string, object> { { "placeholderField", placeholderField } },
                     options: new DialogOptions { Width = "75%", Resizable = true });
                 if (qo != null)
                 {
-                    if (qo is string qoText)
+                    if (qo is PlaceholderField ph)
                     {
                         await AddItem(new MenuBuild
                         {
                             MenuId = Id,
-                            DisplayText = qoText,
+                            DisplayText = ph.MenuTxt,
                             DisplayOnly = "PLACEHOLDER",
+                            Mnemonic = ph.ExtendedTxt,
                             RowNum = row,
                             ColNum = col
                         });
@@ -327,16 +336,23 @@
 
     private async Task EditPlaceholder(MenuBuild item)
     {
+        var placeholderField = new PlaceholderField
+        {
+            MenuTxt = item.DisplayText,
+            ExtendedTxt = item.Mnemonic,
+            MaxLength = MaxTxtLength
+        };
         var result = await DialogService.OpenAsync<OrderDialogSelect>(
             item.DisplayText,
-            new Dictionary<string, object> { { "SearchText", item.DisplayText } },
+            new Dictionary<string, object> { { "SearchText", item.DisplayText }, { "placeholderField", placeholderField } },
             new DialogOptions { Width = "75%", Resizable = true }
         );
         if (result == null) return;
 
-        if (result is string newText && !string.IsNullOrWhiteSpace(newText))
+        if (result is PlaceholderField newText)
         {
-            item.DisplayText = newText;
+            item.DisplayText = newText.MenuTxt;
+            item.Mnemonic = newText.ExtendedTxt;
             item.ItemId = null;
         }
         else if (result is OrderDialog selectedDialog)
@@ -381,19 +397,20 @@
         if (order.Type == "quick order")
         {
             var responses = order.ParsedItems as List<ResponseItem>;
-            await DialogService.OpenAsync("Quick Order Details", ds => @<div style="padding: 1rem; max-height: 500px; overflow-y: auto;">
-            @foreach (var ri in responses)
-            {
-                if (!string.IsNullOrWhiteSpace(ri.Value) || !string.IsNullOrWhiteSpace(ri.Text))
+            await DialogService.OpenAsync("Quick Order Details", ds => 
+            @<div style="padding: 1rem; max-height: 500px; overflow-y: auto;">
+                @foreach (var ri in responses)
                 {
-                        <div>
-                            <strong>@ri.Dialog.Replace("OR GTX ", "")</strong>:
-                            <span style="white-space: normal">
-                                @( !string.IsNullOrWhiteSpace(ri.Value) ? ri.Value : ri.Text )
-                            </span>
-                        </div>
+                    if (!string.IsNullOrWhiteSpace(ri.Value) || !string.IsNullOrWhiteSpace(ri.Text))
+                    {
+                            <div>
+                                <strong>@ri.Dialog.Replace("OR GTX ", "")</strong>:
+                                <span style="white-space: normal">
+                                    @( !string.IsNullOrWhiteSpace(ri.Value) ? ri.Value : ri.Text )
+                                </span>
+                            </div>
+                    }
                 }
-            }
             </div>
     );
         }
@@ -473,12 +490,17 @@
         await InvokeAsync(StateHasChanged);
     }
 
-
-
     public class TextField
     {
         public string Txt { get; set; }
         public bool Header { get; set; } = true;
+        public int MaxLength { get; set; }
+    }
+
+    public class PlaceholderField
+    {
+        public string MenuTxt { get; set; }
+        public string ExtendedTxt { get; set; }
         public int MaxLength { get; set; }
     }
 

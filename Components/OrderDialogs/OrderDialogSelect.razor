@@ -11,6 +11,7 @@
 @inject NavigationManager NavigationManager
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
+@using AutoCAC.Components
 
 <RadzenStack>
     <RadzenHeading Size="H5" Text="Select Order Dialog to insert or enter a description in the field at the bottom" />
@@ -60,11 +61,29 @@
         </Template>
     </RadzenDataGrid>
     <RadzenRow>
-        <RadzenLabel Text="Placeholder text"></RadzenLabel>
-        <RadzenTextBox 
-        @bind-Value="placeholderMsg" 
-        Style="width:100%"
-        />
+        <RadzenColumn Size="4">
+            <RadzenLabel Text="Placeholder text"></RadzenLabel>
+        </RadzenColumn>
+        <RadzenColumn Size="8"> 
+            <RadzenTextBox
+            Name="Txt"
+            @bind-Value="placeholderField.MenuTxt" 
+            Style="width:100%"
+            MaxLength="@placeholderField.MaxLength"
+            />
+        </RadzenColumn>
+    </RadzenRow>
+    <RadzenRow>
+        <RadzenColumn Size="4">
+            <RadzenLabel Text="Placeholder Extended text"></RadzenLabel>
+        </RadzenColumn>
+        <RadzenColumn Size="8">
+            <RadzenTextBox
+            Name="ExtndTxt"
+            @bind-Value="placeholderField.ExtendedTxt" 
+            Style="width:100%"
+            />
+        </RadzenColumn>
     </RadzenRow>
     <RadzenRow>
         <RadzenButton Icon="cancel" Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
@@ -78,10 +97,10 @@
     private RadzenDataGrid<AutoCAC.Models.OrderDialog> grid;
     protected IEnumerable<AutoCAC.Models.OrderDialog> data;
     [Parameter] public string SearchText { get; set; }
+    [Parameter] public MenuBuildEdit.PlaceholderField placeholderField { get; set; }
     private string _searchText;
     protected int count;
     private bool? shouldCount = true;
-    private string placeholderMsg;
     private bool isLoading = false;
     protected override async Task OnInitializedAsync()
     {
@@ -93,7 +112,6 @@
     {
         isLoading = true;
         var query = BuildQuickOrderQuery();
-        placeholderMsg = string.IsNullOrWhiteSpace(_searchText) ? "" : $"Keywords: {_searchText}; ";
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
         data = result.Data;
         count = result.Count;
@@ -101,7 +119,7 @@
         isLoading = false;
     }
 
-    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
+    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.OrderDialog> args)
     {
         var baseQuery = BuildQuickOrderQuery();
         var results = await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
@@ -112,7 +130,7 @@
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
     {
-        var query = DbFactory.QueryFromSql<OrderDialog>($"Select * From OrderDialog");
+        var query = DbFactory.QueryFromSql<AutoCAC.Models.OrderDialog>($"Select * From OrderDialog");
         if (!string.IsNullOrWhiteSpace(_searchText))
         {
             var keywords = _searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -165,15 +183,9 @@
         DialogService.Close(selected);
     }
 
-    private void CopyDialog(OrderDialog selected)
-    {
-        placeholderMsg = $"Copy {selected.Name}; {placeholderMsg}";
-        DialogService.Close(placeholderMsg);
-    }
-
     private void CreatePlaceholder()
     {
-        DialogService.Close(placeholderMsg);
+        DialogService.Close(placeholderField);
     }
 
     private void CloseDialog()

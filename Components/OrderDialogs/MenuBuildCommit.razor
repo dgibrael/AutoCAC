@@ -20,13 +20,13 @@
             ButtonStyle="ButtonStyle.Base"
             Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}"))" />
     </RadzenColumn>
-    <RadzenColumn>
+    @* <RadzenColumn>
         <RadzenButton 
             Text="Commit Changes"
             Icon="check"
             ButtonStyle="ButtonStyle.Success"
             Click="@ShowDialogAndRun" />
-    </RadzenColumn>
+    </RadzenColumn> *@
     <RadzenColumn>
         <RadzenButton 
             Text="Download RPMS script"
@@ -48,19 +48,20 @@
                 {
                     case "PLACEHOLDER":
                         <h3 class="rz-color-danger">
-                            PLACEHOLDER!! REPLACE BEFORE COMMITTING @cell.DisplayText
+                            ***@cell.DisplayText
                         </h3>
                         break;
                     case "YES-HEADER":
-                        <strong class="rz-color-success">@cell.DisplayText</strong>
+                        <strong>@cell.DisplayText</strong>
                         break;
                     case "YES":
-                        <span class="rz-color-success">@cell.DisplayText</span>
+                        <span>@cell.DisplayText</span>
                         break;
                     default:
                         if(cell != null)
                         {
-                            <i class="rz-color-success">@cell?.Item.DisplayText</i>
+                            var _newcelldisp = string.IsNullOrWhiteSpace(cell.DisplayText) ? $"{cell.Mnemonic} {cell.Item.DisplayText}" : $"{cell.Mnemonic} {cell.DisplayText}";
+                            <i>@_newcelldisp</i>
                         }
                         break;
                 }
@@ -68,6 +69,16 @@
         }
     }
 </div>
+<pre>Go to ^MN (enter/edit menu) go to the menu you want to replace</pre>
+<pre>Copy the following and paste as many times as needed to delete all rows in the menu (you may need to copy delete script to notepad to ensure just 1 linefeed after last yes):
+REMOVE
+ROW
+1
+YES
+YES
+
+Then click Download RPMS Script and paste the contents into the same menu option. *DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
+</pre>
 <pre>@RPMSScript</pre>
 @code {
     [Parameter] public int Id { get; set; }
@@ -155,11 +166,16 @@
             colNum = a.ColNum.ToString();
             itemid = a.ItemId.HasValue ? $"`{a.ItemId}" : "";
             dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
-            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) && a.DisplayOnly.StartsWith("YES") ? a.DisplayOnly : "";
+            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) ? a.DisplayOnly : "";
+            if (dispOnly=="PLACEHOLDER")
+            {
+                dispTxt = "***" + dispTxt;
+            }
             headerTxt = dispOnly switch
             {
                 "YES" => "NO",
                 "YES-HEADER" => "YES",
+                "PLACEHOLDER" => "NO",
                 _ => ""
             };
             mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
