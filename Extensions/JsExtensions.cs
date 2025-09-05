@@ -56,5 +56,10 @@ namespace AutoCAC.Extensions
             await js.InvokeVoidAsync("hideDialog", dialogId);
         }
 
+        public static async Task CopyText(this IJSRuntime js, string txt)
+        {
+            await js.InvokeVoidAsync("navigator.clipboard.writeText", txt);
+        }
+
     }
 }

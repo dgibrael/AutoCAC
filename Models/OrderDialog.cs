@@ -25,5 +25,7 @@ public partial class OrderDialog
 
     public string? Responses { get; set; }
 
+    public virtual ICollection<MenuBuildMetum> MenuBuildMeta { get; set; } = new List<MenuBuildMetum>();
+
     public virtual ICollection<MenuBuild> MenuBuilds { get; set; } = new List<MenuBuild>();
 }

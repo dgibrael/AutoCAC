@@ -52,6 +52,14 @@
                     <RadzenNumeric @bind-Value="currentMenu.Columns" Min="1" Max="4" />
                 </RadzenColumn>
             </RadzenRow>
+            <RadzenRow style="margin-bottom: 1rem">
+                <RadzenColumn Size="2">
+                    <RadzenLabel Text="IEN of Menu To Replace:" />
+                </RadzenColumn>
+                <RadzenColumn Size="10">
+                    <RadzenNumeric @bind-Value="currentMenu.ExistingMenu" Min="0" />
+                </RadzenColumn>
+            </RadzenRow>
             <RadzenButton Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" class="rz-mr-2" />
             <RadzenButton Text="Cancel" Click="ToggleEditAsync" ButtonStyle="ButtonStyle.Light" Icon="cancel" />
         </RadzenTemplateForm>
@@ -184,8 +192,10 @@
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
-        await UpdateNewItems();
+        currentMenu = await db.MenuBuildMeta
+                .Include(m => m.ExistingMenuNavigation)
+                .FirstOrDefaultAsync(o => o.Id == Id);
+        await UpdateNewItems(null);
         editMode = false;
         await InvokeAsync(StateHasChanged);
     }
@@ -195,7 +205,9 @@
         if (editMode)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
+            currentMenu = await db.MenuBuildMeta
+                .Include(m => m.ExistingMenuNavigation)
+                .FirstOrDefaultAsync(o => o.Id == Id);
             await InvokeAsync(StateHasChanged);
         }
         editMode = !editMode;
@@ -246,13 +258,17 @@
         StateHasChanged();
     }
 
-    private async Task UpdateNewItems()
+    private async Task UpdateNewItems(string updateStatus = "CHANGES REQUESTED")
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         newItems = await db.MenuBuilds
             .Include(mb => mb.Item)
             .Where(mb => mb.MenuId == Id)
             .ToListAsync();
+        if (!string.IsNullOrWhiteSpace(updateStatus))
+        {
+            await db.MenuBuildMetaSetStatusAsync(Id, updateStatus);
+        }
     }
 
     private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem item)
@@ -321,6 +337,8 @@
                 await MoveItemsAsync(row+1, col);
                 break;
         }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
     public async Task AddItem(MenuBuild item)
@@ -366,14 +384,15 @@
         await db.SaveChangesAsync();
         if (item.ItemId.HasValue)
             item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
+        await db.MenuBuildMetaSetStatusAsync(Id);
         await InvokeAsync(StateHasChanged);
     }
 
     public async Task DeleteItem(MenuBuild item)
     {
         bool? confirmed = await DialogService.Confirm(
-            "Are you sure you want to undo changes for this item?",
-            "Undo Change"
+            "Are you sure you want to delete this item?",
+            "Delete"
         );
         if (confirmed == true)
         {
@@ -381,6 +400,7 @@
             db.MenuBuilds.Remove(item);
             await db.SaveChangesAsync();
             newItems.Remove(item);
+            await db.MenuBuildMetaSetStatusAsync(Id);
             StateHasChanged();
         }
     }
@@ -390,6 +410,7 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuilds.Update(item);
         await db.SaveChangesAsync();
+        await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
     private async Task ShowOrderDetails(OrderDialog order)

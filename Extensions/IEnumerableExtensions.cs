@@ -44,5 +44,36 @@ namespace AutoCAC.Extensions
             return new StringContent(json, Encoding.UTF8, "application/json");
         }
 
+        public static void TrimBetween(
+            this List<string> list,
+            string startString = null,
+            string endString = null,
+            StringComparison startComparison = StringComparison.OrdinalIgnoreCase,
+            StringComparison endComparison = StringComparison.OrdinalIgnoreCase)
+        {
+            if (list == null || list.Count == 0) return;
+
+            // Handle start trimming
+            if (!string.IsNullOrEmpty(startString))
+            {
+                int startIndex = list.FindIndex(s => s.Contains(startString, startComparison));
+                if (startIndex != -1)
+                {
+                    list.RemoveRange(0, startIndex+1);
+                }
+            }
+
+            // Handle end trimming (after possibly modified list)
+            if (!string.IsNullOrEmpty(endString))
+            {
+                int endIndex = list.FindLastIndex(s => s.Contains(endString, endComparison));
+                if (endIndex != -1)
+                {
+                    list.RemoveRange(endIndex, list.Count - endIndex);
+                }
+            }
+        }
+
+
     }
 }

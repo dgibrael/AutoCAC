@@ -170,6 +170,9 @@ public partial class mainContext : DbContext
             entity.Property(e => e.ItemId).HasColumnName("Item_id");
             entity.Property(e => e.MenuId).HasColumnName("Menu_id");
             entity.Property(e => e.Mnemonic).HasMaxLength(50);
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
 
             entity.HasOne(d => d.Item).WithMany(p => p.MenuBuilds)
                 .HasForeignKey(d => d.ItemId)
@@ -191,7 +194,14 @@ public partial class mainContext : DbContext
             entity.Property(e => e.RequestStatus)
                 .HasMaxLength(200)
                 .IsUnicode(false)
-                .HasDefaultValue("PENDING");
+                .HasDefaultValue("NEW");
+            entity.Property(e => e.RowVersion)
+                .IsRowVersion()
+                .IsConcurrencyToken();
+
+            entity.HasOne(d => d.ExistingMenuNavigation).WithMany(p => p.MenuBuildMeta)
+                .HasForeignKey(d => d.ExistingMenu)
+                .HasConstraintName("FK_MenuBuildMeta_ExistingMenu");
         });
 
         modelBuilder.Entity<Ndf>(entity =>

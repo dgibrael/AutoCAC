@@ -16,6 +16,13 @@ namespace AutoCAC.Utilities
         public string Echoed { get; private set; } = "";
         public string Buffered => _buffer.ToString();
 
+        public List<string> BufferList(string delimiter = "\r\n")
+        {
+            return Buffered
+                .Split(delimiter, StringSplitOptions.None)
+                .ToList();
+        }
+
         public void SetEchoed(string data)
         {
             Echoed = data;

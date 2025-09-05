@@ -17,5 +17,11 @@ public partial class MenuBuildMetum
 
     public string RequestStatus { get; set; } = null!;
 
+    public int? ExistingMenu { get; set; }
+
+    public byte[] RowVersion { get; set; } = null!;
+
+    public virtual OrderDialog? ExistingMenuNavigation { get; set; }
+
     public virtual ICollection<MenuBuild> MenuBuilds { get; set; } = new List<MenuBuild>();
 }

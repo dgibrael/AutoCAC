@@ -114,15 +114,19 @@
                 break;
             case ("DONE"):
                 pctComplete = 100;
+                await DbFactory.ExecuteSqlAsync($"DELETE FROM DataImportStatus Where JobID = {TaskNumber}");
                 if (_onUpdateComplete!=null) await _onUpdateComplete();
                 break;
         }
         await InvokeAsync(StateHasChanged);
         watcher?.Dispose();
-        watcher = SqlWatcher.CreateForDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange);
+        if (pctComplete != 100)
+        {
+            watcher = SqlWatcher.CreateForDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange);
+        }
     }
 
-    public async Task RunUpdateFromRPMS(string tableName, Func<Task>? onComplete = null)
+    public async Task RunUpdateFromRPMS(string tableName, Func<Task> onComplete = null)
     {
         _onUpdateComplete = onComplete;
         await JS.DialogShow();
@@ -149,5 +153,7 @@
     {
         Layout.RPMS.ClearAllModeChangedSubscriptions();
         _queuedAction = null;
+        watcher?.Dispose();
+        watcher = null;
     }
 }

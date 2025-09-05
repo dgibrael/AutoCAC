@@ -20,18 +20,18 @@
             ButtonStyle="ButtonStyle.Base"
             Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}"))" />
     </RadzenColumn>
-    @* <RadzenColumn>
+    <RadzenColumn>
         <RadzenButton 
             Text="Commit Changes"
             Icon="check"
             ButtonStyle="ButtonStyle.Success"
             Click="@ShowDialogAndRun" />
-    </RadzenColumn> *@
+    </RadzenColumn>
     <RadzenColumn>
         <RadzenButton 
-            Text="Download RPMS script"
+            Text="Copy RPMS script to clipboard"
             ButtonStyle="ButtonStyle.Info"
-            Click="@DownloadRPMSScript" />
+            Click="@CopyRPMSScript" />
     </RadzenColumn>
 </RadzenRow>
 <RPMSOutput @ref="RPMSRef"/>
@@ -77,9 +77,12 @@ ROW
 YES
 YES
 
-Then click Download RPMS Script and paste the contents into the same menu option. *DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
+Then click "Copy RPMS script to clipboard". This will copy the script to your clipboard.
+A dialog will pop up asking if you want to mark the request as complete, you can wait until you're done to hit yes.
+Paste the contents of your clipboard to RPMS.
+*DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
 </pre>
-<pre>@RPMSScript</pre>
+@* <pre>@RPMSScript</pre> *@
 @code {
     [Parameter] public int Id { get; set; }
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
@@ -93,7 +96,9 @@ Then click Download RPMS Script and paste the contents into the same menu option
     protected override async Task OnInitializedAsync()
     {
         db = await DbFactory.CreateDbContextAsync();
-        currentMenu = await db.MenuBuildMeta.FirstOrDefaultAsync(o => o.Id == Id);
+        currentMenu = await db.MenuBuildMeta
+                .Include(m => m.ExistingMenuNavigation)
+                .FirstOrDefaultAsync(o => o.Id == Id);
         await GetAddTbl();
         GetRPMSScript();
         await InvokeAsync(StateHasChanged);
@@ -119,22 +124,59 @@ Then click Download RPMS Script and paste the contents into the same menu option
     private async Task RunMenuUpdate()
     {
         await Layout.GoToMenu("Menu Items Edit");
-        var menuId = $"`{currentMenu.Id}";
-        await Layout.RPMS.SendAsync(menuId);
-        //var deleteList = addLst.Where(c => c.ChangeType == "DELETE").ToList();
-        //var updateList = addLst.Where(c => c.ChangeType == "CHANGE").ToList();
+
+        var menuId = currentMenu?.ExistingMenuNavigation.Id;
+        if (menuId==null)
+        {
+            throw new Exception("Must be linked to existing RPMS menu");
+        }
+        await Layout.RPMS.SendAsync($"`{menuId}");
+        Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+        List<string> optionlst = await Layout.RPMS.GetOptions();
+        optionlst.TrimBetween("Choose from:", "You may enter a new ITEMS", StringComparison.Ordinal, StringComparison.Ordinal);
+        optionlst = optionlst
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
+            .Where(s => char.IsDigit(s[0]))
+            .ToList();
+
+        foreach(var opt in optionlst)
+        {
+            Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+            await Layout.RPMS.SendAsync(opt);
+            Layout.RPMS.CheckPromptAndThrow("SEQUENCE:");
+            await Layout.RPMS.SendAsync("@");
+            Layout.RPMS.CheckPromptAndThrow("SEQUENCE?");
+            await Layout.RPMS.SendAsync("YES");
+        }
         string seq = "";
         string itemid = "";
         string dispTxt = "";
         string dispOnly = "";
         string mnem = "";
+        //add each item
         foreach (var a in addLst)
         {
             seq = $"{a.RowNum}.{a.ColNum}";
-            itemid = a.ItemId.HasValue ? $"`{a.ItemId}" : "";
+            itemid = a.ItemId.HasValue && a.ItemId != 0 ? $"`{a.ItemId}" : "";
             dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
-            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) && a.DisplayOnly.StartsWith("YES") ? a.DisplayOnly : "";
-            mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
+            if (string.IsNullOrWhiteSpace(a.DisplayOnly))
+            {
+                dispOnly = "0";
+                mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
+            }
+            else
+            {
+                if (a.DisplayOnly == "YES-HEADER")
+                {
+                    dispOnly = "2";
+                }
+                else
+                {
+                    dispOnly = "1";
+                }
+                mnem = "";
+            }
 
             Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
             await Layout.RPMS.SendAsync(seq);
@@ -201,9 +243,15 @@ Then click Download RPMS Script and paste the contents into the same menu option
         RPMSScript = string.Join("\r\n", lst)+"\r\n";
     }
 
-    private async Task DownloadRPMSScript()
+    private async Task CopyRPMSScript()
     {
-        await JS.DownloadString(RPMSScript);
+        await JS.CopyText(RPMSScript);
+        bool? markComplete = await DialogService.Confirm("Mark as completed?", "Changes Made");
+        if (markComplete==true)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await db.MenuBuildMetaSetStatusAsync(Id, "DONE");
+        }
     }
 
     private async Task ShowDialogAndRun()

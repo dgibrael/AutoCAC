@@ -23,6 +23,8 @@ public partial class MenuBuild
 
     public int ColNum { get; set; }
 
+    public byte[] RowVersion { get; set; } = null!;
+
     public virtual OrderDialog? Item { get; set; }
 
     public virtual MenuBuildMetum Menu { get; set; } = null!;

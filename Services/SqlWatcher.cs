@@ -11,7 +11,7 @@ public class SqlWatcher : IDisposable
     private readonly SqlCommand _command;
     private SqlDependency _dependency;
     private readonly Action _onChange;
-
+    private bool _disposed = false;
     private SqlWatcher(
         IDbContextFactory<mainContext> factory,
         string query,
@@ -45,17 +45,13 @@ public class SqlWatcher : IDisposable
             _onChange?.Invoke();
     }
 
-    public void Resubscribe()
-    {
-        _dependency.OnChange -= HandleChange;
-        Subscribe();
-    }
-
     public void Dispose()
     {
+        if (_disposed) return;
         _dependency.OnChange -= HandleChange;
         _command?.Dispose();
         _connection?.Dispose();
+        _disposed = true;
     }
 
     public static SqlWatcher CreateForDataImportStatus(

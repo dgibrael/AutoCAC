@@ -181,6 +181,8 @@ public class RPMSService : IDisposable
 
     public RPMSMode CurrentMode { get; private set; } = Modes.Disconnected;
     public RPMSMode PreviousMode { get; private set; } = Modes.Disconnected;
+    private TaskCompletionSource<bool> _modeChangedTcs;
+
     public bool JustSignedIn => !PreviousMode.SignedIn && CurrentMode.SignedIn;
 
     public event Action ModeChanged;
@@ -214,6 +216,7 @@ public class RPMSService : IDisposable
             return;
         PreviousMode = CurrentMode;
         CurrentMode = newMode;
+        _modeChangedTcs?.TrySetResult(true); // Signal any waiter
         newMode.OnEnter(this);
         ModeChanged?.Invoke();
     }
@@ -305,11 +308,17 @@ public class RPMSService : IDisposable
     {
         _stream.Write(command + "\r");
         SendEndOfFeed();
-        SetMode(Modes.DefaultReceive);
         // Poll with delay
+        _modeChangedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        SetMode(Modes.DefaultReceive);
+
         while (IsInMode(Modes.DefaultReceive))
         {
-            await Task.Delay(10); // let other code run
+            await _modeChangedTcs.Task;
+            // Reset for next mode check if still in the same mode
+            if (IsInMode(Modes.DefaultReceive))
+                _modeChangedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 
@@ -464,6 +473,24 @@ public class RPMSService : IDisposable
         Output.BufferFrozen = false;
         Output.ClearBuffer();
         return buffer;
+    }
+
+    public async Task<List<string>> GetOptions(int maxLoops = 20)
+    {
+        await SendAsync("??");
+        Output.BufferFrozen = true;
+        for (int i = 0; i<maxLoops; i++)
+        {
+            if (!CurrentPromptContains("to stop", StringComparison.OrdinalIgnoreCase))
+            {
+                Output.BufferFrozen = false;
+                return Output.BufferList();
+            }
+            await SendAsync();
+        }
+        Output.BufferFrozen = false;
+        await SendAsync("^");
+        return Output.BufferList();
     }
 
     public void SendEndOfFeed()

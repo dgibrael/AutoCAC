@@ -11,6 +11,7 @@
 @inject IJSRuntime JS
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
+@using AutoCAC.Extensions
 
 <CascadingValue Value="this" Name="MainLayout">
     <RadzenComponents />
@@ -126,27 +127,6 @@
         if (reThrow)
         {
             throw ex;
-        }
-    }
-
-    public async Task<bool?> YesNoDialog(string message = "Are you sure?", string title = "Confirm")
-    {
-        return await DialogService.Confirm(message, title, new ConfirmOptions
-            {
-                OkButtonText = "Yes",
-                CancelButtonText = "No"
-            }
-        );
-    }
-
-    public bool ReceivingFromRPMS { get; private set; } = false;
-
-    public async Task SetReceivingFromRPMS(bool value)
-    {
-        if (ReceivingFromRPMS != value)
-        {
-            ReceivingFromRPMS = value;
-            await InvokeAsync(StateHasChanged);
         }
     }
 
