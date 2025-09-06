@@ -11,6 +11,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject IJSRuntime JS
 @using System.Text
+@using System.Text.RegularExpressions;
 
 <h3>Review and Commit changes to RPMS for @currentMenu?.DisplayText (@Id)</h3>
 <RadzenRow>
@@ -48,7 +49,7 @@
                 {
                     case "PLACEHOLDER":
                         <h3 class="rz-color-danger">
-                            ***@cell.DisplayText
+                            @cell.DisplayText
                         </h3>
                         break;
                     case "YES-HEADER":
@@ -136,10 +137,15 @@ Paste the contents of your clipboard to RPMS.
         optionlst.TrimBetween("Choose from:", "You may enter a new ITEMS", StringComparison.Ordinal, StringComparison.Ordinal);
         optionlst = optionlst
             .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => s.Trim().Split((char[])null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
-            .Where(s => char.IsDigit(s[0]))
+            .Select(s =>
+            {
+                var normalized = Regex.Replace(s, @"\s+", " ").Trim();
+                var match = Regex.Match(normalized, @"\b\d+\.\d+\b");
+                var token = match.Success ? match.Value : null;
+                return token;
+            })
+            .Where(s => !string.IsNullOrEmpty(s))
             .ToList();
-
         foreach(var opt in optionlst)
         {
             Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
@@ -160,6 +166,7 @@ Paste the contents of your clipboard to RPMS.
             seq = $"{a.RowNum}.{a.ColNum}";
             itemid = a.ItemId.HasValue && a.ItemId != 0 ? $"`{a.ItemId}" : "";
             dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
+
             if (string.IsNullOrWhiteSpace(a.DisplayOnly))
             {
                 dispOnly = "0";
@@ -167,17 +174,21 @@ Paste the contents of your clipboard to RPMS.
             }
             else
             {
-                if (a.DisplayOnly == "YES-HEADER")
+                switch (a.DisplayOnly)
                 {
-                    dispOnly = "2";
-                }
-                else
-                {
-                    dispOnly = "1";
+                    case "YES-HEADER":
+                        dispOnly = "2";
+                        break;
+                    case "YES":
+                        dispOnly = "1";
+                        break;
+                    case "PLACEHOLDER":
+                        dispOnly = "1";
+                        dispTxt = $"***{dispTxt}";
+                        break;
                 }
                 mnem = "";
             }
-
             Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
             await Layout.RPMS.SendAsync(seq);
             Layout.RPMS.CheckPromptAndThrow("ITEM:");
@@ -211,7 +222,7 @@ Paste the contents of your clipboard to RPMS.
             dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) ? a.DisplayOnly : "";
             if (dispOnly=="PLACEHOLDER")
             {
-                dispTxt = "***" + dispTxt;
+                dispTxt = $"***{dispTxt}";
             }
             headerTxt = dispOnly switch
             {

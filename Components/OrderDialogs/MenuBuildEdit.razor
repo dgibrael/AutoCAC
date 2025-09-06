@@ -113,18 +113,35 @@
                                 }
                                 else if (newCell.DisplayOnly == "PLACEHOLDER")
                                 {
-                                    <RadzenButton Variant="Variant.Flat" Click="@(() => EditPlaceholder(newCell))">
+                                    <RadzenButton Variant="Variant.Flat" Click="@(() => OrderDialogEdit(newCell))">
                                         @($"***{newCell.DisplayText}")
                                     </RadzenButton>
                                 }
                                 else if (newCell.Item is not null)
                                 {
-                                    var _newcelldisp = string.IsNullOrWhiteSpace(newCell.DisplayText) ? $"{newCell.Mnemonic} {newCell.Item.DisplayText}" : $"{newCell.Mnemonic} {newCell.DisplayText}";
-                                    <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">
-                                        @_newcelldisp
-                                    </RadzenButton>
+                                    var _newcelldisp = string.IsNullOrWhiteSpace(newCell.DisplayText) ? newCell.Item.DisplayText : newCell.DisplayText;
+                                    <RadzenRow>
+                                        <RadzenColumn Size="2">
+                                            <RadzenButton Variant="Variant.Outlined" Text="@newCell.Mnemonic" Click="@(() => EditMnemonic(newCell))" />
+                                        </RadzenColumn>
+                                        <RadzenColumn Size="10">
+                                            <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">
+                                                @_newcelldisp
+                                            </RadzenButton>
+                                        </RadzenColumn>
+                                    </RadzenRow>
                                 }
-                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => DeleteItem(newCell))" class="rz-ml-2" />
+                                <RadzenRow>
+                                    <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                                                        Click="@(item => OnSplitButtonClick(currentRow, currentCol, item))"
+                                                        Style="width: 100%;">
+                                        <RadzenSplitButtonItem Text="Delete Contents" Value="Delete" />
+                                        <RadzenSplitButtonItem Text="Delete Contents AND Cell" Value="DeleteCell" />
+                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />
+                                        <RadzenSplitButtonItem Text="Replace With Order Dialog" Value="Order Dialog" />
+                                        <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
+                                    </RadzenSplitButton>
+                                </RadzenRow>
                             </RadzenCard>
                         </div>
                     }
@@ -132,13 +149,13 @@
                     {
                         @* Empty cell – show ADD split button *@
                         <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-                                            Click="@(item => OnSplitButtonClick(currentRow, currentCol, item))"
+                                            Click="@(btn => OnSplitButtonClick(currentRow, currentCol, btn))"
                                             Style="width: 100%;">
-                            <ChildContent>
-                                <RadzenSplitButtonItem Text="Add Text" Value="Text" />
-                                <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" />
-                                <RadzenSplitButtonItem Text="Delete Cell" Value="MoveUp" />
-                            </ChildContent>
+                            <RadzenSplitButtonItem Text="Add Header" Value="Header" />
+                            <RadzenSplitButtonItem Text="Add Text" Value="Text" />
+                            <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" />
+                            <RadzenSplitButtonItem Text="Delete Cell" Value="MoveUp" />
+                            <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
                         </RadzenSplitButton>
                     }
                 </div>
@@ -155,7 +172,8 @@
                         @foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER"))
                         {
                             <RadzenCarouselItem>
-                                <RadzenTextBox @bind-Value="item.DisplayText"
+                                <span>@item.DisplayText</span>
+                                <RadzenTextBox @bind-Value="item.AdditionalDetails"
                                                Style="width: 75%;"
                                                Change="@(() => SaveItem(item))" />
                             </RadzenCarouselItem>
@@ -271,11 +289,42 @@
         }
     }
 
-    private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem item)
+    private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem btn, MenuBuild item = null)
     {
-        switch (item.Value)
+        bool newItm = false;
+        string dispTxt = "";
+        string addlTxt = "";
+        if (item==null)
         {
+            newItm = true;
+            item = new MenuBuild
+            {
+                MenuId = Id,
+                RowNum = row,
+                ColNum = col,
+                DisplayOnly = "",
+                DisplayText = ""
+            };
+        }
+        else
+        {
+            dispTxt = !string.IsNullOrWhiteSpace(item.DisplayText) ? item.DisplayText : item.Item?.DisplayText;
+            if (!string.IsNullOrWhiteSpace(item.AdditionalDetails))
+            {
+                addlTxt = item.AdditionalDetails;
+            }
+            else
+            {
+                addlTxt = string.IsNullOrWhiteSpace(item.DisplayOnly) ? $"{item.Item?.DisplayText} {item.Item?.Name}" : dispTxt;
+            }
+        }
+        switch (btn.Value)
+        {
+            case "Header":
+                var headerFld = await DialogService.TextPromptAsync("Header", "Enter Value for Header");
+                break;
             case "Text":
+                //VALIDATE ENTRY. DON'T ALLOW -;,=^
                 var txtField = new TextField
                 {
                     MaxLength = MaxTxtLength
@@ -315,9 +364,9 @@
                             MenuId = Id,
                             DisplayText = ph.MenuTxt,
                             DisplayOnly = "PLACEHOLDER",
-                            Mnemonic = ph.ExtendedTxt,
                             RowNum = row,
-                            ColNum = col
+                            ColNum = col,
+                            AdditionalDetails = ph.ExtendedTxt
                         });
                     }
                     else if (qo is OrderDialog qoDialog)
@@ -352,17 +401,26 @@
         StateHasChanged();
     }
 
-    private async Task EditPlaceholder(MenuBuild item)
+    private async Task OrderDialogEdit(MenuBuild item)
     {
-        var placeholderField = new PlaceholderField
+        PlaceholderField placeholderField = new PlaceholderField
         {
-            MenuTxt = item.DisplayText,
-            ExtendedTxt = item.Mnemonic,
-            MaxLength = MaxTxtLength
+            MaxLength = MaxTxtLength - 3
         };
+        if (item.Item != null && item.Item.Id != 0)
+        {
+            var itmDisp = string.IsNullOrWhiteSpace(item.DisplayText) ? item.Item.DisplayText : item.DisplayText;
+            placeholderField.MenuTxt = itmDisp;
+            placeholderField.ExtendedTxt = $"{itmDisp} {item.Item.Name}";
+        }
+        else if (!string.IsNullOrWhiteSpace(item.DisplayOnly))
+        {
+            placeholderField.MenuTxt = item.DisplayText;
+            placeholderField.ExtendedTxt = string.IsNullOrWhiteSpace(item.AdditionalDetails) ? item.DisplayText : item.AdditionalDetails;
+        }
         var result = await DialogService.OpenAsync<OrderDialogSelect>(
             item.DisplayText,
-            new Dictionary<string, object> { { "SearchText", item.DisplayText }, { "placeholderField", placeholderField } },
+            new Dictionary<string, object> { { "SearchText", placeholderField.ExtendedTxt }, { "placeholderField", placeholderField } },
             new DialogOptions { Width = "75%", Resizable = true }
         );
         if (result == null) return;
@@ -370,7 +428,7 @@
         if (result is PlaceholderField newText)
         {
             item.DisplayText = newText.MenuTxt;
-            item.Mnemonic = newText.ExtendedTxt;
+            item.AdditionalDetails = newText.ExtendedTxt;
             item.ItemId = null;
         }
         else if (result is OrderDialog selectedDialog)
@@ -413,6 +471,15 @@
         await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
+    private async Task EditMnemonic(MenuBuild item)
+    {
+        var result = await DialogService.TextPromptAsync("Edit Mnemonic", "Mnemonic", initial: item.Mnemonic, maxLength: 4);
+        if (result == null) return;
+        item.Mnemonic = result;
+        await SaveItem(item);
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task ShowOrderDetails(OrderDialog order)
     {
         if (order.Type == "quick order")
@@ -443,7 +510,7 @@
         {
             foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())
             {
-                await EditPlaceholder(item);
+                await OrderDialogEdit(item);
             }
         });
     }

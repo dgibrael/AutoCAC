@@ -165,11 +165,12 @@ public partial class mainContext : DbContext
 
             entity.HasIndex(e => new { e.MenuId, e.RowNum, e.ColNum }, "UQ_MenuBuild_MenuRowCol").IsUnique();
 
+            entity.Property(e => e.AdditionalDetails).HasMaxLength(255);
             entity.Property(e => e.DisplayOnly).HasMaxLength(50);
             entity.Property(e => e.DisplayText).HasMaxLength(255);
             entity.Property(e => e.ItemId).HasColumnName("Item_id");
             entity.Property(e => e.MenuId).HasColumnName("Menu_id");
-            entity.Property(e => e.Mnemonic).HasMaxLength(50);
+            entity.Property(e => e.Mnemonic).HasMaxLength(4);
             entity.Property(e => e.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();

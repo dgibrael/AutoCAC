@@ -25,6 +25,8 @@ public partial class MenuBuild
 
     public byte[] RowVersion { get; set; } = null!;
 
+    public string? AdditionalDetails { get; set; }
+
     public virtual OrderDialog? Item { get; set; }
 
     public virtual MenuBuildMetum Menu { get; set; } = null!;

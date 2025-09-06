@@ -1,0 +1,49 @@
+﻿@using Radzen
+@inject DialogService DialogService
+
+<RadzenTemplateForm TItem="string" Data="@Value" >
+    @if (!string.IsNullOrWhiteSpace(Header))
+    {
+        <h3 class="text-lg font-semibold">@Header</h3>
+    }
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <p class="text-sm text-gray-600">@Message</p>
+    }
+
+    <RadzenTextBox @bind-Value="Value"
+                   Placeholder="@Placeholder"
+                   MaxLength="@MaxLength"
+                   Style="width:100%"
+                    />
+
+    <div class="flex justify-end gap-2">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="OK" ButtonType="ButtonType.Submit"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Click="@OnOk" />
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public string Header { get; set; } = "Enter Text";
+    [Parameter] public string Message { get; set; }
+    [Parameter] public string Placeholder { get; set; }
+    [Parameter] public string InitialValue { get; set; }
+    [Parameter] public int? MaxLength { get; set; }
+
+    private string? Value;
+
+    protected override void OnInitialized()
+    {
+        Value = InitialValue;
+    }
+
+    private void OnOk()
+    {
+        DialogService.Close(Value);
+    }
+}
+
