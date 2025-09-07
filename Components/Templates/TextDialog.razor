@@ -11,11 +11,19 @@
         <p class="text-sm text-gray-600">@Message</p>
     }
 
-    <RadzenTextBox @bind-Value="Value"
+    <RadzenTextBox Name="textInput"
+                   @bind-Value="Value"
                    Placeholder="@Placeholder"
                    MaxLength="@MaxLength"
-                   Style="width:100%"
-                    />
+                   Style="width:100%" />
+
+    @if (!string.IsNullOrWhiteSpace(DisallowedChars))
+    {
+        <RadzenRegexValidator Component="textInput"
+                              Text="@($"The characters {DisallowedChars} are not allowed.")"
+                              Pattern="@BuildNoCharsPattern()"
+                              Popup="false" />
+    }
 
     <div class="flex justify-end gap-2">
         <RadzenButton Text="Cancel"
@@ -33,6 +41,7 @@
     [Parameter] public string Placeholder { get; set; }
     [Parameter] public string InitialValue { get; set; }
     [Parameter] public int? MaxLength { get; set; }
+    [Parameter] public string DisallowedChars { get; set; }   // NEW
 
     private string? Value;
 
@@ -45,5 +54,10 @@
     {
         DialogService.Close(Value);
     }
-}
 
+    private string BuildNoCharsPattern()
+    {
+        var escaped = System.Text.RegularExpressions.Regex.Escape(DisallowedChars);
+        return $"^[^{escaped}]*$";
+    }
+}

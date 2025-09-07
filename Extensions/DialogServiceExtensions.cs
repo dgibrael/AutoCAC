@@ -23,35 +23,37 @@ namespace AutoCAC.Extensions
             this DialogService dialogService,
             string title = "Prompt",
             string header = "Enter Text",
-            string initial = null,
+            string initial = "",
             int maxLength = 255,
-            string placeholder = null,
-            string message = null,
+            string placeholder = "",
+            string message = "",
+            string disallowedChars = "",
             DialogOptions options = null)
         {
             var parameters = new Dictionary<string, object?>
             {
-                ["Header"] = header ?? "Enter Text",
+                ["Header"] = string.IsNullOrWhiteSpace(header) ? "Enter Text" : header,
                 ["Message"] = message,
                 ["InitialValue"] = initial,
                 ["Placeholder"] = placeholder,
-                ["MaxLength"] = maxLength
+                ["MaxLength"] = maxLength,
+                ["DisallowedChars"] = disallowedChars
             };
 
             var result = await dialogService.OpenAsync<Components.Templates.TextDialog>(
-                title ?? "Prompt",
+                string.IsNullOrWhiteSpace(title) ? "Prompt" : title,
                 parameters,
                 options ?? new DialogOptions
                 {
-                    Width = "480px",
+                    Width = "75%",
                     CloseDialogOnOverlayClick = true,
                     Resizable = true,
                     Draggable = true
                 });
 
+            // OK → string (may be ""), Cancel → null
             return result as string;
         }
-
     }
 }
 

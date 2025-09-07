@@ -133,11 +133,11 @@
                                 }
                                 <RadzenRow>
                                     <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-                                                        Click="@(item => OnSplitButtonClick(currentRow, currentCol, item))"
+                                                        
                                                         Style="width: 100%;">
                                         <RadzenSplitButtonItem Text="Delete Contents" Value="Delete" />
                                         <RadzenSplitButtonItem Text="Delete Contents AND Cell" Value="DeleteCell" />
-                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />
+                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />s
                                         <RadzenSplitButtonItem Text="Replace With Order Dialog" Value="Order Dialog" />
                                         <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
                                     </RadzenSplitButton>
@@ -149,7 +149,7 @@
                     {
                         @* Empty cell – show ADD split button *@
                         <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-                                            Click="@(btn => OnSplitButtonClick(currentRow, currentCol, btn))"
+                                            Click="@(btn => OnEmptyBtnClick(currentRow, currentCol, btn))"
                                             Style="width: 100%;">
                             <RadzenSplitButtonItem Text="Add Header" Value="Header" />
                             <RadzenSplitButtonItem Text="Add Text" Value="Text" />
@@ -289,105 +289,101 @@
         }
     }
 
-    private async Task OnSplitButtonClick(int row, int col, RadzenSplitButtonItem btn, MenuBuild item = null)
+    private async Task OnEmptyBtnClick(int row, int col, RadzenSplitButtonItem btn)
     {
-        bool newItm = false;
-        string dispTxt = "";
-        string addlTxt = "";
-        if (item==null)
-        {
-            newItm = true;
-            item = new MenuBuild
-            {
-                MenuId = Id,
-                RowNum = row,
-                ColNum = col,
-                DisplayOnly = "",
-                DisplayText = ""
-            };
-        }
-        else
-        {
-            dispTxt = !string.IsNullOrWhiteSpace(item.DisplayText) ? item.DisplayText : item.Item?.DisplayText;
-            if (!string.IsNullOrWhiteSpace(item.AdditionalDetails))
-            {
-                addlTxt = item.AdditionalDetails;
-            }
-            else
-            {
-                addlTxt = string.IsNullOrWhiteSpace(item.DisplayOnly) ? $"{item.Item?.DisplayText} {item.Item?.Name}" : dispTxt;
-            }
-        }
         switch (btn.Value)
         {
             case "Header":
-                var headerFld = await DialogService.TextPromptAsync("Header", "Enter Value for Header");
+                await AddTxtItem(row, col);
                 break;
             case "Text":
-                //VALIDATE ENTRY. DON'T ALLOW -;,=^
-                var txtField = new TextField
-                {
-                    MaxLength = MaxTxtLength
-                };
-                var txtResult = await DialogService.OpenAsync<TextEntryModal>(
-                    "Enter text",
-                    new Dictionary<string, object> { { "Model", txtField } }
-                );
-                if (txtResult is TextField tf && !string.IsNullOrWhiteSpace(tf.Txt))
-                {
-                    await AddItem(new MenuBuild
-                    {
-                        MenuId = Id,
-                        DisplayText = tf.Txt,
-                        DisplayOnly = tf.Header ? "YES-HEADER" : "YES",
-                        RowNum = row,
-                        ColNum = col
-                    });
-                }
+                await AddTxtItem(row, col, "YES");
                 break;
-
             case "Order Dialog":
-                var placeholderField = new PlaceholderField
-                {
-                    MaxLength = MaxTxtLength-3
-                };
-                var qo = await DialogService.OpenAsync<OrderDialogSelect>(
-                    "Order Dialog",
-                    parameters: new Dictionary<string, object> { { "placeholderField", placeholderField } },
-                    options: new DialogOptions { Width = "75%", Resizable = true });
-                if (qo != null)
-                {
-                    if (qo is PlaceholderField ph)
-                    {
-                        await AddItem(new MenuBuild
-                        {
-                            MenuId = Id,
-                            DisplayText = ph.MenuTxt,
-                            DisplayOnly = "PLACEHOLDER",
-                            RowNum = row,
-                            ColNum = col,
-                            AdditionalDetails = ph.ExtendedTxt
-                        });
-                    }
-                    else if (qo is OrderDialog qoDialog)
-                    {
-                        await AddItem(new MenuBuild
-                        {
-                            MenuId = Id,
-                            ItemId = qoDialog.Id,
-                            RowNum = row,
-                            ColNum = col
-                        });
-                    }
-                }
+                await AddOrderDialog(row, col);
                 break;
-
             case "MoveUp":
                 await MoveItemsAsync(row+1, col);
+                break;
+            case "Insert":
+                await MoveItemsAsync(row, col, 1);
                 break;
         }
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.MenuBuildMetaSetStatusAsync(Id);
+    }
+
+    private async Task OnExistingSplitBtnClick(int row, int col, RadzenSplitButtonItem btn)
+    {
+        switch (btn.Value)
+        {
+            case "Header":
+                await AddTxtItem(row, col);
+                break;
+            case "Text":
+                await AddTxtItem(row, col, "YES");
+                break;
+            case "Order Dialog":
+                await AddOrderDialog(row, col);
+                break;
+            case "MoveUp":
+                await MoveItemsAsync(row + 1, col);
+                break;
+        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.MenuBuildMetaSetStatusAsync(Id);
+    }
+
+    private async Task AddTxtItem(int row, int col, string dispOnly = "YES-HEADER")
+    {
+        string dispTxt = await DialogService.TextPromptAsync("Header", "Enter Value for Header",
+            maxLength: MaxTxtLength, disallowedChars: "-;,=^");
+        if (string.IsNullOrWhiteSpace(dispTxt)) return;
+        await AddItem(new MenuBuild
+        {
+            MenuId = Id,
+            DisplayText = dispTxt,
+            DisplayOnly = dispOnly,
+            RowNum = row,
+            ColNum = col
+        });
+    }
+
+    private async Task AddOrderDialog(int row, int col)
+    {
+        var placeholderField = new PlaceholderField
+        {
+            MaxLength = MaxTxtLength - 3
+        };
+        var qo = await DialogService.OpenAsync<OrderDialogSelect>(
+            "Order Dialog",
+            parameters: new Dictionary<string, object> { { "placeholderField", placeholderField } },
+            options: new DialogOptions { Width = "75%", Resizable = true });
+        if (qo != null)
+        {
+            if (qo is PlaceholderField ph)
+            {
+                await AddItem(new MenuBuild
+                {
+                    MenuId = Id,
+                    DisplayText = ph.MenuTxt,
+                    DisplayOnly = "PLACEHOLDER",
+                    RowNum = row,
+                    ColNum = col,
+                    AdditionalDetails = ph.ExtendedTxt
+                });
+            }
+            else if (qo is OrderDialog qoDialog)
+            {
+                await AddItem(new MenuBuild
+                {
+                    MenuId = Id,
+                    ItemId = qoDialog.Id,
+                    RowNum = row,
+                    ColNum = col
+                });
+            }
+        }
     }
 
     public async Task AddItem(MenuBuild item)
@@ -398,7 +394,7 @@
         if (item.ItemId.HasValue)
             item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
         newItems.Add(item);
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OrderDialogEdit(MenuBuild item)
