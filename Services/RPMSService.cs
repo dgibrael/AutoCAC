@@ -1,16 +1,19 @@
-﻿using Microsoft.Extensions.Options;
+﻿using AutoCAC;
+using AutoCAC.Extensions;
+using AutoCAC.Utilities;
+using DocumentFormat.OpenXml.Bibliography;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.FileSystemGlobbing;
+using Microsoft.Extensions.Options;
+using Microsoft.Identity.Client;
 using Microsoft.JSInterop;
 using Renci.SshNet;
 using Renci.SshNet.Common;
+using System;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using System.Linq;
-using AutoCAC;
-using AutoCAC.Extensions;
-using AutoCAC.Utilities;
-using Microsoft.Identity.Client;
-using System;
 
 public class RPMSService : IDisposable
 {
@@ -519,7 +522,26 @@ public class RPMSService : IDisposable
         }
     }
 
+    public async Task<int?> UpdateDbTbl(string tableName)
+    {
+        string menu = "";
+        switch (tableName)
+        {
+            case ("OrderDialog"):
+                menu = "Order Dialog Update App";
+                break;
+        }
+        await GoToMenu(menu);
+        await SendAsync();
 
+        var _outputLst = Output.Buffered.Split("\r\n").ToList();
+        var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));
+        if (taskLine != null && int.TryParse(taskLine.Split(":").Last().Trim(), out int taskNumber))
+        {
+            return taskNumber;
+        }
+        throw new RPMSException("Could not retreive task number");
+    }
 
     public void Close()
     {

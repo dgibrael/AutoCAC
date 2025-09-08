@@ -30,7 +30,7 @@ namespace AutoCAC.Extensions
             string disallowedChars = "",
             DialogOptions options = null)
         {
-            var parameters = new Dictionary<string, object?>
+            var parameters = new Dictionary<string, object>
             {
                 ["Header"] = string.IsNullOrWhiteSpace(header) ? "Enter Text" : header,
                 ["Message"] = message,

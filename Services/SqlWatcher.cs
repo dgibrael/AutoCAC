@@ -7,27 +7,35 @@ using System.Data;
 
 public class SqlWatcher : IDisposable
 {
+    private readonly IDbContextFactory<mainContext> _factory;
+    private readonly string _query;
+    private readonly SqlParameter[] _parameters;
+    private readonly Action _onChange;
+
     private readonly SqlConnection _connection;
     private readonly SqlCommand _command;
     private SqlDependency _dependency;
-    private readonly Action _onChange;
     private bool _disposed = false;
+
     private SqlWatcher(
         IDbContextFactory<mainContext> factory,
         string query,
         SqlParameter[] parameters,
         Action onChange)
     {
+        _factory = factory;
+        _query = query;
+        _parameters = parameters;
         _onChange = onChange;
 
-        var context = factory.CreateDbContext();
+        var context = _factory.CreateDbContext();
         _connection = (SqlConnection)context.Database.GetDbConnection();
         if (_connection.State != ConnectionState.Open)
             _connection.Open();
 
-        _command = new SqlCommand(query, _connection);
-        if (parameters != null)
-            _command.Parameters.AddRange(parameters);
+        _command = new SqlCommand(_query, _connection);
+        if (_parameters != null)
+            _command.Parameters.AddRange(_parameters);
 
         Subscribe();
     }
@@ -54,7 +62,13 @@ public class SqlWatcher : IDisposable
         _disposed = true;
     }
 
-    public static SqlWatcher CreateForDataImportStatus(
+    public SqlWatcher Resubscribe()
+    {
+        Dispose();
+        return new SqlWatcher(_factory, _query, _parameters, _onChange);
+    }
+
+    public static SqlWatcher CreateDataImportStatus(
         IDbContextFactory<mainContext> factory,
         int jobId,
         string tableName,
@@ -72,8 +86,8 @@ public class SqlWatcher : IDisposable
                     UPDATE SET Status = 'REQUESTED'
                 WHEN NOT MATCHED THEN
                     INSERT (JobId, TableName, Status) VALUES ({jobId}, {tableName}, 'REQUESTED');");
-
         }
+
         var query = @"SELECT Status FROM dbo.DataImportStatus 
                       WHERE JobId = @jobId AND TableName = @tableName";
 

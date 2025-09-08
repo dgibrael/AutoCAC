@@ -12,7 +12,12 @@
 @using AutoCAC.Components.OrderDialogs
 @using Microsoft.AspNetCore.Components.Web
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
 
+@if (RPMSRef?.PctComplete is not null && RPMSRef.PctComplete!=-1)
+{
+    <RadzenProgressBar @bind-Value="@RPMSRef.PctComplete" />
+}
 @if (currentMenu != null)
 {
     @* Menu metadata display/edit *@
@@ -21,7 +26,6 @@
         <RadzenButton Text="Edit Menu Attributes" Click="ToggleEditAsync" ButtonStyle="ButtonStyle.Light" Icon="edit" />
         <div class="rz-my-3">
             <p><strong>Display Name:</strong> @currentMenu.DisplayText</p>
-            <p><strong>Name:</strong> @currentMenu.Name</p>
             <p><strong>Columns:</strong> @currentMenu.Columns</p>
         </div>
     }
@@ -68,9 +72,42 @@
     <h3>Menu Builder: @currentMenu?.DisplayText</h3>
     <RadzenRow>
         <RadzenButton Text="Copy Existing Menu" Click="@CopyExistingMenu" Icon="copy_all" />
-        <RadzenButton Text="Review Changes" Style="text-transform: none;" Icon="grading"
-                      ButtonStyle="ButtonStyle.Primary"
-                      Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}/commit"))" />
+        @if (UserContext.IsInGroupOrSuperuser())
+        {
+            <RadzenButton Text="Review Changes" Style="text-transform: none;" Icon="grading"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@(() => NavigationManager.NavigateTo($"/menubuild/{Id}/commit"))" />
+            <RPMSOutput @ref="RPMSRef" ButtonLabel="Replace Placeholders">
+                @if (newItems.Any(i => i.DisplayOnly == "PLACEHOLDER"))
+                {
+                    <RadzenRow Style="width: 100%;">
+                        <RadzenCarousel ButtonShade="Radzen.Shade.Darker" AllowPaging="false" 
+                        Auto="false" Style="width: 100%;">
+                            <Items>
+                                @foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER"))
+                                {
+                                    <RadzenCarouselItem>
+                                        <RadzenColumn Style="width: 80%;">
+                                            <RadzenRow>
+                                                <span>@item.DisplayText</span>  
+                                            </RadzenRow>
+                                            <RadzenRow>
+                                                <RadzenTextBox @bind-Value="item.AdditionalDetails"
+                                                    Style="width: 100%;"
+                                                    Change="@(() => SaveItem(item))" />
+                                            </RadzenRow>
+                                        </RadzenColumn>
+                                    </RadzenCarouselItem>
+                                }   
+                            </Items>
+                        </RadzenCarousel>
+                    </RadzenRow>
+                    <RadzenRow>
+                        <RadzenButton Text="Transfer from RPMS to DB" Click="@OrderDialogsRpmsToDb" />
+                    </RadzenRow>
+                }
+            </RPMSOutput>
+        }
     </RadzenRow>
 
     @* Grid with drag-and-drop *@
@@ -87,70 +124,55 @@
                         @ondragover:preventDefault
                         @ondragover="OnDragOver"
                         @ondrop="e => OnDrop(e, currentRow, currentCol)"
-                        style="min-height:120px; border:1px dashed #ccc; padding:5px;">
-                    <RadzenRow>
-                        <RadzenButton ButtonStyle="ButtonStyle.Success" Text="Add Cell Above"
-                                        Style="margin-top: 5px;"
-                                        Click="@(() => MoveItemsAsync(currentRow, currentCol, 1))"
-                                        Size="ButtonSize.ExtraSmall"
-                                        Icon="add_row_above"
-                                        />
-                        <span>@($"Cell: {currentRow}.{currentCol}")</span>
-                    </RadzenRow>
+                        style="border:1px dashed #ccc; padding:5px;">
                     @if (newCell is not null)
                     {
                         <div draggable="true"
                                 @ondragstart="e => OnDragStart(e, newCell)"
                                 class="draggable-card">
                             <RadzenCard>
-                                @if (newCell.DisplayOnly == "YES-HEADER")
-                                {
-                                    <strong>@newCell.DisplayText</strong>
-                                }
-                                else if (newCell.DisplayOnly == "YES")
-                                {
-                                    <span>@newCell.DisplayText</span>
-                                }
-                                else if (newCell.DisplayOnly == "PLACEHOLDER")
-                                {
-                                    <RadzenButton Variant="Variant.Flat" Click="@(() => OrderDialogEdit(newCell))">
-                                        @($"***{newCell.DisplayText}")
-                                    </RadzenButton>
-                                }
-                                else if (newCell.Item is not null)
-                                {
-                                    var _newcelldisp = string.IsNullOrWhiteSpace(newCell.DisplayText) ? newCell.Item.DisplayText : newCell.DisplayText;
-                                    <RadzenRow>
-                                        <RadzenColumn Size="2">
-                                            <RadzenButton Variant="Variant.Outlined" Text="@newCell.Mnemonic" Click="@(() => EditMnemonic(newCell))" />
-                                        </RadzenColumn>
-                                        <RadzenColumn Size="10">
-                                            <RadzenButton Variant="Variant.Text" Click="@(() => ShowOrderDetails(newCell.Item))">
-                                                @_newcelldisp
-                                            </RadzenButton>
-                                        </RadzenColumn>
-                                    </RadzenRow>
-                                }
-                                <RadzenRow>
-                                    <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-                                                        
-                                                        Style="width: 100%;">
+                                <RadzenSplitButton AlwaysOpenPopup="true" Size="ButtonSize.Small"
+                                                   Variant="Variant.Text"
+                                                   Click="@(btn => OnExistingSplitBtnClick(newCell, btn))">
+                                    <ButtonContent>
+                                        @if(newCell.Item?.Id is not null)
+                                        {
+                                            <i style="width: 100%; text-transform: none; text-align: left;">@($"{newCell.Mnemonic} {(string.IsNullOrWhiteSpace(newCell.DisplayText) ? newCell.Item?.DisplayText : newCell.DisplayText)}")</i>
+                                        }
+                                        else
+                                        {
+                                            switch (newCell.DisplayOnly)
+                                            {
+                                                case "PLACEHOLDER":
+                                                    <span class="rz-color-danger" style="width: 100%; text-transform: none; text-align: left;">@($"***{newCell.DisplayText}")</span>
+                                                    break;
+                                                case "YES-HEADER":
+                                                    <strong style="width: 100%; text-transform: none; text-align: left;">@newCell.DisplayText</strong>
+                                                    break;
+                                                default:
+                                                    <span style="width: 100%; text-transform: none; text-align: left;">@newCell.DisplayText</span>
+                                                    break;
+                                            }
+                                        }
+                                    </ButtonContent>
+                                    <ChildContent>
                                         <RadzenSplitButtonItem Text="Delete Contents" Value="Delete" />
                                         <RadzenSplitButtonItem Text="Delete Contents AND Cell" Value="DeleteCell" />
-                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />s
+                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />
                                         <RadzenSplitButtonItem Text="Replace With Order Dialog" Value="Order Dialog" />
                                         <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
-                                    </RadzenSplitButton>
-                                </RadzenRow>
+                                        <RadzenSplitButtonItem Text="Edit Mnemonic" Value="Mnemonic" />
+                                    </ChildContent>
+                                </RadzenSplitButton>
                             </RadzenCard>
                         </div>
                     }
                     else
                     {
                         @* Empty cell – show ADD split button *@
-                        <RadzenSplitButton Text="Actions" AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+                        <RadzenSplitButton AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
                                             Click="@(btn => OnEmptyBtnClick(currentRow, currentCol, btn))"
-                                            Style="width: 100%;">
+                                            Style="width: 100%;" Icon="menu">
                             <RadzenSplitButtonItem Text="Add Header" Value="Header" />
                             <RadzenSplitButtonItem Text="Add Text" Value="Text" />
                             <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" />
@@ -162,30 +184,6 @@
             }
         }
     </div>
-
-    <RPMSOutput @ref="RPMSRef">
-        @if (newItems.Any(i => i.DisplayOnly == "PLACEHOLDER"))
-        {
-            <RadzenColumn>
-                <RadzenCarousel ButtonShade="Radzen.Shade.Darker" Style="height: 30px; text-align: center" AllowPaging="false" Auto="false">
-                    <Items>
-                        @foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER"))
-                        {
-                            <RadzenCarouselItem>
-                                <span>@item.DisplayText</span>
-                                <RadzenTextBox @bind-Value="item.AdditionalDetails"
-                                               Style="width: 75%;"
-                                               Change="@(() => SaveItem(item))" />
-                            </RadzenCarouselItem>
-                        }
-                    </Items>
-                </RadzenCarousel>
-            </RadzenColumn>
-            <RadzenColumn>
-                <RadzenButton Text="Transfer from RPMS to DB" Click="@OrderDialogsRpmsToDb" />
-            </RadzenColumn>
-        }
-    </RPMSOutput>
 }
 
 @code {
@@ -211,7 +209,7 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         currentMenu = await db.MenuBuildMeta
-                .Include(m => m.ExistingMenuNavigation)
+                //.Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
         await UpdateNewItems(null);
         editMode = false;
@@ -224,7 +222,7 @@
         {
             await using var db = await DbFactory.CreateDbContextAsync();
             currentMenu = await db.MenuBuildMeta
-                .Include(m => m.ExistingMenuNavigation)
+                //.Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
             await InvokeAsync(StateHasChanged);
         }
@@ -289,18 +287,25 @@
         }
     }
 
+    private async Task<string> OpenTextDialog(string dispOnly = "YES-HEADER", string initial = null)
+    {
+        string txtType = dispOnly == "YES-HEADER" ? "Header" : "Text";
+        return await DialogService.TextPromptAsync(txtType, $"Enter {txtType} to Display", initial: initial,
+            maxLength: MaxTxtLength, disallowedChars: "-;,=^");
+    }
+
     private async Task OnEmptyBtnClick(int row, int col, RadzenSplitButtonItem btn)
     {
         switch (btn.Value)
         {
             case "Header":
-                await AddTxtItem(row, col);
+                await TxtItemAdd(row, col);
                 break;
             case "Text":
-                await AddTxtItem(row, col, "YES");
+                await TxtItemAdd(row, col, "YES");
                 break;
             case "Order Dialog":
-                await AddOrderDialog(row, col);
+                await OrderDialogAdd(row, col);
                 break;
             case "MoveUp":
                 await MoveItemsAsync(row+1, col);
@@ -313,31 +318,40 @@
         await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
-    private async Task OnExistingSplitBtnClick(int row, int col, RadzenSplitButtonItem btn)
+    private async Task OnExistingSplitBtnClick(MenuBuild item, RadzenSplitButtonItem btn)
     {
         switch (btn.Value)
         {
             case "Header":
-                await AddTxtItem(row, col);
+                await TxtItemEdit(item);
                 break;
             case "Text":
-                await AddTxtItem(row, col, "YES");
+                await TxtItemEdit(item, "YES");
                 break;
             case "Order Dialog":
-                await AddOrderDialog(row, col);
+                await OrderDialogEdit(item);
                 break;
-            case "MoveUp":
-                await MoveItemsAsync(row + 1, col);
+            case "Delete":
+                await DeleteItem(item);
+                break;
+            case "DeleteCell":
+                await DeleteItem(item);
+                await MoveItemsAsync(item.RowNum + 1, item.ColNum);
+                break;
+            case "Insert":
+                await MoveItemsAsync(item.RowNum, item.ColNum, 1);
+                break;
+            case "Mnemonic":
+                await EditMnemonic(item);
                 break;
         }
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
-    private async Task AddTxtItem(int row, int col, string dispOnly = "YES-HEADER")
+    private async Task TxtItemAdd(int row, int col, string dispOnly = "YES-HEADER")
     {
-        string dispTxt = await DialogService.TextPromptAsync("Header", "Enter Value for Header",
-            maxLength: MaxTxtLength, disallowedChars: "-;,=^");
+        string dispTxt = await OpenTextDialog(dispOnly);
         if (string.IsNullOrWhiteSpace(dispTxt)) return;
         await AddItem(new MenuBuild
         {
@@ -349,7 +363,7 @@
         });
     }
 
-    private async Task AddOrderDialog(int row, int col)
+    private async Task OrderDialogAdd(int row, int col)
     {
         var placeholderField = new PlaceholderField
         {
@@ -397,6 +411,27 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task TxtItemEdit(MenuBuild item, string dispOnly = "YES-HEADER")
+    {
+        var curDisp = "";
+        if (!string.IsNullOrWhiteSpace(item.DisplayText))
+        {
+            curDisp = item.DisplayText;
+        }
+        else if (!string.IsNullOrWhiteSpace(item.Item?.DisplayText))
+        {
+            curDisp = item.Item?.DisplayText;
+        }
+        string dispTxt = await OpenTextDialog(dispOnly, curDisp);
+        if (string.IsNullOrWhiteSpace(dispTxt)) return;
+        item.DisplayText = dispTxt;
+        item.DisplayOnly = dispOnly;
+        item.AdditionalDetails = null;
+        item.ItemId = null;
+        item.Item = null;
+        await UpdateItem(item);
+    }
+
     private async Task OrderDialogEdit(MenuBuild item)
     {
         PlaceholderField placeholderField = new PlaceholderField
@@ -426,6 +461,8 @@
             item.DisplayText = newText.MenuTxt;
             item.AdditionalDetails = newText.ExtendedTxt;
             item.ItemId = null;
+            item.Item = null;
+            item.DisplayOnly = "PLACEHOLDER";
         }
         else if (result is OrderDialog selectedDialog)
         {
@@ -433,10 +470,15 @@
             item.ItemId = selectedDialog.Id;
             item.DisplayOnly = null;
         }
+        await UpdateItem(item);
+    }
+
+    private async Task UpdateItem(MenuBuild item)
+    {
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuilds.Update(item);
         await db.SaveChangesAsync();
-        if (item.ItemId.HasValue)
+        if (item.ItemId.GetValueOrDefault() != 0)
             item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
         await db.MenuBuildMetaSetStatusAsync(Id);
         await InvokeAsync(StateHasChanged);
@@ -572,13 +614,6 @@
 
         dragSourceItem = null;
         await InvokeAsync(StateHasChanged);
-    }
-
-    public class TextField
-    {
-        public string Txt { get; set; }
-        public bool Header { get; set; } = true;
-        public int MaxLength { get; set; }
     }
 
     public class PlaceholderField

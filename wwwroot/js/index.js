@@ -121,6 +121,7 @@ window.downloadExcel = function (base64, filename="data.xlsx") {
 window.showDialog = function (id = "RPMSOutputDiv") {
     const dlg = document.getElementById(id);
     if (!dlg) return;
+    if (dlg.open) return;
 
     // Define a named handler so we can remove it later
     function handleOutsideClick(e) {
@@ -132,7 +133,6 @@ window.showDialog = function (id = "RPMSOutputDiv") {
     // Ensure no duplicate listeners
     dlg.removeEventListener('mousedown', handleOutsideClick);
     dlg.addEventListener('mousedown', handleOutsideClick);
-
     dlg.showModal();
 };
 
