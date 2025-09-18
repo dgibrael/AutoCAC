@@ -1,5 +1,6 @@
 ﻿using AutoCAC.Models;
 using Microsoft.EntityFrameworkCore;
+using Radzen;
 using System;
 using System.Threading.Tasks;
 
@@ -19,6 +20,30 @@ namespace AutoCAC.Extensions
 
             menu.RequestStatus = newStatus;
             await db.SaveChangesAsync();
+        }
+        public static async Task<bool> SaveChangesHandleConcurrencyAsync(
+            this mainContext db,
+            NotificationService notifications,
+            string notificationHeader = "Concurrency Error",
+            string notificationMsg = "This record has been edited since it was last loaded")
+        {
+            try
+            {
+                await db.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                notifications.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = notificationHeader,
+                    Detail = notificationMsg,
+                    Duration = 4000
+                });
+
+                return false;
+            }
         }
     }
 }

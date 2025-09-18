@@ -94,7 +94,7 @@
                                             <RadzenRow>
                                                 <RadzenTextBox @bind-Value="item.AdditionalDetails"
                                                     Style="width: 100%;"
-                                                    Change="@(() => SaveItem(item))" />
+                                                    Change="@(() => UpdateItem(item))" />
                                             </RadzenRow>
                                         </RadzenColumn>
                                     </RadzenCarouselItem>
@@ -156,12 +156,13 @@
                                         }
                                     </ButtonContent>
                                     <ChildContent>
-                                        <RadzenSplitButtonItem Text="Delete Contents" Value="Delete" />
-                                        <RadzenSplitButtonItem Text="Delete Contents AND Cell" Value="DeleteCell" />
-                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" />
-                                        <RadzenSplitButtonItem Text="Replace With Order Dialog" Value="Order Dialog" />
-                                        <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
-                                        <RadzenSplitButtonItem Text="Edit Mnemonic" Value="Mnemonic" />
+                                        <RadzenSplitButtonItem Text="Delete Contents" Value="Delete" Icon="delete" IconColor="@Colors.Danger" />
+                                        <RadzenSplitButtonItem Text="Delete Contents AND Cell" Value="DeleteCell" Icon="delete" IconColor="@Colors.Danger" />
+                                        <RadzenSplitButtonItem Text="Replace With Header" Value="Header" Icon="text_fields" IconColor="@Colors.Info" />
+                                        <RadzenSplitButtonItem Text="Replace With Text" Value="Text" Icon="text_fields" IconColor="@Colors.Info" />
+                                        <RadzenSplitButtonItem Text="Replace With Order Dialog" Value="Order Dialog" Icon="prescriptions" IconColor="@Colors.Info" />
+                                        <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" Icon="add_row_above" IconColor="@Colors.Success" />
+                                        <RadzenSplitButtonItem Text="Edit Mnemonic" Value="Mnemonic" Icon="edit_attributes" IconColor="@Colors.Warning" />
                                     </ChildContent>
                                 </RadzenSplitButton>
                             </RadzenCard>
@@ -173,11 +174,11 @@
                         <RadzenSplitButton AlwaysOpenPopup="true" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
                                             Click="@(btn => OnEmptyBtnClick(currentRow, currentCol, btn))"
                                             Style="width: 100%;" Icon="menu">
-                            <RadzenSplitButtonItem Text="Add Header" Value="Header" />
-                            <RadzenSplitButtonItem Text="Add Text" Value="Text" />
-                            <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" />
-                            <RadzenSplitButtonItem Text="Delete Cell" Value="MoveUp" />
-                            <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" />
+                            <RadzenSplitButtonItem Text="Add Header" Value="Header" Icon="text_fields" IconColor="@Colors.Success" />
+                            <RadzenSplitButtonItem Text="Add Text" Value="Text" Icon="text_fields" IconColor="@Colors.Success" />
+                            <RadzenSplitButtonItem Text="Add Order Dialog" Value="Order Dialog" Icon="prescriptions" IconColor="@Colors.Success" />
+                            <RadzenSplitButtonItem Text="Delete Cell" Value="MoveUp" Icon="delete" IconColor="@Colors.Danger" />
+                            <RadzenSplitButtonItem Text="Insert Cell Above" Value="Insert" Icon="add_row_above" IconColor="@Colors.Success" />
                         </RadzenSplitButton>
                     }
                 </div>
@@ -207,59 +208,72 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        currentMenu = await db.MenuBuildMeta
-                //.Include(m => m.ExistingMenuNavigation)
-                .FirstOrDefaultAsync(o => o.Id == Id);
-        await UpdateNewItems(null);
+        await GetCurrentMenu();
+        await GetNewItems(null);
         editMode = false;
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ToggleEditAsync()
+    private async Task GetCurrentMenu()
     {
-        if (editMode)
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            currentMenu = await db.MenuBuildMeta
+        await using var db = await DbFactory.CreateDbContextAsync();
+        currentMenu = await db.MenuBuildMeta
                 //.Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
-            await InvokeAsync(StateHasChanged);
-        }
+    }
+
+    private async Task ToggleEditAsync()
+    {
+        await GetCurrentMenu();
+        await GetNewItems(null);
+        await InvokeAsync(StateHasChanged);
         editMode = !editMode;
     }
 
     private async Task SaveMenuMeta()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
-        db.MenuBuildMeta.Update(currentMenu);
-        await db.SaveChangesAsync();
+
+        // Attach the instance you're editing in the UI
+        db.Attach(currentMenu);
+        db.Entry(currentMenu).State = currentMenu.Id == 0
+            ? EntityState.Added
+            : EntityState.Modified;
+
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            // Resolve and retry (client-wins overwrite)
+            var entry = ex.Entries.Single(e => e.Entity is MenuBuildMetum);
+
+            var databaseValues = await entry.GetDatabaseValuesAsync();
+            if (databaseValues == null)
+            {
+                // It was deleted by someone else -> re-insert
+                entry.State = EntityState.Added;
+            }
+            else
+            {
+                // Align original to DB so our current values (from currentMenu) can be saved on retry
+                entry.OriginalValues.SetValues(databaseValues);
+                // (entry.CurrentValues already contains currentMenu's values)
+            }
+
+            await db.SaveChangesAsync(); // retry once
+            // EF updates the RowVersion on currentMenu automatically on success
+        }
+
         editMode = false;
+        await GetNewItems();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void AddRow()
     {
         additionalRows++;
-        StateHasChanged();
-    }
-
-    private async Task MoveSingleItemAsync(MenuBuild item, int newRow, int newCol)
-    {
-        if (item.RowNum == newRow && item.ColNum == newCol)
-            return; // No move needed
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        // Re-fetch the tracked entity by Id
-        var entity = await db.MenuBuilds.FindAsync(item.Id);
-        if (entity == null)
-            return; // Safety check
-
-        entity.RowNum = newRow;
-        entity.ColNum = newCol;
-
-        await db.SaveChangesAsync();
-        await MoveItemsAsync(item.RowNum, item.ColNum, -1);
         StateHasChanged();
     }
 
@@ -270,11 +284,11 @@
         {
             additionalRows+=moveRows;
         }
-        await UpdateNewItems();
-        StateHasChanged();
+        await GetNewItems();
+        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task UpdateNewItems(string updateStatus = "CHANGES REQUESTED")
+    private async Task GetNewItems(string updateStatus = "CHANGES REQUESTED")
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         newItems = await db.MenuBuilds
@@ -314,8 +328,6 @@
                 await MoveItemsAsync(row, col, 1);
                 break;
         }
-        await using var db = await DbFactory.CreateDbContextAsync();
-        await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
     private async Task OnExistingSplitBtnClick(MenuBuild item, RadzenSplitButtonItem btn)
@@ -345,8 +357,6 @@
                 await EditMnemonic(item);
                 break;
         }
-        await using var db = await DbFactory.CreateDbContextAsync();
-        await db.MenuBuildMetaSetStatusAsync(Id);
     }
 
     private async Task TxtItemAdd(int row, int col, string dispOnly = "YES-HEADER")
@@ -404,11 +414,7 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuilds.Add(item);
-        await db.SaveChangesAsync();
-        if (item.ItemId.HasValue)
-            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
-        newItems.Add(item);
-        await InvokeAsync(StateHasChanged);
+        await SaveItemChanges(db);
     }
 
     private async Task TxtItemEdit(MenuBuild item, string dispOnly = "YES-HEADER")
@@ -473,40 +479,33 @@
         await UpdateItem(item);
     }
 
+    private async Task SaveItemChanges(mainContext db)
+    {
+        bool success = await db.SaveChangesHandleConcurrencyAsync(NotificationService);
+        if (!success)
+        {
+            await GetNewItems(null);
+        }
+        else
+        {
+            await GetNewItems();
+            await db.MenuBuildMetaSetStatusAsync(Id);
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task UpdateItem(MenuBuild item)
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuilds.Update(item);
-        await db.SaveChangesAsync();
-        if (item.ItemId.GetValueOrDefault() != 0)
-            item.Item = await db.OrderDialogs.FindAsync(item.ItemId.Value);
-        await db.MenuBuildMetaSetStatusAsync(Id);
-        await InvokeAsync(StateHasChanged);
+        await SaveItemChanges(db);
     }
 
     public async Task DeleteItem(MenuBuild item)
     {
-        bool? confirmed = await DialogService.Confirm(
-            "Are you sure you want to delete this item?",
-            "Delete"
-        );
-        if (confirmed == true)
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            db.MenuBuilds.Remove(item);
-            await db.SaveChangesAsync();
-            newItems.Remove(item);
-            await db.MenuBuildMetaSetStatusAsync(Id);
-            StateHasChanged();
-        }
-    }
-
-    private async Task SaveItem(MenuBuild item)
-    {
         await using var db = await DbFactory.CreateDbContextAsync();
-        db.MenuBuilds.Update(item);
-        await db.SaveChangesAsync();
-        await db.MenuBuildMetaSetStatusAsync(Id);
+        db.MenuBuilds.Remove(item);
+        await SaveItemChanges(db);
     }
 
     private async Task EditMnemonic(MenuBuild item)
@@ -514,32 +513,7 @@
         var result = await DialogService.TextPromptAsync("Edit Mnemonic", "Mnemonic", initial: item.Mnemonic, maxLength: 4);
         if (result == null) return;
         item.Mnemonic = result;
-        await SaveItem(item);
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ShowOrderDetails(OrderDialog order)
-    {
-        if (order.Type == "quick order")
-        {
-            var responses = order.ParsedItems as List<ResponseItem>;
-            await DialogService.OpenAsync("Quick Order Details", ds => 
-            @<div style="padding: 1rem; max-height: 500px; overflow-y: auto;">
-                @foreach (var ri in responses)
-                {
-                    if (!string.IsNullOrWhiteSpace(ri.Value) || !string.IsNullOrWhiteSpace(ri.Text))
-                    {
-                            <div>
-                                <strong>@ri.Dialog.Replace("OR GTX ", "")</strong>:
-                                <span style="white-space: normal">
-                                    @( !string.IsNullOrWhiteSpace(ri.Value) ? ri.Value : ri.Text )
-                                </span>
-                            </div>
-                    }
-                }
-            </div>
-    );
-        }
+        await UpdateItem(item);
     }
 
     private async Task OrderDialogsRpmsToDb()
@@ -610,7 +584,7 @@
         }
 
         await DbFactory.ExecuteSqlTransactionsAsync(commands);
-        await UpdateNewItems();
+        await GetNewItems();
 
         dragSourceItem = null;
         await InvokeAsync(StateHasChanged);
@@ -639,8 +613,7 @@
                                           Where id={selectedMenu.Id}"
             };
             await DbFactory.ExecuteSqlTransactionsAsync(commands);
-            await using var db = await DbFactory.CreateDbContextAsync();
-            await UpdateNewItems();
+            await GetNewItems();
             currentMenu.Columns = ((byte)newItems.Max(x => x.ColNum));
             await SaveMenuMeta();
             additionalRows = 1;
