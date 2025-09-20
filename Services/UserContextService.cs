@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.DirectoryServices.AccountManagement;
 
 namespace AutoCAC.Services
 {

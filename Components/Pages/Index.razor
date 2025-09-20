@@ -12,6 +12,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 
+
 <PageTitle>Home</PageTitle>
 @if(UserContext.CurrentUser != null)
 {
@@ -35,7 +36,12 @@
         }
     </ul>
 }
+else
+{
+    <i>Loading...</i>
+}
 
+<AdUsers />
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
 }

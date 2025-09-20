@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,9 +56,18 @@ var connString = builder.Configuration.GetConnectionString("mainConnection");
 builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
 {
     options.UseSqlServer(connString);
+    options.ConfigureWarnings(w =>
+        w.Ignore(CoreEventId.RowLimitingOperationWithoutOrderByWarning));
 });
 builder.Services.AddScoped<LoadDataGridService>();
+if (OperatingSystem.IsWindows())
+{
+    builder.Services.AddScoped<IAdSearch, AdSearchService>();
+}
 builder.Services.AddScoped<UserContextService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<CacheService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

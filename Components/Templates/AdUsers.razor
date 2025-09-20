@@ -1,0 +1,159 @@
+﻿@* AdUsers.razor *@
+@rendermode InteractiveServer
+@using AutoCAC.Models
+@using AutoCAC.Services
+@using Radzen
+@using Radzen.Blazor
+@inject IServiceProvider Services
+
+@if (!OperatingSystem.IsWindows())
+{
+    <RadzenAlert Severity="AlertSeverity.Warning" Style="max-width: 640px">
+        Active Directory queries are only available on Windows (IIS).
+    </RadzenAlert>
+}
+else
+{
+    <RadzenDataGrid TItem="AdUserDto"
+                    Data="@_users"
+                    Count="@_count"
+                    LoadData="@LoadUsers"
+                    AllowFiltering="true"
+                    FilterMode="FilterMode.Simple"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    ColumnWidth="220px"
+                    IsLoading="@isLoading"
+                    @ref="_grid">
+        <Columns>
+            <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" FilterPlaceholder="Search by users name" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" FilterPlaceholder="Search by D1 username" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="Enabled" Title="Enabled" Width="120px" Sortable="false"/>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    // Optional inputs you can set from a parent (kept from earlier)
+    [Parameter] public string GroupEquals { get; set; }
+    [Parameter] public string GroupContains { get; set; }
+    [Parameter] public string UpnSuffix { get; set; } = "na.ihs.gov";
+    [Parameter] public bool Recursive { get; set; } = true;
+    public bool isLoading = false;
+    private RadzenDataGrid<AdUserDto> _grid;
+    private List<AdUserDto> _users = [];
+    private int _count;
+
+    private async Task LoadUsers(LoadDataArgs args)
+    {
+        _users = [];
+        _count = 0;
+
+        // Don’t hit AD on non-Windows hosts
+        if (!OperatingSystem.IsWindows())
+        {
+            StateHasChanged();
+            return;
+        }
+        var ad = Services.GetService<IAdSearch>();
+        if (ad is null)
+        {
+            StateHasChanged();
+            return;
+        }
+        // Start building the LDAP query
+        var q = ad.Users();
+
+        if (!string.IsNullOrWhiteSpace(GroupEquals))
+            q = q.InGroupEquals(GroupEquals!, Recursive);
+
+        if (!string.IsNullOrWhiteSpace(GroupContains))
+            q = q.InGroupContains(GroupContains!, Recursive);
+
+        // Translate DataGrid filters: prefer DisplayName filter, else SamAccountName.
+        // (Multiple column filters would AND together; we keep this simple per your ask.)
+        var displayFilter = GetFilterValue(args, nameof(AdUserDto.DisplayName));
+        var samFilter = GetFilterValue(args, nameof(AdUserDto.SamAccountName));
+
+        if (!string.IsNullOrWhiteSpace(displayFilter))
+            q = q.DisplayNameContains(displayFilter);
+
+        if (!string.IsNullOrWhiteSpace(samFilter))
+            q = q.UserNameContains(samFilter);
+        if (!q.HasFilters)
+        {
+            _users = [];
+            _count = 0;
+            StateHasChanged();
+            return;
+        }
+        isLoading = true;
+        var (attr, desc) = MapSort(args);
+        if (attr is not null) q = q.OrderByAttribute(attr, desc);
+        q = q.SelectBasic();
+
+        // Server-side paging: fetch skip+top, then slice (LDAP can't skip natively)
+        var take = args.Top ?? 25;
+        var skip = args.Skip ?? 0;
+        var fetch = skip + take;
+
+        q = q.PageSize(fetch).SizeLimit(fetch);
+
+        var results = await q.ToListAsync();
+
+        _count = results.Count;                 // best-effort count for the current window
+        _users = results.Skip(skip).Take(take).ToList();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+
+    private static (string attr, bool desc) MapSort(LoadDataArgs args)
+    {
+        // Prefer the new multi-sort API if present
+        if (args.Sorts is IEnumerable<SortDescriptor> sorts && sorts.Any())
+        {
+            var s = sorts.First();
+            return (PropToLdapAttr(s.Property), s.SortOrder == SortOrder.Descending);
+        }
+
+        // Fallback: parse OrderBy like "DisplayName desc"
+        if (!string.IsNullOrWhiteSpace(args.OrderBy))
+        {
+            var parts = args.OrderBy.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var prop = parts.ElementAtOrDefault(0);
+            var dir = parts.ElementAtOrDefault(1);
+            return (PropToLdapAttr(prop), string.Equals(dir, "desc", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return (null, false);
+    }
+
+    private static string PropToLdapAttr(string prop) => prop switch
+    {
+        nameof(AdUserDto.DisplayName) => "displayName",
+        nameof(AdUserDto.SamAccountName) => "sAMAccountName",
+        nameof(AdUserDto.UserPrincipalName) => "userPrincipalName",
+        // "Enabled" is computed from userAccountControl; skip server-side sort
+        _ => null
+    };
+
+    // Pull first matching column filter value (case-insensitive)
+    private static string GetFilterValue(LoadDataArgs args, string propertyName)
+    {
+        if (args.Filters is IEnumerable<FilterDescriptor> fds)
+        {
+            foreach (var fd in fds)
+            {
+                if (string.Equals(fd.Property, propertyName, StringComparison.OrdinalIgnoreCase))
+                {
+                    var val = fd.FilterValue?.ToString();
+                    if (!string.IsNullOrWhiteSpace(val))
+                        return val;
+                }
+            }
+        }
+        return null;
+    }
+}
