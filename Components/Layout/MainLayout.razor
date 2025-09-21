@@ -46,13 +46,16 @@
         </RadzenStack>
         <RadzenPanelMenu>
             <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
-            @if (UserContext.CurrentUser != null)
+            @if (UserContext.UserProfile != null)
             {
                 if(UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
                 {
                     <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
                         <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
                         <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+                    </RadzenPanelMenuItem>
+                    <RadzenPanelMenuItem Text="Inpatient" Icon="inpatient">
+                        <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder"  />
                     </RadzenPanelMenuItem>
                 }
                 if(UserContext.IsInGroup())

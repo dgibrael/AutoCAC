@@ -297,7 +297,7 @@
             .ToListAsync();
         if (!string.IsNullOrWhiteSpace(updateStatus))
         {
-            await db.MenuBuildMetaSetStatusAsync(Id, updateStatus);
+            await db.SetMenuBuildMetaStatusAsync(Id, updateStatus);
         }
     }
 
@@ -489,7 +489,7 @@
         else
         {
             await GetNewItems();
-            await db.MenuBuildMetaSetStatusAsync(Id);
+            await db.SetMenuBuildMetaStatusAsync(Id);
         }
         await InvokeAsync(StateHasChanged);
     }

@@ -36,14 +36,19 @@ namespace AutoCAC.Extensions
             await js.InvokeVoidAsync("reinitRPMSXterm");
         }        
         
-        public static async Task DownloadString(this IJSRuntime js, string data, string filename = "output.txt", string mimeType = "text/plain")
+        public static async Task DownloadString(this IJSRuntime js, string data, string filename = "output.txt", string mimeType = "text/plain", bool addUtf8Bom = false)
         {
-            await js.InvokeVoidAsync("downloadTextFile", data, filename, mimeType);
+            await js.InvokeVoidAsync("downloadTextFile", data, filename, mimeType, addUtf8Bom);
         }
 
         public static async Task DownloadExcel(this IJSRuntime js, string base64, string fileName = "data.xlsx")
         {
             await js.InvokeVoidAsync("downloadExcel", base64, fileName);
+        }
+
+        public static async Task DownloadFileFromStream(this IJSRuntime js, DotNetStreamReference streamRef, string fileName = "data.csv", string mimeType = "text/csv;charset=utf-8")
+        {
+            await js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef, mimeType);
         }
 
         public static async Task DialogShow(this IJSRuntime js, string dialogId = "RPMSOutputDiv")

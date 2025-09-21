@@ -11,16 +11,19 @@ namespace AutoCAC.Services
         private readonly IDbContextFactory<mainContext> _dbFactory;
         private readonly AuthenticationStateProvider _authProvider;
 
-        public AuthUser CurrentUser { get; private set; }
+        public AuthUser UserProfile { get; private set; }
+        public ClaimsPrincipal CurrentUser { get; private set; }
 
-        public string DisplayName => $"{CurrentUser?.FirstName} {CurrentUser?.LastName}".Trim();
+        public string Username => CurrentUser?.Identity?.Name?.Replace("\\", "_").ToLower();
+
+        public string DisplayName => $"{UserProfile?.FirstName} {UserProfile?.LastName}".Trim();
 
         public IEnumerable<AuthGroup> Groups =>
-            CurrentUser?.AuthUserGroups?.Select(ug => ug.Group) ?? Enumerable.Empty<AuthGroup>();
+            UserProfile?.AuthUserGroups?.Select(ug => ug.Group) ?? Enumerable.Empty<AuthGroup>();
 
         public bool IsInGroup(params string[] groupNames)
         {
-            if (CurrentUser == null || !CurrentUser.IsActive)
+            if (UserProfile == null || !UserProfile.IsActive)
                 return false;
 
             if (groupNames == null || groupNames.Length == 0)
@@ -31,10 +34,10 @@ namespace AutoCAC.Services
 
         public bool IsInGroupOrSuperuser(params string[] groupNames)
         {
-            if (CurrentUser == null || !CurrentUser.IsActive)
+            if (UserProfile == null || !UserProfile.IsActive)
                 return false;
             
-            if (CurrentUser.IsSuperuser) return true;
+            if (UserProfile.IsSuperuser) return true;
             
             if (groupNames == null || groupNames.Length == 0)
                 return false; // Only check for active status
@@ -52,22 +55,20 @@ namespace AutoCAC.Services
 
         public async Task InitializeAsync()
         {
-            if (CurrentUser != null)
+            if (UserProfile != null)
                 return; // avoid double-initialization
 
             var authState = await _authProvider.GetAuthenticationStateAsync();
-            var principal = authState.User;
+            CurrentUser = authState.User;
 
-            if (!principal.Identity?.IsAuthenticated ?? false)
+            if (!CurrentUser.Identity?.IsAuthenticated ?? false)
                 return;
 
-            var username = principal.Identity.Name?.Replace("\\", "_").ToLower();
-
             await using var db = await _dbFactory.CreateDbContextAsync();
-            CurrentUser = await db.AuthUsers
+            UserProfile = await db.AuthUsers
                 .Include(u => u.AuthUserGroups)
                     .ThenInclude(ug => ug.Group)
-                .FirstOrDefaultAsync(u => u.Username.ToLower() == username);
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == Username);
         }
     }
 

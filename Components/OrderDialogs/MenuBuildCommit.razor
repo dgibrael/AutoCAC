@@ -261,7 +261,7 @@ Paste the contents of your clipboard to RPMS.
         if (markComplete==true)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
-            await db.MenuBuildMetaSetStatusAsync(Id, "DONE");
+            await db.SetMenuBuildMetaStatusAsync(Id, "DONE");
         }
     }
 

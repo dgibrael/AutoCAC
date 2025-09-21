@@ -67,16 +67,29 @@ window.scrollToTop = function () {
     }
 };
 
-window.downloadTextFile = function (text, filename, mimeType = "text/plain") {
-    const blob = new Blob([text], { type: mimeType });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    document.body.appendChild(link); // For Firefox compatibility
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
+// wwwroot/js/index.js
+window.downloadTextFile = function (data, filename = "output.txt", mimeType = "text/plain;charset=utf-8", addBom = false) {
+    const parts = [];
+    if (addBom) {
+        // UTF-8 BOM so Excel on Windows recognizes UTF-8 CSV
+        parts.push(new Uint8Array([0xEF, 0xBB, 0xBF]));
+    }
+    parts.push(data);
+
+    const blob = new Blob(parts, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
 };
+
 
 window.getRPMSXtermContent = function () {
     if (!rpmsTerm) {
@@ -139,4 +152,21 @@ window.showDialog = function (id = "RPMSOutputDiv") {
 
 window.hideDialog = function (id = "RPMSOutputDiv") {
     document.getElementById(id).close();
+};
+
+
+window.downloadFileFromStream = async function (fileName, contentStreamReference, type = "text/csv;charset=utf-8") {
+    const arrayBuffer = await contentStreamReference.arrayBuffer();
+    const blob = new Blob([arrayBuffer], { type });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.style.display = "none"; // hide
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
 };

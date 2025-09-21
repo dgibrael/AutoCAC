@@ -19,6 +19,7 @@
         <RadzenColumn Size="12" SizeMD="6">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
                 <RadzenButton Icon="add_circle_outline" Text="Add" Click="@AddButtonClick" Variant="Variant.Flat" />
+                <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download"/>
             </RadzenStack>
         </RadzenColumn>
     </RadzenRow>
@@ -40,13 +41,16 @@
     protected int count = 0;
     protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
     bool? shouldCount = true;
-
+    private IQueryable<MenuBuildMetum> lastQry;
+    private LoadDataArgs lastArgs;
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
         var query = DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>()
         .AsNoTracking()
         ;
+        lastQry = query;
+        lastArgs = args;
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
         data = result.Data;
         count = result.Count;
@@ -64,4 +68,9 @@
         NavigationManager.NavigateTo("menubuild/new");
     }
 
+    private Task DownloadTbl() 
+    { 
+        var args = lastArgs ?? new LoadDataArgs(); 
+        return lastQry.DownloadAsCsvAsync(args, JSRuntime); 
+    }
 }

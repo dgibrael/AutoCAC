@@ -1,0 +1,118 @@
+﻿@page "/Inpatient/MedOrder"
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@using AutoCAC.Components.Templates
+@using System.Text.Json
+@inject AutoCAC.Services.UserContextService UserContext
+@inject mainContext Db
+
+<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist" })">
+    <RadzenRow>
+        <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="download" Text="Download CSV" Click="@DownloadTbl" />
+        <RadzenButton Text="Save Settings" Click="@SaveGridSettings" Disabled="@(Settings is null)" />
+        <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" />
+    </RadzenRow>
+    <RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" TItem="AutoCAC.Models.InpatientMedOrder" 
+    AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" AllowColumnReorder="true"
+    ColumnWidth="200px" @bind-Settings="Settings" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
+    AllowColumnPicking="true" ShowPagingSummary="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="PatientName" Title="Patient Name" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderableItem" Title="Orderable Item" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="MedRoute" Title="Med Route" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StartDateTime" Title="Start Date Time" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StopDateTime" Title="Stop Date Time"/>
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Location" Title="Location" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Schedule" Title="Schedule" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DoseOrRate" Title="Dose Or Rate" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderType" Title="Order Type" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifyingPharmacist" Title="Verifying Pharmacist" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifiedDateTime" Title="Verified Date Time"  />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="LoginDateTime" Title="Entered DateTime" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ProviderComments" Title="Provider Comments" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DosageOrdered" Title="Dosage Ordered" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Instructions" Title="Instructions" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Remarks" Title="Remarks" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Provider" Title="Provider" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="AppointmentDateTime" Title="Appointment Date Time" />
+        </Columns>
+    </RadzenDataGrid>
+</AuthorizedGroups>
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    protected IEnumerable<AutoCAC.Models.InpatientMedOrder> data;
+    protected int count = 0;
+    protected RadzenDataGrid<AutoCAC.Models.InpatientMedOrder> grid0;
+    bool? shouldCount = true;
+    private IQueryable<InpatientMedOrder> lastQry;
+    private LoadDataArgs lastArgs;
+    DataGridSettings Settings;
+    private string PageName => GetType().Name;
+    private async Task OnTemplatePicked(DataGridTemplate tmpl)
+    {
+        Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings) ? null : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+        await grid0.ReloadSettings();
+    }
+
+    protected async Task LoadData(LoadDataArgs args)
+    {
+        await Layout.SetLoading(true);
+        var query = DbFactory.QueryFromObj<AutoCAC.Models.InpatientMedOrder>()
+        .AsNoTracking()
+        ;
+        lastQry = query;
+        lastArgs = args;
+        var json = JsonSerializer.Serialize(args?.Filters);
+        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+        data = result.Data;
+        count = result.Count;
+        shouldCount = null;
+        await Layout.SetLoading(false);
+    }
+
+    private async Task DownloadTbl()
+    {
+        if (count > 100000)
+        {
+            await DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
+            return;
+        }
+        var args = lastArgs ?? new LoadDataArgs();
+        var visibleProps = Settings?.Columns?
+            .Where(c => c.Visible)
+            .Select(c => c.Property)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct()
+            .ToList();
+        await lastQry.DownloadAsCsvAsync(args, JSRuntime, includeProperties: visibleProps);
+    }
+
+    private async Task SaveGridSettings()
+    {
+        var templates = await Db.DataGridTemplates
+              .AsNoTracking()
+              .Where(t => t.DataGridName == PageName && t.CreatedBy == UserContext.Username)
+              .Select(t => t.TemplateName)
+              .ToListAsync();
+        var templateNameObj = await DialogService.OpenAsync<AutoCompleteDialog>(
+            "Save Search Template",
+            parameters: new Dictionary<string, object> { { "Suggestions", templates } });
+        var templateName = templateNameObj as string;
+
+        if (string.IsNullOrWhiteSpace(templateName)) return;
+
+        await Db.UpsertDataGridTemplate(templateName, PageName, UserContext.Username, Settings, false);
+    }
+}

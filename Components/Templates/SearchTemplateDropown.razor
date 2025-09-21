@@ -1,0 +1,54 @@
+﻿@* TemplatePicker.razor *@
+@using Radzen
+@using AutoCAC.Models
+@inject mainContext Db
+@inject AuthenticationStateProvider Auth
+@using AutoCAC.Extensions
+@inject AutoCAC.Services.UserContextService UserContext
+@rendermode InteractiveServer
+
+<RadzenDropDown TItem="DataGridTemplate" TValue="int?"
+                Data="@templates"
+                Value="@selectedTemplateId"
+                Change="@OnTemplateChanged"
+                TextProperty="TemplateName"
+                ValueProperty="Id"
+                AllowClear="true"
+                Placeholder="@Placeholder"
+                Style="width: 280px" />
+
+@code {
+    [Parameter] public string DataGridName { get; set; }
+    [Parameter] public bool IncludeShared { get; set; } = true;
+    [Parameter] public string Placeholder { get; set; } = "Search templates...";
+
+    // Raised when the user picks (or clears) a template. Null means "no selection".
+    [Parameter] public EventCallback<DataGridTemplate> SelectedTemplateChanged { get; set; }
+
+    private List<DataGridTemplate> templates = [];
+    private int? selectedTemplateId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(firstRender)
+        {            
+            templates = await Db.GetDataGridTemplatesAsync(DataGridName, UserContext.Username, IncludeShared);
+
+            // Keep selection stable if still present; clear if not.
+            if (selectedTemplateId is { } id && !templates.Any(t => t.Id == id))
+            {
+                selectedTemplateId = null;
+                await SelectedTemplateChanged.InvokeAsync(null);
+            }
+        }
+    }
+
+    private async Task OnTemplateChanged(object value)
+    {
+        selectedTemplateId = value is int templateId ? templateId : null;
+        await SelectedTemplateChanged.InvokeAsync(SelectedTemplate);
+    }
+
+    private DataGridTemplate SelectedTemplate =>
+        selectedTemplateId is null ? null : templates.FirstOrDefault(t => t.Id == selectedTemplateId);
+}

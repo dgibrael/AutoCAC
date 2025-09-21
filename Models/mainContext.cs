@@ -19,7 +19,11 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<AuthUserGroup> AuthUserGroups { get; set; }
 
+    public virtual DbSet<DataGridTemplate> DataGridTemplates { get; set; }
+
     public virtual DbSet<Drug> Drugs { get; set; }
+
+    public virtual DbSet<InpatientMedOrder> InpatientMedOrders { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
 
@@ -111,6 +115,19 @@ public partial class mainContext : DbContext
                 .HasConstraintName("auth_user_groups_user_id_6a12ed8b_fk_auth_user_id");
         });
 
+        modelBuilder.Entity<DataGridTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__DataGrid__3214EC072ACDA0C4");
+
+            entity.HasIndex(e => new { e.CreatedBy, e.DataGridName }, "IX_DataGridTemplates_CreatedBy");
+
+            entity.HasIndex(e => new { e.CreatedBy, e.DataGridName, e.TemplateName }, "UX_DataGridTemplates_User_Grid_Name").IsUnique();
+
+            entity.Property(e => e.CreatedBy).HasMaxLength(225);
+            entity.Property(e => e.DataGridName).HasMaxLength(225);
+            entity.Property(e => e.TemplateName).HasMaxLength(225);
+        });
+
         modelBuilder.Entity<Drug>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Drug__3213E83F85628773");
@@ -155,6 +172,43 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Synonym).IsUnicode(false);
             entity.Property(e => e.Unit).IsUnicode(false);
             entity.Property(e => e.VaPrintName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<InpatientMedOrder>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("InpatientMedOrder");
+
+            entity.Property(e => e.AppointmentDateTime).HasColumnType("datetime");
+            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.DosageOrdered).IsUnicode(false);
+            entity.Property(e => e.DoseOrRate).IsUnicode(false);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Imo).HasColumnName("IMO");
+            entity.Property(e => e.Instructions).IsUnicode(false);
+            entity.Property(e => e.Location).IsUnicode(false);
+            entity.Property(e => e.LoginDateTime).HasColumnType("datetime");
+            entity.Property(e => e.MedRoute).IsUnicode(false);
+            entity.Property(e => e.OrderType)
+                .HasMaxLength(2)
+                .IsUnicode(false);
+            entity.Property(e => e.OrderableItem).IsUnicode(false);
+            entity.Property(e => e.PatientId)
+                .IsUnicode(false)
+                .HasColumnName("PatientID");
+            entity.Property(e => e.PatientName).IsUnicode(false);
+            entity.Property(e => e.PharmacyOrderableItemId)
+                .IsUnicode(false)
+                .HasColumnName("PharmacyOrderableItemID");
+            entity.Property(e => e.Provider).IsUnicode(false);
+            entity.Property(e => e.ProviderComments).IsUnicode(false);
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.Schedule).IsUnicode(false);
+            entity.Property(e => e.StartDateTime).HasColumnType("datetime");
+            entity.Property(e => e.StopDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VerifiedDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VerifyingPharmacist).IsUnicode(false);
         });
 
         modelBuilder.Entity<MenuBuild>(entity =>

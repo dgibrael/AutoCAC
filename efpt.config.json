@@ -27,6 +27,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[DataGridTemplates]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Drug]",
          "ObjectType": 0
       },
@@ -49,6 +53,10 @@
       {
          "Name": "[dbo].[PharmacyOrderableItem]",
          "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[InpatientMedOrder]",
+         "ObjectType": 3
       },
       {
          "Name": "[dbo].[OrderMenu]",
