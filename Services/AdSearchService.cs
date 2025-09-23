@@ -179,8 +179,6 @@ public sealed class UsersQuery
 
         if (!string.IsNullOrEmpty(_sortAttr))
         {
-            Console.WriteLine(_sortAttr);
-            Console.WriteLine(_sortDesc);
             searcher.Sort = new SortOption(
                 _sortAttr,
                 _sortDesc ? SortDirection.Descending : SortDirection.Ascending

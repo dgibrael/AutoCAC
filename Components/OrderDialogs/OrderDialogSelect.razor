@@ -12,6 +12,7 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @using AutoCAC.Components
+@using AutoCAC.Utilities
 
 <RadzenStack>
     <RadzenHeading Size="H5" Text="Select Order Dialog to insert or enter a description in the field at the bottom" />
@@ -25,12 +26,12 @@
 
     <RadzenDataGrid @ref="grid" Data="@data" Count="@count" LoadData="@LoadData" TItem="AutoCAC.Models.OrderDialog" ExpandMode="DataGridExpandMode.Single"
     AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="150px" IsLoading="@isLoading"
-    AllowSorting="true" AllowFiltering="true" LoadColumnFilterData="@LoadColumnFilterData">
+    AllowSorting="true" AllowFiltering="true" LoadColumnFilterData="@LoadColumnFilterData" >
         <Columns>
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" 
             WhiteSpace="WhiteSpace.Wrap" />
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package" Width="75px"
-            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true"/>
+            FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="false" />
 
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Type" Title="Type"
             FilterMode="FilterMode.CheckBoxList" AllowCheckBoxListVirtualization="true" Width="75px" />
@@ -99,13 +100,15 @@
     [Parameter] public string SearchText { get; set; }
     [Parameter] public MenuBuildEdit.PlaceholderField placeholderField { get; set; }
     private string _searchText;
+    private string _lastSearchText;
     protected int count;
     private bool? shouldCount = true;
     private bool isLoading = false;
+    private ColumnFilterChoices<AutoCAC.Models.OrderDialog> _filterChoices;
+
     protected override async Task OnInitializedAsync()
     {
         _searchText = SearchText;
-        using var context = DbFactory.CreateDbContext();
     }
 
     private async Task LoadData(LoadDataArgs args)
@@ -119,14 +122,17 @@
         isLoading = false;
     }
 
-    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.OrderDialog> args)
+    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
     {
-        var baseQuery = BuildQuickOrderQuery();
-        var results = await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
-
-        args.Data = results;
-        args.Count = results.Count;
+        // Recreate the helper if it's the first time OR the search text changed
+        if (_filterChoices == null || !string.Equals(_lastSearchText, _searchText, StringComparison.Ordinal))
+        {
+            _filterChoices = new ColumnFilterChoices<OrderDialog>(() => BuildQuickOrderQuery());
+            _lastSearchText = _searchText;
+        }
+        await _filterChoices.GetColumnFilterDataAsync(args);
     }
+
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
     {

@@ -14,23 +14,25 @@
 @using System.Text.Json
 @inject AutoCAC.Services.UserContextService UserContext
 @inject mainContext Db
-
+@using AutoCAC.Utilities
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist" })">
     <RadzenRow>
         <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="download" Text="Download CSV" Click="@DownloadTbl" />
+
         <RadzenButton Text="Save Settings" Click="@SaveGridSettings" Disabled="@(Settings is null)" />
-        <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" />
+        <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
     </RadzenRow>
     <RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" TItem="AutoCAC.Models.InpatientMedOrder" 
     AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" AllowColumnReorder="true"
-    ColumnWidth="200px" @bind-Settings="Settings" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
-    AllowColumnPicking="true" ShowPagingSummary="true">
+                    ColumnWidth="200px" @bind-Settings="Settings" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
+    AllowColumnPicking="true" ShowPagingSummary="true" LoadColumnFilterData="@LoadColumnFilterData" >
         <Columns>
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="PatientName" Title="Patient Name" />
-            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList"/>
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderableItem" Title="Orderable Item" />
-            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="MedRoute" Title="Med Route" />
+            <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="MedRoute" Title="Med Route" FilterMode="FilterMode.CheckBoxList"
+            AllowCheckBoxListVirtualization="true" AlwaysShowAllCheckBoxListData="true" />
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StartDateTime" Title="Start Date Time" />
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StopDateTime" Title="Stop Date Time"/>
             <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Location" Title="Location" />
@@ -60,6 +62,7 @@
     private LoadDataArgs lastArgs;
     DataGridSettings Settings;
     private string PageName => GetType().Name;
+    private ColumnFilterChoices<AutoCAC.Models.InpatientMedOrder> _filterChoices;
     private async Task OnTemplatePicked(DataGridTemplate tmpl)
     {
         Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings) ? null : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
@@ -80,6 +83,19 @@
         count = result.Count;
         shouldCount = null;
         await Layout.SetLoading(false);
+    }
+
+    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.InpatientMedOrder> args)
+    {
+        args.Top = null;
+        args.Skip = null;
+        if (_filterChoices == null)
+        {
+            _filterChoices = new ColumnFilterChoices<InpatientMedOrder>(
+                () => DbFactory.QueryFromObj<AutoCAC.Models.InpatientMedOrder>().AsNoTracking()
+            );
+        }
+        await _filterChoices.GetColumnFilterDataAsync(args);
     }
 
     private async Task DownloadTbl()

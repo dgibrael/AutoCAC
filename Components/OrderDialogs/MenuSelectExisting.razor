@@ -74,10 +74,7 @@
     private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
     {
         var baseQuery = BuildQuery();
-        var results = await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
-
-        args.Data = results;
-        args.Count = results.Count;
+        await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
     }
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuery()
