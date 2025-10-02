@@ -1,14 +1,13 @@
-﻿@* AdUsers.razor *@
-@rendermode InteractiveServer
-@using AutoCAC.Models
+﻿@using AutoCAC.Models
 @using AutoCAC.Services
 @using Radzen
 @using Radzen.Blazor
 @inject IServiceProvider Services
+@inject DialogService DialogService
 
 @if (!OperatingSystem.IsWindows())
 {
-    <RadzenAlert Severity="AlertSeverity.Warning" Style="max-width: 640px">
+    <RadzenAlert AlertStyle="AlertStyle.Danger">
         Active Directory queries are only available on Windows (IIS).
     </RadzenAlert>
 }
@@ -25,13 +24,32 @@ else
                     AllowPaging="true"
                     ColumnWidth="220px"
                     IsLoading="@isLoading"
-                    @ref="_grid">
+                    @ref="_grid"
+                    style="min-height:300px; max-height:70vh; overflow:auto;">
         <Columns>
-            <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" FilterPlaceholder="Search by users name" />
-            <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" FilterPlaceholder="Search by D1 username" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" />
             <RadzenDataGridColumn TItem="AdUserDto" Property="Enabled" Title="Enabled" Width="120px" Sortable="false"/>
+            @if (IsDialog || OnSelected.HasDelegate)
+            {
+                <RadzenDataGridColumn TItem="AdUserDto" Title="">
+                    <Template Context="u">
+                        <RadzenButton Text="Select"
+                                      Size="ButtonSize.Small"
+                                      Click="@(args => SelectUser(u))" />
+                    </Template>
+                </RadzenDataGridColumn>
+            }
         </Columns>
     </RadzenDataGrid>
+
+    @if (IsDialog)
+    {
+        <div class="flex gap-2 justify-end">
+            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close(null))" />
+        </div>
+    }
+
 }
 
 @code {
@@ -44,6 +62,8 @@ else
     private RadzenDataGrid<AdUserDto> _grid;
     private List<AdUserDto> _users = [];
     private int _count;
+    [Parameter] public bool IsDialog { get; set; } = false;
+    [Parameter] public EventCallback<AdUserDto> OnSelected { get; set; }
 
     private async Task LoadUsers(LoadDataArgs args)
     {
@@ -155,5 +175,18 @@ else
             }
         }
         return null;
+    }
+    private async Task SelectUser(AdUserDto user)
+    {
+        if (IsDialog)
+        {
+            DialogService.Close(user);
+            return;
+        }
+
+        if (OnSelected.HasDelegate)
+        {
+            await OnSelected.InvokeAsync(user);
+        }
     }
 }

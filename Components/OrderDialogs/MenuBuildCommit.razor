@@ -28,14 +28,39 @@
             ButtonStyle="ButtonStyle.Success"
             Click="@ShowDialogAndRun" />
     </RadzenColumn>
-    <RadzenColumn>
-        <RadzenButton 
-            Text="Copy RPMS script to clipboard"
-            ButtonStyle="ButtonStyle.Info"
-            Click="@CopyRPMSScript" />
-    </RadzenColumn>
 </RadzenRow>
 <RPMSOutput @ref="RPMSRef"/>
+<RadzenRow>
+    <pre>You can either use the "Commit Changes" button above (if you've already linked to an existing menu IEN) OR the following</pre>
+    <pre>Go to ^MN (enter/edit menu) go to the menu you want to replace. 
+        Then Click the button below to copy the following and paste as many times as needed to delete all rows in the menu</pre>
+</RadzenRow>
+<RadzenRow>
+    <RadzenButton 
+        Text="Copy Delete script to clipboard"
+        Icon="content_copy"
+        ButtonStyle="ButtonStyle.Info"
+        Click="@CopyDeleteScript" />
+</RadzenRow>
+<RadzenRow>
+    <pre>
+        Then click the button below to copy the menu content script to your clipboard.
+        A dialog will pop up asking if you want to mark the request as complete, you can wait until you're done to hit yes.
+    </pre>
+</RadzenRow>
+<RadzenRow>
+    <RadzenButton 
+        Text="Copy Menu Content script to clipboard"
+        Icon="content_copy"
+        ButtonStyle="ButtonStyle.Info"
+        Click="@CopyRPMSScript" />
+</RadzenRow>
+<RadzenRow>
+    <pre>
+        Paste the contents of your clipboard to RPMS.
+        *DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
+    </pre>
+</RadzenRow>
 <div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
     @for (int row = 1; row <= maxRow; row++)
     {
@@ -70,19 +95,7 @@
         }
     }
 </div>
-<pre>Go to ^MN (enter/edit menu) go to the menu you want to replace</pre>
-<pre>Copy the following and paste as many times as needed to delete all rows in the menu (you may need to copy delete script to notepad to ensure just 1 linefeed after last yes):
-REMOVE
-ROW
-1
-YES
-YES
 
-Then click "Copy RPMS script to clipboard". This will copy the script to your clipboard.
-A dialog will pop up asking if you want to mark the request as complete, you can wait until you're done to hit yes.
-Paste the contents of your clipboard to RPMS.
-*DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
-</pre>
 @* <pre>@RPMSScript</pre> *@
 @code {
     [Parameter] public int Id { get; set; }
@@ -263,6 +276,12 @@ Paste the contents of your clipboard to RPMS.
             await using var db = await DbFactory.CreateDbContextAsync();
             await db.SetMenuBuildMetaStatusAsync(Id, "DONE");
         }
+    }
+
+    private async Task CopyDeleteScript()
+    {
+        var deleteTxt = "REMOVE\nROW\n1\nYES\nYES\n";
+        await JS.CopyText(deleteTxt);
     }
 
     private async Task ShowDialogAndRun()

@@ -10,6 +10,7 @@
 @using Microsoft.EntityFrameworkCore
 @using AutoCAC.Extensions
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
 
 <RadzenStack>
     <RadzenRow AlignItems="AlignItems.Center">
@@ -24,12 +25,25 @@
         </RadzenColumn>
     </RadzenRow>
     <RadzenRow>
-        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" Data="@data" Count="@count" LoadData="@LoadData" RowSelect="OnRowSelect"
+        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" Data="@data" Count="@count" LoadData="@LoadData"
         AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
-        FilterMode="FilterMode.Simple" AllowFiltering="true" AllowSorting="true">
+        FilterMode="FilterMode.CheckBoxList" AllowFiltering="true" AllowSorting="true" LoadColumnFilterData="@LoadColumnFilterData">
             <Columns>
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterPlaceholder="Search by Name..." />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="RequestStatus" Title="Status" FilterPlaceholder="Search by Status..." />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterMode="FilterMode.Simple"
+                FilterPlaceholder="Search by Name..." />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="RequestStatus" Title="Status" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="CreatedBy" Title="Created By" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Title="Actions" Sortable="false" Filterable="false">
+                    <Template Context="data">
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
+                                        Click="@(async args => await EditRow(data))" />
+                        @if (UserContext?.Username == data.CreatedBy || UserContext?.IsInGroupOrSuperuser()==true)
+                        {
+                            <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                          Click="@(async args => await DeleteRow(data))" />
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
             </Columns>
         </RadzenDataGrid>
     </RadzenRow>
@@ -51,14 +65,28 @@
         ;
         lastQry = query;
         lastArgs = args;
-        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+        var result = await LoadDataGridService.ApplyLoadData(query, args, true);
         data = result.Data;
         count = result.Count;
-        shouldCount = null;
+        shouldCount = null; 
         await Layout.SetLoading(false);
     }
+    private ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum> _filterChoices;
+    
+    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.MenuBuildMetum> args)
+    {
+        args.Top = null;
+        args.Skip = null;
+        if (_filterChoices == null)
+        {
+            _filterChoices = new ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum>(
+                () => DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>().AsNoTracking()
+            );
+        }
+        await _filterChoices.GetColumnFilterDataAsync(args);
+    }
 
-    protected async Task OnRowSelect(AutoCAC.Models.MenuBuildMetum args)
+    protected async Task EditRow(AutoCAC.Models.MenuBuildMetum args)
     {
         NavigationManager.NavigateTo($"menubuild/{args.Id}");
     }
@@ -72,5 +100,15 @@
     { 
         var args = lastArgs ?? new LoadDataArgs(); 
         return lastQry.DownloadAsCsvAsync(args, JSRuntime); 
+    }
+
+    private async Task DeleteRow(AutoCAC.Models.MenuBuildMetum item)
+    {
+        var confirmDelete = await DialogService.Confirm("Are you sure you want to delete this request?");
+        if (confirmDelete != true) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.MenuBuildMeta.Remove(item);
+        await db.SaveChangesAsync();
+        await grid0.FirstPage(true);
     }
 }

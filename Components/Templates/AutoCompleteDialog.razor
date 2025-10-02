@@ -2,7 +2,7 @@
 
 <div class="p-3" style="min-width: 380px;">
     <RadzenAutoComplete Data="Suggestions"
-                        @bind-Value="value"
+                        @bind-Value="Value"
                         Placeholder="@Placeholder"
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                         OpenOnFocus="true"
@@ -14,14 +14,13 @@
                       Click="() => DialogService.Close(null)" />
         <RadzenButton Text="OK"
                       ButtonStyle="ButtonStyle.Primary"
-                      Disabled="@string.IsNullOrWhiteSpace(value)"
-                      Click="() => DialogService.Close(value)" />
+                      Disabled="@string.IsNullOrWhiteSpace(Value)"
+                      Click="() => DialogService.Close(Value)" />
     </div>
 </div>
 
 @code {
     [Parameter] public List<string> Suggestions { get; set; } = new();
     [Parameter] public string Placeholder { get; set; } = string.Empty;
-
-    private string value;
+    [Parameter] public string Value { get; set; } = "";
 }

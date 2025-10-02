@@ -21,6 +21,8 @@ public partial class MenuBuildMetum
 
     public byte[] RowVersion { get; set; } = null!;
 
+    public string? CreatedBy { get; set; }
+
     public virtual OrderDialog? ExistingMenuNavigation { get; set; }
 
     public virtual ICollection<MenuBuild> MenuBuilds { get; set; } = new List<MenuBuild>();

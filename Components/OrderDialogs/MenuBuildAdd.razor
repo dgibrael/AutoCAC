@@ -10,6 +10,7 @@
 @using AutoCAC.Extensions
 @using AutoCAC.Components.OrderDialogs
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
 
 <RadzenTemplateForm Data="@currentMenu" TItem="MenuBuildMetum" Submit="@SaveMenuMeta">
     <RadzenRow style="margin-bottom: 1rem">
@@ -18,14 +19,6 @@
         </RadzenColumn>
         <RadzenColumn Size="10">
             <RadzenTextBox @bind-Value="currentMenu.DisplayText" />
-        </RadzenColumn>
-    </RadzenRow>
-    <RadzenRow style="margin-bottom: 1rem">
-        <RadzenColumn Size="2">
-            <RadzenLabel Text="Name:" />
-        </RadzenColumn>
-        <RadzenColumn Size="10">
-            <RadzenTextBox @bind-Value="currentMenu.Name" />
         </RadzenColumn>
     </RadzenRow>
     <RadzenRow style="margin-bottom: 1rem">
@@ -41,6 +34,7 @@
 </RadzenTemplateForm>
 
 @code {
+
     private AutoCAC.Models.MenuBuildMetum currentMenu;
     private mainContext db;
 
@@ -49,10 +43,10 @@
         db = await DbFactory.CreateDbContextAsync();
         currentMenu = new MenuBuildMetum
         {
-            Columns = 3
+            Columns = 3,
+            CreatedBy = UserContext.Username
         };
     }
-
     private void CancelCreate()
     {
         NavigationManager.NavigateTo("menubuild/");

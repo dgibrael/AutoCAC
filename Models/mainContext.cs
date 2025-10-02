@@ -31,6 +31,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
+    public virtual DbSet<NurseCompoundTraining> NurseCompoundTrainings { get; set; }
+
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
 
     public virtual DbSet<OrderMenu> OrderMenus { get; set; }
@@ -244,6 +246,9 @@ public partial class mainContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Columns).HasDefaultValue((byte)3);
+            entity.Property(e => e.CreatedBy)
+                .HasMaxLength(255)
+                .IsUnicode(false);
             entity.Property(e => e.DisplayText).IsUnicode(false);
             entity.Property(e => e.Name).IsUnicode(false);
             entity.Property(e => e.RequestStatus)
@@ -279,6 +284,20 @@ public partial class mainContext : DbContext
             entity.Property(e => e.PackageType).IsUnicode(false);
             entity.Property(e => e.PrintName).IsUnicode(false);
             entity.Property(e => e.ProductName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<NurseCompoundTraining>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__NurseCom__3214EC07DEC1F7E8");
+
+            entity.ToTable("NurseCompoundTraining");
+
+            entity.Property(e => e.Department)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.StaffUserName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<OrderDialog>(entity =>

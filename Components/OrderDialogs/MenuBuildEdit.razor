@@ -461,13 +461,12 @@
             new DialogOptions { Width = "75%", Resizable = true }
         );
         if (result == null) return;
-
+        item.Item = null;
         if (result is PlaceholderField newText)
         {
             item.DisplayText = newText.MenuTxt;
             item.AdditionalDetails = newText.ExtendedTxt;
             item.ItemId = null;
-            item.Item = null;
             item.DisplayOnly = "PLACEHOLDER";
         }
         else if (result is OrderDialog selectedDialog)

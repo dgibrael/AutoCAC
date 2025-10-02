@@ -18,7 +18,6 @@
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist" })">
     <RadzenRow>
         <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="download" Text="Download CSV" Click="@DownloadTbl" />
-
         <RadzenButton Text="Save Settings" Click="@SaveGridSettings" Disabled="@(Settings is null)" />
         <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
     </RadzenRow>
@@ -97,7 +96,7 @@
         }
         await _filterChoices.GetColumnFilterDataAsync(args);
     }
-
+    
     private async Task DownloadTbl()
     {
         if (count > 100000)
