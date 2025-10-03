@@ -12,127 +12,15 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @using System.Text.Json
-
-<RadzenStack>
-    <RadzenRow AlignItems="AlignItems.Center">
-        <RadzenColumn Size="12" SizeMD="5">
-            <RadzenText Text="NurseCompoundTraining" TextStyle="TextStyle.H4"/>
-        </RadzenColumn>
-        <RadzenColumn Size="12" SizeMD="7">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
-                @*<RadzenButton Icon="add_circle_outline" Text="Add" Click="@AddButtonClick" Variant="Variant.Flat" />*@
-                <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download"/>
-                <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
-                    <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
-                    <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
-                </RadzenSplitButton>
-                <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
-            </RadzenStack>
-        </RadzenColumn>
-    </RadzenRow>
-    <RadzenRow>
-        <RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" 
-        LoadColumnFilterData="@LoadColumnFilterData"
-        TItem="AutoCAC.Models.NurseCompoundTraining" 
-        AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" AllowColumnReorder="true"
-        ColumnWidth="200px" @bind-Settings="Settings" PageSizeOptions="@(new int[]{5, 10, 20, 30, 50})" 
-        AllowColumnPicking="true" ShowPagingSummary="true">
-            <Columns>
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="Id" Title="Id" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="StaffUserName" Title="Staff User Name" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="Department" Title="Department" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateLiveTraining" Title="Date Live Training" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateAsepticTechnique" Title="Date Aseptic Technique" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateCompetencyQuiz" Title="Date Competency Quiz" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateRenewalDue" Title="Date Renewal Due" />
-            </Columns>
-        </RadzenDataGrid>
-    </RadzenRow>
-</RadzenStack>
+<VanillaGrid TItem="AutoCAC.Models.NurseCompoundTraining">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="StaffUserName" Title="Staff User Name" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="Department" Title="Department" FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateLiveTraining" Title="Date Live Training"/>
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateAsepticTechnique" Title="Date Aseptic Technique" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateCompetencyQuiz" Title="Date Competency Quiz" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.NurseCompoundTraining" Property="DateRenewalDue" Title="Date Renewal Due" />
+</VanillaGrid>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    protected IEnumerable<AutoCAC.Models.NurseCompoundTraining> data;
-    protected int count = 0;
-    protected RadzenDataGrid<AutoCAC.Models.NurseCompoundTraining> grid0;
-    bool? shouldCount = true;
-    private IQueryable<AutoCAC.Models.NurseCompoundTraining> lastQry;
-    private LoadDataArgs lastArgs;
-    DataGridSettings Settings;
-    private string loadedTemplateName="";
-
-    private ColumnFilterChoices<AutoCAC.Models.NurseCompoundTraining> _filterChoices;
-
-    protected async Task LoadData(LoadDataArgs args)
-    {
-        await Layout.SetLoading(true);
-        var query = DbFactory.QueryFromObj<AutoCAC.Models.NurseCompoundTraining>()
-        .AsNoTracking()
-        ;
-        lastQry = query;
-        lastArgs = args;
-        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
-        data = result.Data;
-        count = result.Count;
-        shouldCount = null;
-        await Layout.SetLoading(false);
-    }
-
-    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.NurseCompoundTraining> args)
-    {
-        args.Top = null;
-        args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<AutoCAC.Models.NurseCompoundTraining>(
-                () => DbFactory.QueryFromObj<AutoCAC.Models.NurseCompoundTraining>().AsNoTracking()
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
-    }
-
-    private Task DownloadTbl()
-    {
-        if (count > 100000)
-        {
-            return DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
-        }
-        var args = lastArgs ?? new LoadDataArgs();
-        var visibleProps = Settings?.Columns?
-            .Where(c => c.Visible)
-            .Select(c => c.Property)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct()
-            .ToList();
-        return lastQry.DownloadAsCsvAsync(args, JSRuntime, includeProperties: visibleProps);
-    }
-
-    private string PageName => GetType().Name;
-
-    private async Task OnTemplatePicked(DataGridTemplate tmpl)
-    {
-        loadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
-        Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings) ? null : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
-        await grid0.ReloadSettings();
-    }
-
-    private async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
-    {
-        var isPublic = string.Equals(item?.Value?.ToString(), "public", StringComparison.OrdinalIgnoreCase);
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var templates = await db.DataGridTemplates
-              .AsNoTracking()
-              .Where(t => t.DataGridName == PageName && t.CreatedBy == UserContext.Username)
-              .Select(t => t.TemplateName)
-              .ToListAsync();
-        var templateNameObj = await DialogService.OpenAsync<AutoCompleteDialog>(
-            isPublic ? "Save Public Search Template" : "Save Search Template",
-            parameters: new Dictionary<string, object> { { "Suggestions", templates }, { "Value", loadedTemplateName } });
-        var templateName = templateNameObj as string;
-
-        if (string.IsNullOrWhiteSpace(templateName)) return;
-
-        await db.UpsertDataGridTemplate(templateName, PageName, UserContext.Username, Settings, isPublic);
-    }
 }

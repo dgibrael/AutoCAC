@@ -1,7 +1,7 @@
 ﻿@using Radzen
 @inject DialogService DialogService
 
-<RadzenTemplateForm TItem="string" Data="@Value" >
+<RadzenTemplateForm TItem="string" Data="@Value" Submit="OnOk" >
     @if (!string.IsNullOrWhiteSpace(Header))
     {
         <h3 class="text-lg font-semibold">@Header</h3>
@@ -30,8 +30,7 @@
                       ButtonStyle="ButtonStyle.Secondary"
                       Click="@(() => DialogService.Close(null))" />
         <RadzenButton Text="OK" ButtonType="ButtonType.Submit"
-                      ButtonStyle="ButtonStyle.Primary"
-                      Click="@OnOk" />
+                      ButtonStyle="ButtonStyle.Primary"/>
     </div>
 </RadzenTemplateForm>
 
