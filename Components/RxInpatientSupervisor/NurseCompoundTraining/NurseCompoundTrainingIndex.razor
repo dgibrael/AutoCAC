@@ -1,0 +1,19 @@
+﻿@page "/supervisor/inpatient/NurseCompoundTraining"
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@inject AutoCAC.Services.UserContextService UserContext
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@using System.Text.Json
+<VanillaGrid TItem="AutoCAC.Models.NurseCompoundTraining" ExcludeColumns="@(new List<string>{ "Id" })" />
+
+@code {
+    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+}

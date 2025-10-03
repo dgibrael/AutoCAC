@@ -1,5 +1,4 @@
-﻿@* TemplatePicker.razor *@
-@using Radzen
+﻿@using Radzen
 @using AutoCAC.Models
 @inject mainContext Db
 @inject AuthenticationStateProvider Auth
@@ -7,7 +6,7 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @rendermode InteractiveServer
 
-<RadzenDropDown TItem="DataGridTemplate" TValue="int?"
+<RadzenDropDown TValue="int?"
                 Data="@templates"
                 Value="@selectedTemplateId"
                 Change="@OnTemplateChanged"

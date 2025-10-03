@@ -270,7 +270,7 @@
     private async Task CopyRPMSScript()
     {
         await JS.CopyText(RPMSScript);
-        bool? markComplete = await DialogService.Confirm("Mark as completed?", "Changes Made");
+        bool? markComplete = await DialogService.Confirm("Successfully copied contents to clipboard. Mark as completed?", "Changes Made");
         if (markComplete==true)
         {
             await using var db = await DbFactory.CreateDbContextAsync();
@@ -282,6 +282,7 @@
     {
         var deleteTxt = "REMOVE\nROW\n1\nYES\nYES\n";
         await JS.CopyText(deleteTxt);
+        NotificationService.Notify(detail: "Copied delete script to clipboard");
     }
 
     private async Task ShowDialogAndRun()

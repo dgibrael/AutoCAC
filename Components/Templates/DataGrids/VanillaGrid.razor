@@ -14,78 +14,75 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @using System.Text.Json
 
-<RadzenRow>
-    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-        @if (AddButtonClick.HasDelegate)
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
+    @if (IncludeAddButton && (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate))
+    {
+        <RadzenButton Icon="add_circle_outline"
+                        Text="Add"
+                        Click="@OnAddClickInternal"
+                        Variant="Variant.Flat" />
+    }
+    <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
+    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
+        <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
+        <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
+    </RadzenSplitButton>
+    <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
+</RadzenStack>
+<RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
+                LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
+                AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
+                AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
+                PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
+                AllowColumnPicking="true" ShowPagingSummary="true">
+    <Columns>
+        @if (IncludeActionColumn)
         {
-            <RadzenButton Icon="add_circle_outline"
-                          Text="Add"
-                          Click="AddButtonClick"
-                          Variant="Variant.Flat" />
+            <ActionColumn Grid="grid0"/>
         }
-        <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-        <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
-            <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
-            <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
-        </RadzenSplitButton>
-        <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
-    </RadzenStack>
-    <RadzenRow>
-        <RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
-                        LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
-                        AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
-                        AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
-                        PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
-                        AllowColumnPicking="true" ShowPagingSummary="true">
-            <Columns>
-                @if (ChildContent is not null)
+        @if (ChildContent is not null)
+        {
+            @ChildContent
+        }
+        else if (ColumnList is not null && ColumnList.Any())
+        {
+            @foreach (var col in ColumnList)
+            {
+                <RadzenDataGridColumn TItem="TItem"
+                                        Property="@col"
+                                        Title="@col" />
+            }
+        }
+        else
+        {
+            var props = typeof(TItem)
+                .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                // exclude explicit names first
+                .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+                // only take scalar-friendly types
+                .Where(p =>
                 {
-                    @ChildContent
-                }
-                else if (ColumnList is not null && ColumnList.Any())
-                {
-                    @foreach (var col in ColumnList)
-                    {
-                        <RadzenDataGridColumn TItem="TItem"
-                                              Property="@col"
-                                              Title="@col" />
-                    }
-                }
-                else
-                {
-                    var props = typeof(TItem)
-                        .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-                        // exclude explicit names first
-                        .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
-                        // only take scalar-friendly types
-                        .Where(p =>
-                        {
-                            var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
-                            return t.IsPrimitive
-                                    || t.IsEnum
-                                    || t == typeof(string)
-                                    || t == typeof(decimal)
-                                    || t == typeof(DateTime)
-                                    || t == typeof(DateTimeOffset)
-                                    || t == typeof(Guid)
-                                    || t == typeof(TimeSpan);
-                        });
+                    var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                    return t.IsPrimitive
+                            || t.IsEnum
+                            || t == typeof(string)
+                            || t == typeof(decimal)
+                            || t == typeof(DateTime)
+                            || t == typeof(DateOnly)
+                            || t == typeof(DateTimeOffset)
+                            || t == typeof(Guid)
+                            || t == typeof(TimeSpan);
+                });
 
-                    @foreach (var prop in props)
-                    {
-                        <RadzenDataGridColumn TItem="TItem"
-                                              Property="@prop.Name"
-                                              Title="@prop.Name" />
-                    }
-                }
-            </Columns>
-
-            <Template>
-                @RowContent
-            </Template>
-        </RadzenDataGrid>
-    </RadzenRow>
-</RadzenRow>
+            @foreach (var prop in props)
+            {
+                <RadzenDataGridColumn TItem="TItem"
+                                        Property="@prop.Name"
+                                        Title="@prop.Name" />
+            }
+        }
+    </Columns>
+</RadzenDataGrid>
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
@@ -93,7 +90,9 @@
     [Parameter] public RenderFragment RowContent { get; set; }
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
-
+    [Parameter] public string AddButtonUrl { get; set; }
+    [Parameter] public bool IncludeAddButton { get; set; } = true;
+    [Parameter] public bool IncludeActionColumn { get; set; } = true;
     /// <summary>
     /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
     /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
@@ -111,6 +110,15 @@
     private string loadedTemplateName = "";
     private bool IsLoading { get; set; } = true;
     private ColumnFilterChoices<TItem> _filterChoices;
+
+    protected override void OnParametersSet()
+    {
+        if (IncludeAddButton && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
+        {
+            var uri = new Uri(NavigationManager.Uri);
+            AddButtonUrl = uri.AbsolutePath.TrimEnd('/') + "/new"; 
+        }
+    }
 
     public virtual async Task LoadData(LoadDataArgs args)
     {
@@ -204,5 +212,17 @@
     {
         ShouldCount = true;
         await grid0.FirstPage(true);
+    }
+
+    private async Task OnAddClickInternal()
+    {
+        if (AddButtonClick.HasDelegate)
+        {
+            await AddButtonClick.InvokeAsync();
+        }
+        else if (!string.IsNullOrEmpty(AddButtonUrl))
+        {
+            NavigationManager.NavigateTo(AddButtonUrl);
+        }
     }
 }

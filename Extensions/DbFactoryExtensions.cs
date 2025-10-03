@@ -99,7 +99,74 @@ namespace AutoCAC.Extensions
 
             return totalAffectedRows;
         }
+        public static async Task DeleteItemAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity item,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            db.Attach(item);
+            db.Remove(item);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
+        public static async Task DeleteRangeAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            IEnumerable<TEntity> items,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            db.AttachRange(items);
+            db.RemoveRange(items);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        /// <summary>
+        /// Adds a single entity and saves. Returns the tracked entity with generated keys populated.
+        /// </summary>
+        public static async Task<TEntity> AddItemAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity item,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            await db.Set<TEntity>().AddAsync(item, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            return item;
+        }
+
+        /// <summary>
+        /// Adds a range of entities and saves. Returns the input sequence to allow further use with populated keys.
+        /// </summary>
+        public static async Task<IEnumerable<TEntity>> AddRangeAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            IEnumerable<TEntity> items,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            await db.Set<TEntity>().AddRangeAsync(items, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            return items;
+        }
+
+        /// <summary>
+        /// Updates an entity (all properties marked modified) and saves.
+        /// Use when you have a detached instance coming from the UI.
+        /// </summary>
+        public static async Task UpdateItemAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity item,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            db.Attach(item);
+            db.Entry(item).State = EntityState.Modified;
+            await db.SaveChangesAsync(cancellationToken);
+        }
     }
 }
 

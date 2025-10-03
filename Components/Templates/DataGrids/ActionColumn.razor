@@ -1,0 +1,67 @@
+﻿@using Radzen
+@using Radzen.Blazor
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+@typeparam TItem where TItem : class
+
+<RadzenDataGridColumn TItem="TItem"
+                      Title="Actions"
+                      Sortable="false"
+                      Filterable="false" Reorderable="false"
+                      Frozen="true" FrozenPosition="FrozenColumnPosition.Right"
+                      Width="120px">
+    <HeaderTemplate>
+        <RadzenIcon Icon="settings" />
+    </HeaderTemplate>
+    <Template Context="data">
+        <RadzenButton Icon="edit"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Click="@(() => OnEdit(data))" />
+        <RadzenButton Icon="delete"
+                      class="ml-1"
+                      ButtonStyle="ButtonStyle.Danger"
+                      Click="@(() => OnDeleteAsync(data))" />
+    </Template>
+</RadzenDataGridColumn>
+
+@code {
+    /// Reference to the parent grid so we can refresh/paginate after delete.
+    [Parameter] public RadzenDataGrid<TItem> Grid { get; set; }
+
+    /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
+    [Parameter] public Func<TItem, string> EditUrl { get; set; }
+
+    private void OnEdit(TItem item)
+    {
+        var url = EditUrl?.Invoke(item);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            var basePath = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+            var id = GetId(item);
+            url = $"{basePath}/{id}";
+        }
+        Nav.NavigateTo(url!);
+    }
+
+    private async Task OnDeleteAsync(TItem item)
+    {
+        var confirm = await DialogService.Confirm("Are you sure you want to delete this request?");
+        if (confirm != true) return;
+
+        await DbFactory.DeleteItemAsync(item);
+
+        if (Grid is not null)
+            await Grid.FirstPage(true);
+    }
+
+    // Minimal reflection: look for a public property named "Id" (case-insensitive).
+    private static object GetId(TItem item)
+        => item?.GetType().GetProperty("Id",
+               System.Reflection.BindingFlags.Public |
+               System.Reflection.BindingFlags.Instance |
+               System.Reflection.BindingFlags.IgnoreCase)
+           ?.GetValue(item);
+}

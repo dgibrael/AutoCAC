@@ -3,16 +3,26 @@
 @using Radzen
 @using Radzen.Blazor
 @inject IServiceProvider Services
-@inject DialogService DialogService
 
 @if (!OperatingSystem.IsWindows())
 {
-    <RadzenAlert AlertStyle="AlertStyle.Danger">
+    <RadzenAlert Severity="AlertSeverity.Warning" Style="max-width: 640px">
         Active Directory queries are only available on Windows (IIS).
     </RadzenAlert>
 }
 else
 {
+    <RadzenDropDown 
+	    @bind-Value="GroupEquals"
+	    Data="optionsDict"
+	    TextProperty="Value"
+	    ValueProperty="Key"
+        Placeholder="Filter by groups..."
+        FilterAsYouType="true"
+        AllowFiltering="true"
+        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+        Change="@OnGroupSelect"
+    />
     <RadzenDataGrid TItem="AdUserDto"
                     Data="@_users"
                     Count="@_count"
@@ -21,49 +31,43 @@ else
                     FilterMode="FilterMode.Simple"
                     FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
                     AllowSorting="true"
-                    AllowPaging="true"
-                    ColumnWidth="220px"
+                    AllowPaging="true" PageSize="20"
+                    PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ShowPagingSummary="true"
+                    ColumnWidth="200px"
                     IsLoading="@isLoading"
-                    @ref="_grid"
-                    style="min-height:300px; max-height:70vh; overflow:auto;">
+                    RowSelect="@OnSelect"
+                    @ref="_grid">
         <Columns>
-            <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" />
-            <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" FilterPlaceholder="Search by users name" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" FilterPlaceholder="Search by D1 username" />
             <RadzenDataGridColumn TItem="AdUserDto" Property="Enabled" Title="Enabled" Width="120px" Sortable="false"/>
-            @if (IsDialog || OnSelected.HasDelegate)
-            {
-                <RadzenDataGridColumn TItem="AdUserDto" Title="">
-                    <Template Context="u">
-                        <RadzenButton Text="Select"
-                                      Size="ButtonSize.Small"
-                                      Click="@(args => SelectUser(u))" />
-                    </Template>
-                </RadzenDataGridColumn>
-            }
         </Columns>
     </RadzenDataGrid>
-
-    @if (IsDialog)
-    {
-        <div class="flex gap-2 justify-end">
-            <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close(null))" />
-        </div>
-    }
-
 }
 
 @code {
     // Optional inputs you can set from a parent (kept from earlier)
-    [Parameter] public string GroupEquals { get; set; }
-    [Parameter] public string GroupContains { get; set; }
-    [Parameter] public string UpnSuffix { get; set; } = "na.ihs.gov";
+    [Parameter] public string GroupEquals { get; set; } = "NAV/CHC CSU Staff";
     [Parameter] public bool Recursive { get; set; } = true;
-    public bool isLoading = false;
+    [Parameter] public EventCallback<AdUserDto> OnSelect { get; set; }
+    public bool isLoading = true;
     private RadzenDataGrid<AdUserDto> _grid;
-    private List<AdUserDto> _users = [];
+    private IEnumerable<AdUserDto> _users;
     private int _count;
-    [Parameter] public bool IsDialog { get; set; } = false;
-    [Parameter] public EventCallback<AdUserDto> OnSelected { get; set; }
+
+    Dictionary<string, string> optionsDict = new Dictionary<string, string>()
+	{
+		{"NAV/CHC CSU Staff", "All Chinle"},
+		{"NAV/CHC Pharmacy", "All Pharmacy"},
+		{"NAV/CHC Pharmacist", "Pharmacists"},
+		{"NAV/CHC Emergency Department", "ED"},
+		{"NAV/CHC Special Care Unit", "SCU"},
+	};
+
+    private async Task OnGroupSelect()
+    {
+        await _grid.FirstPage(true);
+    }
 
     private async Task LoadUsers(LoadDataArgs args)
     {
@@ -87,9 +91,6 @@ else
 
         if (!string.IsNullOrWhiteSpace(GroupEquals))
             q = q.InGroupEquals(GroupEquals!, Recursive);
-
-        if (!string.IsNullOrWhiteSpace(GroupContains))
-            q = q.InGroupContains(GroupContains!, Recursive);
 
         // Translate DataGrid filters: prefer DisplayName filter, else SamAccountName.
         // (Multiple column filters would AND together; we keep this simple per your ask.)
@@ -175,18 +176,5 @@ else
             }
         }
         return null;
-    }
-    private async Task SelectUser(AdUserDto user)
-    {
-        if (IsDialog)
-        {
-            DialogService.Close(user);
-            return;
-        }
-
-        if (OnSelected.HasDelegate)
-        {
-            await OnSelected.InvokeAsync(user);
-        }
     }
 }
