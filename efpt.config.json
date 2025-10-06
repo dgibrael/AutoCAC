@@ -15,6 +15,10 @@
    "T4TemplatePath": null,
    "Tables": [
       {
+         "Name": "[dbo].[ADT]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[auth_group]",
          "ObjectType": 0
       },
@@ -56,6 +60,10 @@
       },
       {
          "Name": "[dbo].[OrderDialog]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Patient]",
          "ObjectType": 0
       },
       {

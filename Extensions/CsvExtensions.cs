@@ -30,7 +30,7 @@ namespace AutoCAC.Extensions
 
             return sb.ToString();
 
-            static void WriteLine(StringBuilder sb, IEnumerable<string?> values)
+            static void WriteLine(StringBuilder sb, IEnumerable<string> values)
             {
                 bool first = true;
                 foreach (var v in values)
@@ -46,7 +46,7 @@ namespace AutoCAC.Extensions
                 (s.Contains('"') || s.Contains(',') || s.Contains('\r') || s.Contains('\n'))
                 ? $"\"{s.Replace("\"", "\"\"")}\"" : s;
 
-            static string ToCsvValue(object? v) => v switch
+            static string ToCsvValue(object v) => v switch
             {
                 null => string.Empty,
                 DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss"),

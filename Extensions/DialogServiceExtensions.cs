@@ -69,7 +69,7 @@ namespace AutoCAC.Extensions
             where TDialog : ComponentBase
             where TItem : class, new()
         {
-            var parameters = new Dictionary<string, object?>
+            var parameters = new Dictionary<string, object>
             {
                 ["Item"] = item
             };
@@ -86,7 +86,7 @@ namespace AutoCAC.Extensions
 
             return result as TItem;
         }
-        public static async Task<AutoCAC.Models.AdUserDto?> StaffAdDialog(
+        public static async Task<AutoCAC.Models.AdUserDto> StaffAdDialog(
             this DialogService dialogService,
             string initialGroup = "NAV/CHC CSU Staff")
         {

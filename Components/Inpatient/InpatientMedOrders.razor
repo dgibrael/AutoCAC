@@ -15,7 +15,7 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @inject mainContext Db
 @using AutoCAC.Utilities
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist" })">
+<AuthorizedGroups>
     <RadzenRow>
         <RadzenButton ButtonStyle="ButtonStyle.Light" Icon="download" Text="Download CSV" Click="@DownloadTbl" />
         <RadzenButton Text="Save Settings" Click="@SaveGridSettings" Disabled="@(Settings is null)" />

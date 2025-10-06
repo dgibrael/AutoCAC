@@ -13,6 +13,12 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @using System.Text.Json
+@using System
+@using System.Collections
+@using System.ComponentModel
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+@using System.Reflection
 
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
     @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
@@ -44,9 +50,9 @@
         {
             @ChildContent
         }
-        else if (ColumnList is not null && ColumnList.Any())
+        else if (IncludeColumns is not null && IncludeColumns.Any())
         {
-            @foreach (var col in ColumnList)
+            @foreach (var col in IncludeColumns)
             {
                 <RadzenDataGridColumn TItem="TItem"
                                         Property="@col"
@@ -56,23 +62,9 @@
         else
         {
             var props = typeof(TItem)
-                .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-                // exclude explicit names first
-                .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
-                // only take scalar-friendly types
-                .Where(p =>
-                {
-                    var t = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
-                    return t.IsPrimitive
-                            || t.IsEnum
-                            || t == typeof(string)
-                            || t == typeof(decimal)
-                            || t == typeof(DateTime)
-                            || t == typeof(DateOnly)
-                            || t == typeof(DateTimeOffset)
-                            || t == typeof(Guid)
-                            || t == typeof(TimeSpan);
-                });
+            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+            // exclude explicit names first
+            .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
 
             @foreach (var prop in props)
             {
@@ -99,7 +91,7 @@
     /// </summary>
     [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
-    [Parameter] public IEnumerable<string> ColumnList { get; set; }
+    [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     protected IEnumerable<TItem> data;
     protected int count = 0;
     public RadzenDataGrid<TItem> grid0;

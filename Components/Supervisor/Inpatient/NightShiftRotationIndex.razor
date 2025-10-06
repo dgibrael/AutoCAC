@@ -6,6 +6,7 @@
 @inject LoadDataGridService LoadDataGridService
 @inject NavigationManager Nav
 @inject DialogService DialogService
+<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
 <RadzenButton ButtonType="ButtonType.Button" Text="View/Edit Entries" Icon="more_vert"
 Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation/edit"))" />
 <HelpButton HelpText="@helpTxt" />
@@ -25,7 +26,7 @@ Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation/edit"))"
         <RadzenDataGridColumn TItem="RotationSummary" Property="Count" Title="Total Shifts" />
     </Columns>  
 </RadzenDataGrid>
-
+</AuthorizedGroups>
 @code {
     private bool isLoading = true;
     // Inline DTO for grouping projection

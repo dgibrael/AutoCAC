@@ -1,7 +1,7 @@
 ﻿@page "/supervisor/inpatient/NurseCompoundTraining"
 @using AutoCAC.Models
 @inject DialogService DialogService
-
+<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
 <EditableDataGrid TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync">
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Staff User" />
 
@@ -47,7 +47,7 @@
         </EditTemplate>
     </RadzenDataGridColumn>
 </EditableDataGrid>
-
+</AuthorizedGroups>
 @code {
     private async Task<NurseCompoundTraining> AddNurseTrainingAsync()
     {

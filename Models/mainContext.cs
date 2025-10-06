@@ -13,6 +13,8 @@ public partial class mainContext : DbContext
     {
     }
 
+    public virtual DbSet<Adt> Adts { get; set; }
+
     public virtual DbSet<AuthGroup> AuthGroups { get; set; }
 
     public virtual DbSet<AuthUser> AuthUsers { get; set; }
@@ -39,12 +41,46 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<OrderMenu> OrderMenus { get; set; }
 
+    public virtual DbSet<Patient> Patients { get; set; }
+
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Adt>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__ADT__3213E83FDBE06C19");
+
+            entity.ToTable("ADT");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.AdmitDateTime).HasColumnType("datetime");
+            entity.Property(e => e.AdmittingProvider).IsUnicode(false);
+            entity.Property(e => e.AttendingPhysician).IsUnicode(false);
+            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.Diagnosis).IsUnicode(false);
+            entity.Property(e => e.DischargeDateTime).HasColumnType("datetime");
+            entity.Property(e => e.EnteredDateTime).HasColumnType("datetime");
+            entity.Property(e => e.LastModified).HasColumnType("datetime");
+            entity.Property(e => e.Patient).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.RoomBed).IsUnicode(false);
+            entity.Property(e => e.Transaction).IsUnicode(false);
+            entity.Property(e => e.VisitId)
+                .IsUnicode(false)
+                .HasColumnName("VisitID");
+            entity.Property(e => e.WardAtDischarge).IsUnicode(false);
+            entity.Property(e => e.WardLocation).IsUnicode(false);
+
+            entity.HasOne(d => d.PatientNavigation).WithMany(p => p.Adts)
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("FK_ADT_PatientId");
+        });
+
         modelBuilder.Entity<AuthGroup>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__auth_gro__3213E83FC1044636");
@@ -347,6 +383,43 @@ public partial class mainContext : DbContext
                 .HasMaxLength(4000)
                 .HasColumnName("OrderDialogID");
             entity.Property(e => e.Seq).HasMaxLength(4000);
+        });
+
+        modelBuilder.Entity<Patient>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Patient__3213E83F57C79012");
+
+            entity.ToTable("Patient");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.Age).IsUnicode(false);
+            entity.Property(e => e.AttendingPhysician).IsUnicode(false);
+            entity.Property(e => e.CellNumber).IsUnicode(false);
+            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.CurrentAdmission).HasColumnType("datetime");
+            entity.Property(e => e.CurrentMovement).HasColumnType("datetime");
+            entity.Property(e => e.DateEnteredIntoFile).IsUnicode(false);
+            entity.Property(e => e.DateOfDeath).HasColumnType("datetime");
+            entity.Property(e => e.Diagnosis).IsUnicode(false);
+            entity.Property(e => e.Dob)
+                .HasColumnType("datetime")
+                .HasColumnName("DOB");
+            entity.Property(e => e.HomePhone).IsUnicode(false);
+            entity.Property(e => e.Last4).IsUnicode(false);
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.Pcp)
+                .IsUnicode(false)
+                .HasColumnName("PCP");
+            entity.Property(e => e.Race).IsUnicode(false);
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.RoomBed).IsUnicode(false);
+            entity.Property(e => e.Sex).IsUnicode(false);
+            entity.Property(e => e.Veteran).IsUnicode(false);
+            entity.Property(e => e.WardLocation).IsUnicode(false);
+            entity.Property(e => e.WorkPhone).IsUnicode(false);
+            entity.Property(e => e.ZipCode).IsUnicode(false);
         });
 
         modelBuilder.Entity<PharmacyOrderableItem>(entity =>

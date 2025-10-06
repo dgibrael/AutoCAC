@@ -228,7 +228,7 @@ public sealed class UsersQuery
     /// - DOMAIN\sam: use the part after '\'
     /// - otherwise try sAMAccountName, cn, name, displayName (exact match)
     /// </summary>
-    private string? ResolveGroupDnByAny(string input)
+    private string ResolveGroupDnByAny(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 

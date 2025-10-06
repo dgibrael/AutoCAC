@@ -26,12 +26,20 @@ else
     [Parameter] public RenderFragment ChildContent { get; set; }
 
     [Parameter] public RenderFragment Unauthorized { get; set; }
+    [Parameter] public bool ClinicalUsers { get; set; } = true;
 
     private bool isAuthorized;
 
     protected override void OnParametersSet()
     {
-        isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
+        if (Groups!=null)
+        {
+            isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
+        }
+        else
+        {
+            isAuthorized = ClinicalUsers ? UserContext.IsClinical() : UserContext.IsInGroupOrSuperuser();
+        }
     }
     private string GetUnauthorizedMessage()
     {
