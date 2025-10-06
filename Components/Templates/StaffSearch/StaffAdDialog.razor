@@ -1,0 +1,10 @@
+﻿@using AutoCAC.Components.Templates.Forms
+@inject DialogService DialogService
+
+<StaffAdTbl OnSelect="@(x => DialogService.Close(x))" GroupEquals="@GroupEquals" Recursive="@Recursive" />
+<CancelDialogButton />
+
+@code{
+	[Parameter] public string GroupEquals { get; set; } = "NAV/CHC CSU Staff";
+	[Parameter] public bool Recursive { get; set; } = true;
+}

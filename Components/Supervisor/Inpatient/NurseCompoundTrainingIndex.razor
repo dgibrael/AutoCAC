@@ -1,0 +1,99 @@
+﻿@page "/supervisor/inpatient/NurseCompoundTraining"
+@using AutoCAC.Models
+@inject DialogService DialogService
+
+<EditableDataGrid TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync">
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Staff User" />
+
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="Department" Title="Department">
+        <EditTemplate Context="r">
+            <RadzenTextBox @bind-Value="r.Department" Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="DateLiveTraining" Title="Live Training">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                              Value="@(ToDateTime(r.DateLiveTraining))"
+                              Change="@(dt => OnDateChanged(r, "Live", dt))"
+                              Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="DateAsepticTechnique" Title="Aseptic Technique">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                              Value="@(ToDateTime(r.DateAsepticTechnique))"
+                              Change="@(dt => OnDateChanged(r, "Aseptic", dt))"
+                              Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="DateCompetencyQuiz" Title="Competency Quiz">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                              Value="@(ToDateTime(r.DateCompetencyQuiz))"
+                              Change="@(dt => OnDateChanged(r, "Quiz", dt))"
+                              Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="DateRenewalDue" Title="Renewal Due">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                              Value="@(ToDateTime(r.DateRenewalDue))"
+                              Change="@(dt => r.DateRenewalDue = FromDateTime(dt))"
+                              Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+</EditableDataGrid>
+
+@code {
+    private async Task<NurseCompoundTraining> AddNurseTrainingAsync()
+    {
+        var user = await DialogService.StaffAdDialog(AdGroupHelper.Scu);
+        if (user is null || string.IsNullOrWhiteSpace(user.SamAccountName))
+            return null;
+
+        return new NurseCompoundTraining
+        {
+            StaffUserName = $"d1_{user.SamAccountName}"
+        };
+    }
+
+    private void OnDateChanged(NurseCompoundTraining record, string field, DateTime? dt)
+    {
+        var date = FromDateTime(dt);
+        switch (field)
+        {
+            case "Live":
+                record.DateLiveTraining = date;
+                break;
+            case "Aseptic":
+                record.DateAsepticTechnique = date;
+                break;
+            case "Quiz":
+                record.DateCompetencyQuiz = date;
+                break;
+        }
+
+        // Compute max of available dates
+        var allDates = new[] { record.DateLiveTraining, record.DateAsepticTechnique, record.DateCompetencyQuiz }
+            .Where(d => d.HasValue)
+            .Select(d => d.Value)
+            .ToList();
+
+        if (allDates.Any())
+        {
+            var maxDate = allDates.Max();
+            record.DateRenewalDue = maxDate.AddYears(1);
+        }
+    }
+
+
+    private static DateTime? ToDateTime(DateOnly? d) =>
+        d.HasValue ? d.Value.ToDateTime(TimeOnly.MinValue) : null;
+
+    private static DateOnly? FromDateTime(DateTime? dt) =>
+        dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
+}

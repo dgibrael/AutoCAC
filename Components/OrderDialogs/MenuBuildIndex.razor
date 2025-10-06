@@ -54,7 +54,6 @@
     protected IEnumerable<AutoCAC.Models.MenuBuildMetum> data;
     protected int count = 0;
     protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
-    bool? shouldCount = true;
     private IQueryable<MenuBuildMetum> lastQry;
     private LoadDataArgs lastArgs;
     protected async Task LoadData(LoadDataArgs args)
@@ -68,7 +67,6 @@
         var result = await LoadDataGridService.ApplyLoadData(query, args, true);
         data = result.Data;
         count = result.Count;
-        shouldCount = null; 
         await Layout.SetLoading(false);
     }
     private ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum> _filterChoices;

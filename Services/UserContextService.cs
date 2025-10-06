@@ -44,6 +44,7 @@ namespace AutoCAC.Services
 
             return Groups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
         }
+        public bool IsClinical() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PublicHealth", "Nurse", "Provider");
 
         public UserContextService(
             IDbContextFactory<mainContext> dbFactory,

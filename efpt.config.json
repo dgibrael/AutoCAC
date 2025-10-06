@@ -47,6 +47,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[NightShiftRotation]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[NurseCompoundTraining]",
          "ObjectType": 0
       },

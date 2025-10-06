@@ -1,4 +1,6 @@
-﻿using Radzen;
+﻿using AutoCAC.Components.Templates.StaffSearch;
+using Microsoft.AspNetCore.Components;
+using Radzen;
 using System.Threading.Tasks;
 
 namespace AutoCAC.Extensions
@@ -54,6 +56,58 @@ namespace AutoCAC.Extensions
             // OK → string (may be ""), Cancel → null
             return result as string;
         }
+
+        /// <summary>
+        /// Opens a reusable TItem dialog component and returns the saved item, or null if cancelled.
+        /// Usage: await DialogService.EditAsync<MyTItemDialog<Customer>, Customer>(item, "Edit customer");
+        /// </summary>
+        public static async Task<TItem> EditAsync<TDialog, TItem>(
+            this DialogService dialogService,
+            TItem item,
+            string title = "Edit",
+            DialogOptions options = null)
+            where TDialog : ComponentBase
+            where TItem : class, new()
+        {
+            var parameters = new Dictionary<string, object?>
+            {
+                ["Item"] = item
+            };
+
+            var result = await dialogService.OpenAsync<TDialog>(
+                title,
+                parameters,
+                options ?? new DialogOptions
+                {
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
+
+            return result as TItem;
+        }
+        public static async Task<AutoCAC.Models.AdUserDto?> StaffAdDialog(
+            this DialogService dialogService,
+            string initialGroup = "NAV/CHC CSU Staff")
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                { "GroupEquals", initialGroup }
+            };
+
+            var result = await dialogService.OpenAsync<StaffAdDialog>(
+                title: "Staff Search",
+                parameters: parameters,
+                options: new DialogOptions
+                {
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
+
+            return result as AutoCAC.Models.AdUserDto;
+        }
+
     }
 }
 

@@ -53,6 +53,7 @@
     private bool? shouldCount = true;
     private string placeholderMsg;
     private bool isLoading = false;
+    private ColumnFilterChoices<AutoCAC.Models.OrderDialog> _filterChoices;
     protected override async Task OnInitializedAsync()
     {
         _searchText = SearchText;
@@ -73,8 +74,15 @@
 
     private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
     {
-        var baseQuery = BuildQuery();
-        await LoadDataGridService.GetColumnFilterDataAsync(baseQuery, args);
+        args.Top = null;
+        args.Skip = null;
+        if (_filterChoices == null)
+        {
+            _filterChoices = new ColumnFilterChoices<AutoCAC.Models.OrderDialog>(
+                BuildQuery
+            );
+        }
+        await _filterChoices.GetColumnFilterDataAsync(args);
     }
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuery()

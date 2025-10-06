@@ -54,11 +54,18 @@
                         <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
                         <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
                     </RadzenPanelMenuItem>
-                    <RadzenPanelMenuItem Text="Inpatient" Icon="inpatient">
-                        <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder"  />
+                    <RadzenPanelMenuItem Text="Supervisors" Icon="supervisor_account">
+                        <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
+                        <RadzenPanelMenuItem Text="Nurse Compound Training" Path="supervisor/inpatient/NurseCompoundTraining" />
                     </RadzenPanelMenuItem>
                 }
-                if(UserContext.IsInGroup())
+                if (UserContext.IsClinical())
+                {
+                    <RadzenPanelMenuItem Text="Inpatient" Icon="inpatient">
+                        <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder" />
+                    </RadzenPanelMenuItem>
+                }
+                if(UserContext.IsInGroupOrSuperuser())
                 {
                     <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 }

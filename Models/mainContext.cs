@@ -31,6 +31,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
+    public virtual DbSet<NightShiftRotation> NightShiftRotations { get; set; }
+
     public virtual DbSet<NurseCompoundTraining> NurseCompoundTrainings { get; set; }
 
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
@@ -284,6 +286,17 @@ public partial class mainContext : DbContext
             entity.Property(e => e.PackageType).IsUnicode(false);
             entity.Property(e => e.PrintName).IsUnicode(false);
             entity.Property(e => e.ProductName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<NightShiftRotation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__NightShi__3214EC07E8BD3384");
+
+            entity.ToTable("NightShiftRotation");
+
+            entity.Property(e => e.StaffUserName)
+                .HasMaxLength(255)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<NurseCompoundTraining>(entity =>

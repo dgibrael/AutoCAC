@@ -1,0 +1,33 @@
+﻿@typeparam TItem where TItem : class, new()
+
+@inject DialogService DialogService
+
+<RadzenTemplateForm TItem="TItem"
+                    Data="_item"
+                    Submit="@OnValidSubmit">
+    @ChildContent(_item)
+
+    <RadzenRow>
+        <RadzenButton Text="Submit" ButtonType="ButtonType.Submit" />
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@(() => DialogService.Close(null))" />
+    </RadzenRow>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public TItem Item { get; set; }
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+
+    private TItem _item = new();
+
+    protected override void OnParametersSet()
+    {
+        _item = Item ?? new TItem();
+    }
+
+    private void OnValidSubmit()
+    {
+        DialogService.Close(_item);
+    }
+}

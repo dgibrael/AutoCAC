@@ -1,0 +1,10 @@
+﻿@inject DialogService DialogService
+<span title="@TooltipText">
+	<RadzenButton ButtonType="ButtonType.Button" Icon="help"
+				  Click="@(() => DialogService.Alert(HelpText, "Help"))" />
+</span>
+
+@code{
+	[Parameter] public string HelpText { get; set; }
+	[Parameter] public string TooltipText { get; set; } = "Help";
+}

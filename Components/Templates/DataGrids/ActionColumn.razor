@@ -48,7 +48,7 @@
 
     private async Task OnDeleteAsync(TItem item)
     {
-        var confirm = await DialogService.Confirm("Are you sure you want to delete this request?");
+        var confirm = await DialogService.Confirm("Are you sure you want to delete?");
         if (confirm != true) return;
 
         await DbFactory.DeleteItemAsync(item);

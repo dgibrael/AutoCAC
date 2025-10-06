@@ -15,7 +15,7 @@
 @using System.Text.Json
 
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-    @if (IncludeAddButton && (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate))
+    @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
     {
         <RadzenButton Icon="add_circle_outline"
                         Text="Add"
@@ -36,7 +36,7 @@
                 PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
                 AllowColumnPicking="true" ShowPagingSummary="true">
     <Columns>
-        @if (IncludeActionColumn)
+        @if (ActionColumnDefault)
         {
             <ActionColumn Grid="grid0"/>
         }
@@ -91,8 +91,8 @@
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public string AddButtonUrl { get; set; }
-    [Parameter] public bool IncludeAddButton { get; set; } = true;
-    [Parameter] public bool IncludeActionColumn { get; set; } = true;
+    [Parameter] public bool AddButtonDefault { get; set; } = false;
+    [Parameter] public bool ActionColumnDefault { get; set; } = false;
     /// <summary>
     /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
     /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
@@ -113,7 +113,7 @@
 
     protected override void OnParametersSet()
     {
-        if (IncludeAddButton && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
+        if (AddButtonDefault && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
         {
             var uri = new Uri(NavigationManager.Uri);
             AddButtonUrl = uri.AbsolutePath.TrimEnd('/') + "/new"; 

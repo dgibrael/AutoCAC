@@ -1,5 +1,6 @@
 ﻿@using AutoCAC.Models
 @using AutoCAC.Services
+@using AutoCAC.Utilities
 @using Radzen
 @using Radzen.Blazor
 @inject IServiceProvider Services
@@ -13,8 +14,8 @@
 else
 {
     <RadzenDropDown 
-	    @bind-Value="GroupEquals"
-	    Data="optionsDict"
+	    @bind-Value="GroupEquals"   
+	    Data="AdGroupHelper.Groups"
 	    TextProperty="Value"
 	    ValueProperty="Key"
         Placeholder="Filter by groups..."
@@ -47,22 +48,13 @@ else
 
 @code {
     // Optional inputs you can set from a parent (kept from earlier)
-    [Parameter] public string GroupEquals { get; set; } = "NAV/CHC CSU Staff";
+    [Parameter] public string GroupEquals { get; set; } = AdGroupHelper.AllStaff;
     [Parameter] public bool Recursive { get; set; } = true;
     [Parameter] public EventCallback<AdUserDto> OnSelect { get; set; }
     public bool isLoading = true;
     private RadzenDataGrid<AdUserDto> _grid;
     private IEnumerable<AdUserDto> _users;
     private int _count;
-
-    Dictionary<string, string> optionsDict = new Dictionary<string, string>()
-	{
-		{"NAV/CHC CSU Staff", "All Chinle"},
-		{"NAV/CHC Pharmacy", "All Pharmacy"},
-		{"NAV/CHC Pharmacist", "Pharmacists"},
-		{"NAV/CHC Emergency Department", "ED"},
-		{"NAV/CHC Special Care Unit", "SCU"},
-	};
 
     private async Task OnGroupSelect()
     {
@@ -71,6 +63,7 @@ else
 
     private async Task LoadUsers(LoadDataArgs args)
     {
+        isLoading = true;
         _users = [];
         _count = 0;
 

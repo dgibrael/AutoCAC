@@ -1,0 +1,294 @@
+﻿@typeparam TItem where TItem : class, new()
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject LoadDataGridService LoadDataGridService
+@inject AutoCAC.Services.UserContextService UserContext
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC.Extensions
+@using System.Text.Json
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
+    <RadzenButton Icon="add_circle_outline"
+                  Text="Add"
+                  Click="@OnAddClick"
+                  Variant="Variant.Flat" />
+    <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
+    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
+        <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
+        <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
+    </RadzenSplitButton>
+    <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
+</RadzenStack>
+
+<RadzenDataGrid @ref="grid0"
+                Data="data"
+                Count="count"
+                LoadData="LoadData"
+                LoadColumnFilterData="LoadColumnFilterData"
+                TItem="TItem"
+                IsLoading="IsLoading"
+                AllowFiltering="true"
+                AllowPaging="true"
+                PageSize="10"
+                AllowSorting="true"
+                AllowColumnResize="true"
+                ColumnWidth="200px"
+                ShowPagingSummary="true"
+                PageSizeOptions=@(new int[]{5,10,20,30,50})
+                @bind-Settings="Settings"
+                EditMode="DataGridEditMode.Single">
+    <Columns>
+        @ChildContent
+        <RadzenDataGridColumn TItem="TItem" Width="180px" Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
+            <Template Context="item">
+                @if (grid0.IsRowInEditMode(item))
+                {
+                    <RadzenButton Icon="check"
+                                  Variant="Variant.Flat"
+                                  Click="@(() => SaveRowAsync(item))" />
+                    <RadzenButton Icon="close"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Variant="Variant.Flat"
+                                  Click="@(() => CancelRow(item))" />
+                }
+                else
+                {
+                    <RadzenButton Icon="edit"
+                                  Variant="Variant.Flat"
+                                  Click="@(() => EditRow(item))" />
+                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat"
+                                  Click="@(() => DeleteRowAsync(item))" />
+                }
+            </Template>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string DataGridName { get; set; }
+
+    /// <summary>
+    /// Optional base query. Defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
+    /// </summary>
+    [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter] public Func<Task<TItem>> AddAction { get; set; }
+    protected IEnumerable<TItem> data;
+    protected int count = 0;
+    public RadzenDataGrid<TItem> grid0;
+    public bool? ShouldCount { get; set; } = true;
+
+    private IQueryable<TItem> lastQry;
+    private LoadDataArgs lastArgs;
+    private bool IsLoading { get; set; } = true;
+    private ColumnFilterChoices<TItem> _filterChoices;
+    DataGridSettings Settings;
+    private string loadedTemplateName = "";
+
+    // Track inserted rows
+    private readonly HashSet<TItem> _newItems = new();
+
+    public virtual async Task LoadData(LoadDataArgs args)
+    {
+        IsLoading = true;
+        try
+        {
+            var query = (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>())
+                .AsNoTracking();
+
+            lastQry = query;
+            lastArgs = args;
+
+            var result = await LoadDataGridService.ApplyLoadData(query, args, ShouldCount);
+            data = result.Data;
+            count = result.Count;
+            ShouldCount = null;
+        }
+        catch (Exception ex)
+        {
+            await DialogService.Alert(ex.Message, "Load Error");
+        }
+        finally
+        {
+            IsLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public virtual async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<TItem> args)
+    {
+        args.Top = null;
+        args.Skip = null;
+        if (_filterChoices == null)
+        {
+            _filterChoices = new ColumnFilterChoices<TItem>(
+                () => (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>()).AsNoTracking()
+            );
+        }
+        await _filterChoices.GetColumnFilterDataAsync(args);
+    }
+
+    public virtual Task DownloadTbl()
+    {
+        if (count > 100000)
+            return DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
+
+        var args = lastArgs ?? new LoadDataArgs();
+        var visibleProps = Settings?.Columns?
+            .Where(c => c.Visible)
+            .Select(c => c.Property)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct()
+            .ToList();
+
+        return lastQry.DownloadAsCsvAsync(args, JSRuntime, includeProperties: visibleProps);
+    }
+
+    private string PageName =>
+        !string.IsNullOrWhiteSpace(DataGridName) ? DataGridName! : typeof(TItem).Name;
+
+    public virtual async Task OnTemplatePicked(DataGridTemplate tmpl)
+    {
+        loadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
+        Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings)
+            ? null
+            : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+        await grid0.ReloadSettings();
+    }
+
+    public virtual async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
+    {
+        var isPublic = string.Equals(item?.Value?.ToString(), "public", StringComparison.OrdinalIgnoreCase);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var templates = await db.DataGridTemplates
+              .AsNoTracking()
+              .Where(t => t.DataGridName == PageName && t.CreatedBy == UserContext.Username)
+              .Select(t => t.TemplateName)
+              .ToListAsync();
+
+        var templateNameObj = await DialogService.OpenAsync<AutoCompleteDialog>(
+            isPublic ? "Save Public Search Template" : "Save Search Template",
+            parameters: new Dictionary<string, object> { { "Suggestions", templates }, { "Value", loadedTemplateName } });
+        var templateName = templateNameObj as string;
+
+        if (string.IsNullOrWhiteSpace(templateName)) return;
+
+        await db.UpsertDataGridTemplate(templateName, PageName, UserContext.Username, Settings, isPublic);
+    }
+
+    public async Task ForceReload()
+    {
+        ShouldCount = true;
+        await grid0.FirstPage(true);
+    }
+
+    // ---- Inline edit flow using DbFactoryExtensions ----
+    private void EditRow(TItem item)
+    {
+        grid0.EditRow(item);
+    }
+
+    private async Task SaveRowAsync(TItem item)
+    {
+        try
+        {
+            if (_newItems.Contains(item))
+            {
+                await DbFactory.AddItemAsync(item);
+                _newItems.Remove(item);
+            }
+            else
+            {
+                await DbFactory.UpdateItemAsync(item);
+            }
+
+            grid0.CancelEditRow(item); // exit edit mode
+            await NotifyAsync(NotificationSeverity.Success, "Saved", "Changes persisted.");
+            await ForceReload();
+        }
+        catch (Exception ex)
+        {
+            await NotifyAsync(NotificationSeverity.Error, "Save failed", ex.Message);
+        }
+    }
+
+    private void CancelRow(TItem item)
+    {
+        grid0.CancelEditRow(item);
+        if (_newItems.Remove(item))
+        {
+            // discard the inserted row from the grid's Data source if needed; reload is simplest
+            _ = ForceReload();
+        }
+    }
+
+    private async Task OnAddClick()
+    {
+        TItem newItem;
+
+        if (AddAction is not null)
+        {
+            // Let caller provide or handle item creation
+            newItem = await AddAction.Invoke();
+            if (newItem is null)
+            {
+                // Caller handled it (e.g., opened a dialog) – nothing to do here
+                return;
+            }
+        }
+        else
+        {
+            // Default inline add
+            newItem = new TItem();
+        }
+
+        _newItems.Add(newItem);
+
+        // Prepend to current data for immediate visibility
+        var list = data?.ToList() ?? new List<TItem>();
+        list.Insert(0, newItem);
+        data = list;
+
+        await grid0.EditRow(newItem);
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task DeleteRowAsync(TItem item)
+    {
+        try
+        {
+            var ok = await DialogService.Confirm("Delete this item?", "Confirm Delete");
+            if (ok != true) return;
+
+            await DbFactory.DeleteItemAsync(item);
+            await NotifyAsync(NotificationSeverity.Success, "Deleted", "Item removed.");
+            await ForceReload();
+        }
+        catch (Exception ex)
+        {
+            await NotifyAsync(NotificationSeverity.Error, "Delete failed", ex.Message);
+        }
+    }
+
+    private Task NotifyAsync(NotificationSeverity severity, string summary, string detail)
+    {
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = severity,
+            Summary = summary,
+            Detail = detail,
+            Duration = 4000
+        });
+        return Task.CompletedTask;
+    }
+}
