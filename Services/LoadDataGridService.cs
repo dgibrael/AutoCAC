@@ -25,9 +25,11 @@ namespace AutoCAC{
         public async Task<LoadDataResult<T>> ApplyLoadData<T>(
             IQueryable<T> query,
             LoadDataArgs args,
-            bool? shouldCount = null) // null = auto-detect
+            bool? shouldCount = null,
+            bool ignoreFilter = false
+            ) // null = auto-detect
         {
-            if (!string.IsNullOrEmpty(args.Filter))
+            if (!string.IsNullOrEmpty(args.Filter) && !ignoreFilter)
             {
                 query = query.Where(args.Filter);
             }

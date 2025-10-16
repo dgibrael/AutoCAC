@@ -1,6 +1,6 @@
 ﻿@page "/inpatient/adt"
 <AuthorizedGroups>
-	<VanillaDataGrid TItem="AutoCAC.Models.Adt"
+	<DataGridVanilla TItem="AutoCAC.Models.Adt"
 					 IncludeColumns="@(new List<string>{"EnteredDateTime", "Transaction", "Patient", "ChartNumber"
 						, "WardLocation", "RoomBed", "WardAtDischarge", "AttendingPhysician", "Diagnosis", "AdmitDateTime"
 						, "DischargeDateTime"})" />

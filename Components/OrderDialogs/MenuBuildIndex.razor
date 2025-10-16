@@ -20,7 +20,8 @@
         <RadzenColumn Size="12" SizeMD="6">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
                 <RadzenButton Icon="add_circle_outline" Text="Add" Click="@AddButtonClick" Variant="Variant.Flat" />
-                <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download"/>
+                <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" ButtonStyle="ButtonStyle.Base"/>
+                <RadzenButton Text="@(showAll ? "Show Mine" : "Show All")" Click="@ToggleShowAll" Icon="visibility" ButtonStyle="ButtonStyle.Base" />
             </RadzenStack>
         </RadzenColumn>
     </RadzenRow>
@@ -56,12 +57,17 @@
     protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
     private IQueryable<MenuBuildMetum> lastQry;
     private LoadDataArgs lastArgs;
+    private bool showAll = false;
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
         var query = DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>()
         .AsNoTracking()
         ;
+        if (!showAll)
+        {
+            query = query.Where(x => x.CreatedBy == UserContext.Username);
+        }
         lastQry = query;
         lastArgs = args;
         var result = await LoadDataGridService.ApplyLoadData(query, args, true);
@@ -69,6 +75,13 @@
         count = result.Count;
         await Layout.SetLoading(false);
     }
+
+    private async Task ToggleShowAll()
+    {
+        showAll = !showAll;
+        await grid0.FirstPage(true);
+    }
+
     private ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum> _filterChoices;
     
     private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.MenuBuildMetum> args)

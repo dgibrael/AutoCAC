@@ -108,6 +108,17 @@
                 }
             </RPMSOutput>
         }
+        @if (currentMenu?.RequestStatus!="READY FOR REVIEW")
+        {            
+            <RadzenButton Text="Mark Ready for Review" Style="text-transform: none;" Icon="check"
+                            ButtonStyle="ButtonStyle.Success"
+                            Click="@MarkEditComplete" />
+        }
+        else
+        {
+            <RadzenButton Text="Mark as Editing" Style="text-transform: none;" Icon="edit"
+                          Click="@(async () => await SaveMenuChanges())" />
+        }
     </RadzenRow>
 
     @* Grid with drag-and-drop *@
@@ -208,15 +219,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await GetCurrentMenu();
-        await GetNewItems(null);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await GetCurrentMenu(db);
+        await GetNewItems(db);
         editMode = false;
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task GetCurrentMenu()
+    private async Task GetCurrentMenu(mainContext db)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
         currentMenu = await db.MenuBuildMeta
                 //.Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
@@ -224,8 +235,9 @@
 
     private async Task ToggleEditAsync()
     {
-        await GetCurrentMenu();
-        await GetNewItems(null);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await GetCurrentMenu(db);
+        await GetNewItems(db);
         await InvokeAsync(StateHasChanged);
         editMode = !editMode;
     }
@@ -267,7 +279,7 @@
         }
 
         editMode = false;
-        await GetNewItems();
+        await SaveMenuChanges();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -284,20 +296,26 @@
         {
             additionalRows+=moveRows;
         }
-        await GetNewItems();
+        await SaveMenuChanges();
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task GetNewItems(string updateStatus = "CHANGES REQUESTED")
+    private async Task GetNewItems(mainContext db)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
         newItems = await db.MenuBuilds
             .Include(mb => mb.Item)
             .Where(mb => mb.MenuId == Id)
             .ToListAsync();
+    }
+
+    private async Task SaveMenuChanges(string updateStatus = "EDITS IN PROGRESS")
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await GetNewItems(db);
         if (!string.IsNullOrWhiteSpace(updateStatus))
         {
             await db.SetMenuBuildMetaStatusAsync(Id, updateStatus);
+            await GetCurrentMenu(db);
         }
     }
 
@@ -483,11 +501,11 @@
         bool success = await db.SaveChangesHandleConcurrencyAsync(NotificationService);
         if (!success)
         {
-            await GetNewItems(null);
+            await GetNewItems(db);
         }
         else
         {
-            await GetNewItems();
+            await SaveMenuChanges();
             await db.SetMenuBuildMetaStatusAsync(Id);
         }
         await InvokeAsync(StateHasChanged);
@@ -583,7 +601,7 @@
         }
 
         await DbFactory.ExecuteSqlTransactionsAsync(commands);
-        await GetNewItems();
+        await SaveMenuChanges();
 
         dragSourceItem = null;
         await InvokeAsync(StateHasChanged);
@@ -612,11 +630,17 @@
                                           Where id={selectedMenu.Id}"
             };
             await DbFactory.ExecuteSqlTransactionsAsync(commands);
-            await GetNewItems();
+            await SaveMenuChanges();
             currentMenu.Columns = ((byte)newItems.Max(x => x.ColNum));
             await SaveMenuMeta();
             additionalRows = 1;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task MarkEditComplete()
+    {
+        await SaveMenuChanges("READY FOR REVIEW");
+        NavigationManager.NavigateTo($"/menubuild/");
     }
 }

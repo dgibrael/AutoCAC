@@ -71,6 +71,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[PI_Verification]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[PI_VerificationComment]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[InpatientMedOrder]",
          "ObjectType": 3
       },

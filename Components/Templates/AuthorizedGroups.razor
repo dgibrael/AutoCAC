@@ -1,6 +1,6 @@
 ﻿@inject AutoCAC.Services.UserContextService UserContext
 
-@if(UserContext is null)
+@if(UserContext?.UserProfile == null)
 {
     <h4>Loading...</h4>
 }
@@ -30,15 +30,20 @@ else
 
     private bool isAuthorized;
 
-    protected override void OnParametersSet()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (Groups!=null)
+        if (firstRender)
         {
-            isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
-        }
-        else
-        {
-            isAuthorized = ClinicalUsers ? UserContext.IsClinical() : UserContext.IsInGroupOrSuperuser();
+            await UserContext.InitializeAsync();
+            if (Groups != null)
+            {
+                isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
+            }
+            else
+            {
+                isAuthorized = ClinicalUsers ? UserContext.IsClinical() : UserContext.IsInGroupOrSuperuser();
+            }
+            await InvokeAsync(StateHasChanged);
         }
     }
     private string GetUnauthorizedMessage()

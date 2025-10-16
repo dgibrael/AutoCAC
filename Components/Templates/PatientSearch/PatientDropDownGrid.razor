@@ -1,0 +1,38 @@
+﻿@using AutoCAC
+@using Radzen
+@inject LoadDataGridService DataService
+@inject IDbContextFactory<AutoCAC.Models.mainContext> Db
+<RadzenDropDownDataGrid TValue="int"
+                        Data="@patients"
+                        Count="@count"
+                        TextProperty="Name"
+                        ValueProperty="Id"
+                        AllowFiltering="true"
+                        LoadData="@LoadDataAsync"
+                        Style="width: 100%;"
+                        @bind-Value="Value">
+    <Columns>
+        <RadzenDropDownDataGridColumn Property="ChartNumber" Title="Chart #" />
+        <RadzenDropDownDataGridColumn Property="Name" Title="Name" />
+    </Columns>
+</RadzenDropDownDataGrid>
+
+@code {
+    [Parameter] public int Value { get; set; }
+    [Parameter] public EventCallback<int> ValueChanged { get; set; }
+
+    private IEnumerable<AutoCAC.Models.Patient> patients;
+    private int count;
+
+    private async Task LoadDataAsync(LoadDataArgs args)
+    {
+        var query = Db.QueryFromObj<AutoCAC.Models.Patient>().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(args.Filter))
+        {
+            query = query.Where(x => x.Name.Contains(args.Filter) || x.ChartNumber.Contains(args.Filter));
+        }
+        var result = await DataService.ApplyLoadData(query, args, true, ignoreFilter: true);
+        patients = result.Data;
+        count = result.Count;
+    }
+}

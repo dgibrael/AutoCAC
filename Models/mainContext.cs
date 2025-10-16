@@ -45,6 +45,10 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
+    public virtual DbSet<PiVerification> PiVerifications { get; set; }
+
+    public virtual DbSet<PiVerificationComment> PiVerificationComments { get; set; }
+
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -445,6 +449,62 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Schedule).IsUnicode(false);
             entity.Property(e => e.ScheduleType).IsUnicode(false);
             entity.Property(e => e.Synonym).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<PiVerification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__PI_Verif__3213E83FC31227B3");
+
+            entity.ToTable("PI_Verification");
+
+            entity.HasIndex(e => e.PatientId, "PI_Verification_patient_id_idx");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Bin).HasMaxLength(10);
+            entity.Property(e => e.CardholderId)
+                .HasMaxLength(100)
+                .HasColumnName("CardholderID");
+            entity.Property(e => e.CompletedBy).HasMaxLength(255);
+            entity.Property(e => e.CreatedBy).HasMaxLength(255);
+            entity.Property(e => e.CurrentStatus)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasDefaultValue("NEW");
+            entity.Property(e => e.GroupId)
+                .HasMaxLength(100)
+                .HasColumnName("GroupID");
+            entity.Property(e => e.PatientId).HasColumnName("patient_id");
+            entity.Property(e => e.Pcn).HasMaxLength(50);
+            entity.Property(e => e.SubmittedBy).HasMaxLength(255);
+            entity.Property(e => e.VerifiedBy).HasMaxLength(255);
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.PiVerifications)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PI_Verification_patient_id");
+        });
+
+        modelBuilder.Entity<PiVerificationComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__PI_Verif__3213E83FB70B60E0");
+
+            entity.ToTable("PI_VerificationComment");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Comment).IsUnicode(false);
+            entity.Property(e => e.CommentStep)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedBy)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.PiVerificationId).HasColumnName("PI_Verification_id");
+
+            entity.HasOne(d => d.PiVerification).WithMany(p => p.PiVerificationComments)
+                .HasForeignKey(d => d.PiVerificationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PI_VerificationComment_PI_Verification");
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

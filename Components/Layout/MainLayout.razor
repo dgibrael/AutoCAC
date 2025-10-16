@@ -25,7 +25,7 @@
             </RadzenColumn>
             <RadzenColumn Size="7">
                 <RadzenStack AlignItems="AlignItems.Center" Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-px-2">
-                    <RadzenAppearanceToggle />
+                    <RadzenLink Icon="settings" Path="/settings" />
                 </RadzenStack>
             </RadzenColumn>
         </RadzenRow>
@@ -70,6 +70,9 @@
                 {
                     <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 }
+                <RadzenPanelMenuItem Text="Settings" Icon="settings" >
+                    <RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />
+                </RadzenPanelMenuItem>
             }
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">

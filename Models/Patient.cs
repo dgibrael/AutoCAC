@@ -54,4 +54,6 @@ public partial class Patient
     public string? Last4 { get; set; }
 
     public virtual ICollection<Adt> Adts { get; set; } = new List<Adt>();
+
+    public virtual ICollection<PiVerification> PiVerifications { get; set; } = new List<PiVerification>();
 }

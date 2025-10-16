@@ -2,7 +2,7 @@
 @using AutoCAC.Models
 @inject DialogService DialogService
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-<EditableDataGrid TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync">
+<DataGridEditable TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync">
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Staff User" />
 
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="Department" Title="Department">
@@ -46,7 +46,7 @@
                               Style="width:100%" />
         </EditTemplate>
     </RadzenDataGridColumn>
-</EditableDataGrid>
+</DataGridEditable>
 </AuthorizedGroups>
 @code {
     private async Task<NurseCompoundTraining> AddNurseTrainingAsync()

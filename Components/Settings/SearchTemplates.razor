@@ -1,0 +1,34 @@
+﻿@page "/settings/searchtemplates"
+@using AutoCAC.Models
+@inject DialogService DialogService
+@inject IDbContextFactory<mainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
+@inject NavigationManager NavigationManager
+<PageTitle>Search Template Settings</PageTitle>
+<RadzenLink Path="/settings" Icon="arrow_back" Text="Back to Settings Home"/>
+<DataGridEditable TItem="DataGridTemplate" QueryFactory="@QueryFactory"
+                  DataGridName="DataGridTemplate">
+    <HeaderButtons />
+    <ChildContent>
+        <RadzenDataGridColumn TItem="DataGridTemplate" Property="TemplateName" Title="Template Name">
+            <EditTemplate Context="r">
+                <RadzenTextBox @bind-Value="r.TemplateName" Style="width:100%" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DataGridTemplate" Property="IsShared" Title="Shared">
+            <EditTemplate Context="r">
+                <RadzenCheckBox @bind-Value="r.IsShared" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="DataGridTemplate" Property="DataGridName" Title="Table Name" />
+    </ChildContent>
+</DataGridEditable>
+
+@code {
+    private IQueryable<DataGridTemplate> QueryFactory()
+    {
+        IQueryable<DataGridTemplate> qry = DbFactory.QueryFromObj<DataGridTemplate>().AsNoTracking();
+        return qry.Where(x => x.CreatedBy == UserContext.Username);
+    }
+}
+

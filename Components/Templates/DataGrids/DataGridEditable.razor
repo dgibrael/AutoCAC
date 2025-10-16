@@ -15,19 +15,26 @@
 @using AutoCAC.Extensions
 @using System.Text.Json
 
-<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-    <RadzenButton Icon="add_circle_outline"
-                  Text="Add"
-                  Click="@OnAddClick"
-                  Variant="Variant.Flat" />
-    <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
-        <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
-        <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
-    </RadzenSplitButton>
-    <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
-</RadzenStack>
 
+@if (HeaderButtons==null)
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
+        <RadzenButton Icon="add_circle_outline"
+                      Text="Add"
+                      Click="@OnAddClick"
+                      Variant="Variant.Flat" />
+        <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
+        <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
+            <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
+            <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
+        </RadzenSplitButton>
+        <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
+    </RadzenStack>
+}
+else
+{
+    @HeaderButtons
+}
 <RadzenDataGrid @ref="grid0"
                 Data="data"
                 Count="count"
@@ -51,21 +58,35 @@
             <Template Context="item">
                 @if (grid0.IsRowInEditMode(item))
                 {
-                    <RadzenButton Icon="check"
-                                  Variant="Variant.Flat"
-                                  Click="@(() => SaveRowAsync(item))" />
-                    <RadzenButton Icon="close"
-                                  ButtonStyle="ButtonStyle.Light"
-                                  Variant="Variant.Flat"
-                                  Click="@(() => CancelRow(item))" />
+                    if (RowButtonsEditMode!=null)
+                    {
+                        @RowButtonsEditMode
+                    }
+                    else
+                    {                        
+                        <RadzenButton Icon="check"
+                                      Variant="Variant.Flat"
+                                      Click="@(() => SaveRowAsync(item))" />
+                        <RadzenButton Icon="close"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Variant="Variant.Flat"
+                        Click="@(() => CancelRow(item))" />
+                    }
                 }
                 else
                 {
-                    <RadzenButton Icon="edit"
-                                  Variant="Variant.Flat"
-                                  Click="@(() => EditRow(item))" />
-                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat"
-                                  Click="@(() => DeleteRowAsync(item))" />
+                    if (RowButtonsViewMode!=null)
+                    {
+                        @RowButtonsViewMode
+                    }
+                    else
+                    {                        
+                        <RadzenButton Icon="edit"
+                                      Variant="Variant.Flat"
+                                      Click="@(() => EditRow(item))" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat"
+                                      Click="@(() => DeleteRowAsync(item))" />
+                    }
                 }
             </Template>
         </RadzenDataGridColumn>
@@ -74,6 +95,9 @@
 
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment HeaderButtons { get; set; }
+    [Parameter] public RenderFragment RowButtonsEditMode { get; set; }
+    [Parameter] public RenderFragment RowButtonsViewMode { get; set; }
     [Parameter] public string DataGridName { get; set; }
 
     /// <summary>
@@ -212,7 +236,7 @@
             }
 
             grid0.CancelEditRow(item); // exit edit mode
-            await NotifyAsync(NotificationSeverity.Success, "Saved", "Changes persisted.");
+            await NotifyAsync(NotificationSeverity.Success, "Saved", "Changes successfully saved.");
             await ForceReload();
         }
         catch (Exception ex)
