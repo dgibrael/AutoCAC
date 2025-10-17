@@ -5,72 +5,71 @@
 @using AutoCAC.Components.Templates.PatientSearch
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 <PageTitle>Private Insurance Verification</PageTitle>
+<div class="content-container--wide">
+    <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
+        <DataGridEditable TItem="PiVerification" AddAction="AddRecordAsync" QueryFactory="@QueryFactory">
+            <ChildContent>
+                <RadzenDataGridColumn TItem="PiVerification" Property="PatientId" Title="Patient" FilterProperty="Patient.Name">
+                    <Template Context="x">
+                        @x?.Patient?.Name
+                    </Template>
+                    <EditTemplate Context="r">
+                        <PatientDropDownGrid @bind-Value="r.PatientId" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px">
+                    <EditTemplate Context="t">
+                        <RadzenDropDown TValue="string" Data="@statusChoices" @bind-Value="t.CurrentStatus" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
 
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-    <DataGridEditable TItem="PiVerification" AddAction="AddRecordAsync" QueryFactory="@QueryFactory">
-        <RadzenDataGridColumn TItem="PiVerification" Property="PatientId" Title="Patient" FilterProperty="Patient.Name">
-            <Template Context="x">
-                @x?.Patient?.Name
-            </Template>
-            <EditTemplate Context="r">
-                <PatientDropDownGrid @bind-Value="r.PatientId" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status">
-            <Template Context="t">
+                <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px">
+                    <EditTemplate Context="r">
+                        <RadzenTextBox @bind-Value="r.Bin" Style="width:100%" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN">
+                    <EditTemplate Context="r">
+                        <RadzenTextBox @bind-Value="r.Pcn" Style="width:100%" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID">
+                    <EditTemplate Context="r">
+                        <RadzenTextBox @bind-Value="r.GroupId" Style="width:100%" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID">
+                    <EditTemplate Context="r">
+                        <RadzenTextBox @bind-Value="r.CardholderId" Style="width:100%" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified"/>
+            </ChildContent>
+            <RowButtonsViewMode Context="t">
                 @{
                     string curStatus = t.CurrentStatus;
                     string nextStatus = statusChoices.Next(curStatus);
                     string prevStatus = statusChoices.Previous(curStatus);
                 }
-                <RadzenStack Orientation="Orientation.Horizontal">
-                    @if(curStatus != "New")
-                    {
-                        <div title="move back">
-                            <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Warning"/>
-                        </div>
-                    }
-                    @if(curStatus != "Completed")
-                    {
-                        <div title="Complete">
-                            <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Success"/>
-                        </div>
-                    }
-                </RadzenStack>
-            </Template>
-        </RadzenDataGridColumn>
-
-        <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN">
-            <EditTemplate Context="r">
-                <RadzenTextBox @bind-Value="r.Bin" Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-
-        <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN">
-            <EditTemplate Context="r">
-                <RadzenTextBox @bind-Value="r.Pcn" Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-
-        <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID">
-            <EditTemplate Context="r">
-                <RadzenTextBox @bind-Value="r.GroupId" Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-
-        <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID">
-            <EditTemplate Context="r">
-                <RadzenTextBox @bind-Value="r.CardholderId" Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-
-        <RadzenDataGridColumn TItem="PiVerification" Property="CreatedBy" Title="Created By" />
-        <RadzenDataGridColumn TItem="PiVerification" Property="SubmittedBy" Title="Submitted By"/>
-        <RadzenDataGridColumn TItem="PiVerification" Property="VerifiedBy" Title="Verified By"/>
-        <RadzenDataGridColumn TItem="PiVerification" Property="CompletedBy" Title="Completed By" />
-        <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified"/>
-    </DataGridEditable>
-</AuthorizedGroups>
+                @if(curStatus != "New")
+                {
+                    <span title="move back">
+                        <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Warning" Variant="Variant.Flat" />
+                    </span>
+                }
+                @if(curStatus != "Completed")
+                {
+                    <span title="Complete">
+                        <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" />
+                    </span>
+                }
+            </RowButtonsViewMode>
+        </DataGridEditable>
+    </AuthorizedGroups>
+</div>
 
 @code {
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
@@ -84,9 +83,10 @@
     {
         return Task.FromResult(new PiVerification
         {
-            LastModified = DateTime.UtcNow,
+            LastModified = DateTime.Now,
             CurrentStatus = "New",
-            CreatedBy = UserContext.Username
+            CreatedBy = UserContext.Username,
+            CreatedAt = DateTime.Now
         });
     }
 }

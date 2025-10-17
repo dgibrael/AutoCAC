@@ -47,46 +47,37 @@ else
                 PageSize="10"
                 AllowSorting="true"
                 AllowColumnResize="true"
+                AllowColumnReorder="true"
                 ColumnWidth="200px"
                 ShowPagingSummary="true"
                 PageSizeOptions=@(new int[]{5,10,20,30,50})
                 @bind-Settings="Settings"
-                EditMode="DataGridEditMode.Single">
+                EditMode="DataGridEditMode.Single"
+                Style="max-width: 100%; margin-left: 5px; margin-right: 5px"
+                >
     <Columns>
         @ChildContent
         <RadzenDataGridColumn TItem="TItem" Width="180px" Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
-            <Template Context="item">
-                @if (grid0.IsRowInEditMode(item))
+            <EditTemplate Context="item">
+                @if (RowButtonsEditMode!=null)
                 {
-                    if (RowButtonsEditMode!=null)
-                    {
-                        @RowButtonsEditMode
-                    }
-                    else
-                    {                        
-                        <RadzenButton Icon="check"
-                                      Variant="Variant.Flat"
-                                      Click="@(() => SaveRowAsync(item))" />
-                        <RadzenButton Icon="close"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      Variant="Variant.Flat"
-                        Click="@(() => CancelRow(item))" />
-                    }
+                    @RowButtonsEditMode(item)
                 }
-                else
+                @if (DefaultRowButtonsEditMode)
+                {                        
+                    <span title="save"><RadzenButton Icon="check" Variant="Variant.Flat" Click="@(() => SaveRowAsync(item))" /></span>
+                    <span title="cancel"><RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Click="@(() => CancelRow(item))" /></span>
+                }
+            </EditTemplate>
+            <Template Context="item">
+                @if (RowButtonsViewMode!=null)
                 {
-                    if (RowButtonsViewMode!=null)
-                    {
-                        @RowButtonsViewMode
-                    }
-                    else
-                    {                        
-                        <RadzenButton Icon="edit"
-                                      Variant="Variant.Flat"
-                                      Click="@(() => EditRow(item))" />
-                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat"
-                                      Click="@(() => DeleteRowAsync(item))" />
-                    }
+                    @RowButtonsViewMode(item)
+                }
+                @if (DefaultRowButtonsViewMode)
+                {
+                    <span title="edit"><RadzenButton Icon="edit" Variant="Variant.Flat" Click="@(() => EditRow(item))" /></span>
+                    <span title="delete"><RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Click="@(() => DeleteRowAsync(item))" /></span>
                 }
             </Template>
         </RadzenDataGridColumn>
@@ -96,8 +87,10 @@ else
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public RenderFragment HeaderButtons { get; set; }
-    [Parameter] public RenderFragment RowButtonsEditMode { get; set; }
-    [Parameter] public RenderFragment RowButtonsViewMode { get; set; }
+    [Parameter] public RenderFragment<TItem> RowButtonsEditMode { get; set; }
+    [Parameter] public RenderFragment<TItem> RowButtonsViewMode { get; set; }
+    [Parameter] public bool DefaultRowButtonsViewMode { get; set; } = true;
+    [Parameter] public bool DefaultRowButtonsEditMode { get; set; } = true;
     [Parameter] public string DataGridName { get; set; }
 
     /// <summary>

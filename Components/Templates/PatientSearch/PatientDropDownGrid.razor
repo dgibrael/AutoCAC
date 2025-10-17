@@ -10,7 +10,8 @@
                         AllowFiltering="true"
                         LoadData="@LoadDataAsync"
                         Style="width: 100%;"
-                        @bind-Value="Value">
+                        Value="@Value"
+                        ValueChanged="OnValueChanged">
     <Columns>
         <RadzenDropDownDataGridColumn Property="ChartNumber" Title="Chart #" />
         <RadzenDropDownDataGridColumn Property="Name" Title="Name" />
@@ -20,6 +21,12 @@
 @code {
     [Parameter] public int Value { get; set; }
     [Parameter] public EventCallback<int> ValueChanged { get; set; }
+
+    private async Task OnValueChanged(int v)
+    {
+        Value = v;
+        await ValueChanged.InvokeAsync(v); // forward to parent
+    }
 
     private IEnumerable<AutoCAC.Models.Patient> patients;
     private int count;

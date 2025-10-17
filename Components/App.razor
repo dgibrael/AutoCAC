@@ -24,6 +24,14 @@
         .xterm .xterm-viewport::-webkit-scrollbar-thumb {
             background-color: #888;
         }
+
+        .content-container {
+            max-width: 1440px;
+        }
+
+        .content-container:has(.content-container--wide) {
+            max-width: 90%;
+        }
     </style>
     <HeadOutlet @rendermode="@InteractiveServer" />
 </head>
