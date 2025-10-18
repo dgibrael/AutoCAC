@@ -1,25 +1,27 @@
 ﻿@page "/piverify"
 @using AutoCAC.Models
 @inject DialogService DialogService
+@inject NavigationManager Nav
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Components.Templates.PatientSearch
+@using AutoCAC.Components.Templates
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
-    <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-        <DataGridEditable TItem="PiVerification" AddAction="AddRecordAsync" QueryFactory="@QueryFactory">
+    <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
+        <DataGridEditable @ref="@grid" TItem="PiVerification" AddAction="AddRecordAsync" QueryFactory="@QueryFactory" SearchColumns="@(new[] { "Patient.Name" })">
             <ChildContent>
                 <RadzenDataGridColumn TItem="PiVerification" Property="PatientId" Title="Patient" FilterProperty="Patient.Name">
                     <Template Context="x">
                         @x?.Patient?.Name
                     </Template>
                     <EditTemplate Context="r">
-                        <PatientDropDownGrid @bind-Value="r.PatientId" />
+                        <PatientDropDownGrid @bind-Value="r.PatientId" @bind-Value:after="@(() => OnPatientSelect(r))" />
                     </EditTemplate>
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px">
                     <EditTemplate Context="t">
-                        <RadzenDropDown TValue="string" Data="@statusChoices" @bind-Value="t.CurrentStatus" />
+                        <RadzenDropDown TValue="string" Data="@statusChoices" @bind-Value="t.CurrentStatus" Style="width:100%" />
                     </EditTemplate>
                 </RadzenDataGridColumn>
 
@@ -29,13 +31,13 @@
                     </EditTemplate>
                 </RadzenDataGridColumn>
 
-                <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN">
+                <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="150px">
                     <EditTemplate Context="r">
                         <RadzenTextBox @bind-Value="r.Pcn" Style="width:100%" />
                     </EditTemplate>
                 </RadzenDataGridColumn>
 
-                <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID">
+                <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px">
                     <EditTemplate Context="r">
                         <RadzenTextBox @bind-Value="r.GroupId" Style="width:100%" />
                     </EditTemplate>
@@ -67,17 +69,58 @@
                     </span>
                 }
             </RowButtonsViewMode>
+            <ExpandContentBoth Context="x">
+                @{
+                    if (x?.PatientId == null || x?.PatientId == 0)
+                    {
+                        <span>Select a patient to add comments</span>
+                    }
+                    else
+                    {
+                        <RadzenButton ButtonType="ButtonType.Button" Text="Add Comment" Icon="add_circle_outline" Click="@(() => OnAddCommentClick(x))" />
+                        var commentlst = x?.PiVerificationComments?.OrderByDescending(o => o?.CreatedAt);
+                        if (commentlst!=null && commentlst.Any())
+                        {
+                            <ul style="list-style-type: none;">
+                                @foreach(var c in commentlst)
+                                {
+                                    <li>
+                                        <span>@c.Comment 
+                                        <i>@c.CreatedBy</i> 
+                                        <i>@c.CreatedAt.ToString("MM/dd/yyyy HH:mm")</i>
+                                            @if (c.CreatedBy == currentUsername)
+                                            {
+                                                <DeleteButton Item="c" AfterDelete="@(() => AfterCommentDelete(x))" />
+                                            }
+                                        </span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    }
+                }
+            </ExpandContentBoth>
         </DataGridEditable>
     </AuthorizedGroups>
 </div>
 
 @code {
+    private string currentUsername;
+    private DataGridEditable<PiVerification> grid;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {            
+            await UserContext.InitializeAsync();
+            currentUsername = UserContext.Username;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
     private IQueryable<AutoCAC.Models.PiVerification> QueryFactory()
     {
         IQueryable<AutoCAC.Models.PiVerification> qry = DbFactory.QueryFromObj<AutoCAC.Models.PiVerification>().AsNoTracking();
         return qry.Include(x => x.Patient).Include(x => x.PiVerificationComments);
-
     }
     private Task<PiVerification> AddRecordAsync()
     {
@@ -88,5 +131,49 @@
             CreatedBy = UserContext.Username,
             CreatedAt = DateTime.Now
         });
+    }
+    private async Task OnAddCommentClick(PiVerification item)
+    {
+        var txt = await DialogService.TextPromptAsync($"Adding comment for {item.Patient.Name}", item.Patient.Name);
+        if (!string.IsNullOrWhiteSpace(txt))
+        {
+            PiVerificationComment comment = new PiVerificationComment
+                {
+                    PiVerificationId = item.Id,
+                    Comment = txt,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = UserContext.Username,
+                    CommentStep = item.CurrentStatus
+                };
+            await DbFactory.AddItemAsync(comment);
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            item.PiVerificationComments = await ctx.PiVerificationComments
+                .Where(c => c.PiVerificationId == item.Id)
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+            StateHasChanged();
+        }
+    }
+    private async Task AfterCommentDelete(PiVerification item)
+    {
+        await using var ctx = await DbFactory.CreateDbContextAsync();
+        item.PiVerificationComments = await ctx.PiVerificationComments
+            .Where(c => c.PiVerificationId == item.Id)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task OnPatientSelect(PiVerification item)
+    {
+        if (item?.Id == null || item?.Id == 0)
+        {
+            await grid.SaveRowAsync(item, false);
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            var refreshed = await ctx.PiVerifications
+                .Include(p => p.Patient)
+                .FirstAsync(p => p.Id == item.Id);
+            item.Patient = refreshed.Patient;
+        }
     }
 }

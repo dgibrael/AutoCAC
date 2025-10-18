@@ -21,6 +21,12 @@
 @using System.Reflection
 
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
+    @if (SearchColumns != null)
+    {
+    <RadzenColumn Size="4">
+        <QuickSearch @bind-Value="_searchText" @bind-Value:after="ForceReload" />
+    </RadzenColumn>
+        }
     @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
     {
         <RadzenButton Icon="add_circle_outline"
@@ -39,8 +45,11 @@
                 LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
                 AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
                 AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
-                PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
-                AllowColumnPicking="true" ShowPagingSummary="true">
+                PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) 
+                AllowGrouping="true"  AllowCompositeDataCells="true"
+                AllowColumnPicking="true" ShowPagingSummary="true"
+                ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
+                >
     <Columns>
         @if (ActionColumnDefault)
         {
@@ -73,13 +82,40 @@
                                         Title="@prop.Name" />
             }
         }
+        @if (AdditionalColumns is not null)
+        {
+            @AdditionalColumns
+        }
     </Columns>
+    <Template Context="item">
+        @if (ExpandContentView is not null)
+        {
+            @ExpandContentView(item)
+        }
+        @if (ExpandContentBoth is not null)
+        {
+            @ExpandContentBoth(item)
+        }
+    </Template>
+
+    <EditTemplate Context="item">
+        @if (ExpandContentEdit is not null)
+        {
+            @ExpandContentEdit(item)
+        }
+        @if (ExpandContentBoth is not null)
+        {
+            @ExpandContentBoth(item)
+        }
+    </EditTemplate>
 </RadzenDataGrid>
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     [Parameter] public RenderFragment ChildContent { get; set; }
-    [Parameter] public RenderFragment RowContent { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
+    [Parameter] public RenderFragment AdditionalColumns { get; set; }
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public string AddButtonUrl { get; set; }
@@ -92,6 +128,8 @@
     [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
+    [Parameter] public string[] SearchColumns { get; set; }
+    private string _searchText;
     protected IEnumerable<TItem> data;
     protected int count = 0;
     public RadzenDataGrid<TItem> grid0;
@@ -119,7 +157,8 @@
         {
             var query = (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>())
                 .AsNoTracking();
-
+            if (!string.IsNullOrWhiteSpace(_searchText) && SearchColumns?.Length > 0)
+                query = query.QuickSearch(_searchText, SearchColumns);
             lastQry = query;
             lastArgs = args;
 
@@ -200,6 +239,12 @@
         await db.UpsertDataGridTemplate(templateName, PageName, UserContext.Username, Settings, isPublic);
     }
 
+    public async Task SetQuickFilter(string filterText = "")
+    {
+        _searchText = filterText;
+        await ForceReload();
+    }
+
     public async Task ForceReload()
     {
         ShouldCount = true;
@@ -217,4 +262,5 @@
             NavigationManager.NavigateTo(AddButtonUrl);
         }
     }
+
 }

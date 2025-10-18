@@ -49,6 +49,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<PiVerificationComment> PiVerificationComments { get; set; }
 
+    public virtual DbSet<Tiu> Tius { get; set; }
+
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -465,6 +467,7 @@ public partial class mainContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("CardholderID");
             entity.Property(e => e.CompletedBy).HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.CreatedBy).HasMaxLength(255);
             entity.Property(e => e.CurrentStatus)
                 .HasMaxLength(255)
@@ -503,8 +506,36 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.PiVerification).WithMany(p => p.PiVerificationComments)
                 .HasForeignKey(d => d.PiVerificationId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PI_VerificationComment_PI_Verification");
+        });
+
+        modelBuilder.Entity<Tiu>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__TIU__3213E83F134EACEB");
+
+            entity.ToTable("TIU");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.Author).IsUnicode(false);
+            entity.Property(e => e.Division).IsUnicode(false);
+            entity.Property(e => e.DocumentType).IsUnicode(false);
+            entity.Property(e => e.EntryDateTime).HasColumnType("datetime");
+            entity.Property(e => e.HospitalLocation).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.StaffId)
+                .IsUnicode(false)
+                .HasColumnName("StaffID");
+            entity.Property(e => e.VisitDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VisitId)
+                .IsUnicode(false)
+                .HasColumnName("VisitID");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Tius)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Tiu_Patient");
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

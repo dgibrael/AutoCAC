@@ -1,6 +1,6 @@
 ﻿@page "/inpatient/adt"
 <AuthorizedGroups>
-	<DataGridVanilla TItem="AutoCAC.Models.Adt"
+	<DataGridVanilla TItem="AutoCAC.Models.Adt" SearchColumns="@(new[] { "Patient", "ChartNumber", "AttendingPhysician", "WardLocation", "WardAtDischarge" })"
 					 IncludeColumns="@(new List<string>{"EnteredDateTime", "Transaction", "Patient", "ChartNumber"
 						, "WardLocation", "RoomBed", "WardAtDischarge", "AttendingPhysician", "Diagnosis", "AdmitDateTime"
 						, "DischargeDateTime"})" />

@@ -65,10 +65,12 @@
                         <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder" />
                         <RadzenPanelMenuItem Text="ADT" Path="inpatient/adt" />
                     </RadzenPanelMenuItem>
-                }
-                if(UserContext.IsInGroupOrSuperuser())
-                {
+                    <RadzenPanelMenuItem Text="Notes" Path="notes" Icon="notes" />
                     <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
+                }
+                if(UserContext.IsInGroupOrSuperuser("PharmacyTech","Pharmacist","PharamcytechSupervisor","PharmacistSupervisor", "InsuranceVerifier"))
+                {
+                    <RadzenPanelMenuItem Text="Private Insurance Verification" Path="piverify" Icon="credit_card" />
                 }
                 <RadzenPanelMenuItem Text="Settings" Icon="settings" >
                     <RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />

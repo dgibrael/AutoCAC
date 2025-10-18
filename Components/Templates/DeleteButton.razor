@@ -1,0 +1,54 @@
+﻿@typeparam TItem where TItem : class
+@inject DialogService DialogService
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService Notifications
+
+<RadzenButton Icon="delete"
+              ButtonStyle="ButtonStyle.Danger"
+              Disabled="@_busy"
+              Size="ButtonSize.Small"
+              Click="@OnDeleteAsync"
+              class="ml-1"
+              aria-label="Delete" />
+
+@code {
+    [Parameter] public TItem Item { get; set; }
+    [Parameter] public EventCallback AfterDelete { get; set; }
+    bool _busy;
+
+    async Task OnDeleteAsync()
+    {
+        if (_busy || Item is null) return;
+
+        var confirm = await DialogService.Confirm("Are you sure you want to delete?");
+
+        if (confirm != true) return;
+
+        _busy = true;
+        try
+        {
+            await DbFactory.DeleteItemAsync(Item);
+            Notifications.Notify(new NotificationMessage
+            {
+                Summary = "Deleted",
+                Duration = 2500
+            });
+            await AfterDelete.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Notifications.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Delete failed",
+                Detail = ex.Message,
+                Duration = 5000
+            });
+        }
+        finally
+        {
+            _busy = false;
+            StateHasChanged();
+        }
+    }
+}

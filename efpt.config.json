@@ -79,6 +79,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[TIU]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[InpatientMedOrder]",
          "ObjectType": 3
       },

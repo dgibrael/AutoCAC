@@ -1,0 +1,42 @@
+﻿<RadzenTextBox @bind-Value="Value"
+               Placeholder="Quick search..."
+               Style="width:100%"
+               @oninput="OnInput"
+               @onkeypress="OnKeyPress"
+               type="search"/>
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    private System.Timers.Timer searchDebounceTimer;
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? string.Empty;
+        Value = input;
+
+        searchDebounceTimer?.Stop();
+        searchDebounceTimer?.Dispose();
+
+        searchDebounceTimer = new System.Timers.Timer(500);
+        searchDebounceTimer.Elapsed += async (_, _) =>
+        {
+            searchDebounceTimer.Dispose();
+            await InvokeAsync(async () =>
+            {
+                await InvokeAsync(() => ValueChanged.InvokeAsync(Value));
+            });
+        };
+        searchDebounceTimer.AutoReset = false;
+        searchDebounceTimer.Start();
+    }
+
+    private async Task OnKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            searchDebounceTimer?.Stop();
+            await InvokeAsync(() => ValueChanged.InvokeAsync(Value));
+        }
+    }
+
+}

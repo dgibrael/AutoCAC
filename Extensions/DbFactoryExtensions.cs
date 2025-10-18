@@ -162,11 +162,35 @@ namespace AutoCAC.Extensions
             CancellationToken cancellationToken = default)
             where TEntity : class
         {
+            // 1. Remove navigation objects before attaching
+            var type = typeof(TEntity);
+            foreach (var prop in type.GetProperties())
+            {
+                // skip collections, keep only reference navigations
+                if (!prop.PropertyType.IsValueType &&
+                    prop.PropertyType != typeof(string))
+                {
+                    prop.SetValue(item, null);
+                }
+            }
+
+            // 2. Normal EF attach/update
             await using var db = await factory.CreateDbContextAsync(cancellationToken);
+
             db.Attach(item);
-            db.Entry(item).State = EntityState.Modified;
+            var entry = db.Entry(item);
+
+            // 3. Mark only non-key scalars (including FKs) as modified
+            foreach (var propMeta in entry.Metadata.GetProperties())
+            {
+                if (!propMeta.IsPrimaryKey())
+                    entry.Property(propMeta.Name).IsModified = true;
+            }
+
             await db.SaveChangesAsync(cancellationToken);
         }
+
+
     }
 }
 

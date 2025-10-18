@@ -2,7 +2,7 @@
 @using Radzen
 @inject LoadDataGridService DataService
 @inject IDbContextFactory<AutoCAC.Models.mainContext> Db
-<RadzenDropDownDataGrid TValue="int"
+<RadzenDropDownDataGrid TValue="int" @ref="grid0"
                         Data="@patients"
                         Count="@count"
                         TextProperty="Name"
@@ -11,7 +11,10 @@
                         LoadData="@LoadDataAsync"
                         Style="width: 100%;"
                         Value="@Value"
-                        ValueChanged="OnValueChanged">
+                        ValueChanged="OnValueChanged"
+                        ValueExpression="@(()=> Value)"
+                        SearchText="@initialFilter"
+                        SearchTextChanged="@(t => initialFilter = t)">
     <Columns>
         <RadzenDropDownDataGridColumn Property="ChartNumber" Title="Chart #" />
         <RadzenDropDownDataGridColumn Property="Name" Title="Name" />
@@ -19,8 +22,11 @@
 </RadzenDropDownDataGrid>
 
 @code {
-    [Parameter] public int Value { get; set; }
+    [Parameter] public int Value { get; set; } = 0;
     [Parameter] public EventCallback<int> ValueChanged { get; set; }
+    protected RadzenDropDownDataGrid<int> grid0;
+    private string initialFilter;
+    private bool initialRender = true;
 
     private async Task OnValueChanged(int v)
     {
@@ -34,7 +40,12 @@
     private async Task LoadDataAsync(LoadDataArgs args)
     {
         var query = Db.QueryFromObj<AutoCAC.Models.Patient>().AsQueryable();
-        if (!string.IsNullOrWhiteSpace(args.Filter))
+        if (initialRender && Value!=0)
+        {
+            initialFilter = await Db.GetFirstValueAsync("Select Name From Patient Where id = @Value", new { Value });
+            query = query.Where(x => x.Name.Contains(initialFilter) || x.ChartNumber.Contains(initialFilter));
+        }
+        else if (!string.IsNullOrWhiteSpace(args.Filter))
         {
             query = query.Where(x => x.Name.Contains(args.Filter) || x.ChartNumber.Contains(args.Filter));
         }
