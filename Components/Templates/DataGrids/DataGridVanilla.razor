@@ -30,12 +30,12 @@
     @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
     {
         <RadzenButton Icon="add_circle_outline"
-                        Text="Add"
+                        Text="Add" ButtonStyle="ButtonStyle.Success"
                         Click="@OnAddClickInternal"
                         Variant="Variant.Flat" />
     }
     <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))">
+    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))" ButtonStyle="ButtonStyle.Base">
         <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
         <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
     </RadzenSplitButton>
@@ -49,11 +49,13 @@
                 AllowGrouping="true"  AllowCompositeDataCells="true"
                 AllowColumnPicking="true" ShowPagingSummary="true"
                 ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
+                Context="row" RowSelect="@RowSelect"
                 >
     <Columns>
+        @LeadingColumns?.Invoke(row)
         @if (ActionColumnDefault)
         {
-            <ActionColumn Grid="grid0"/>
+            <ActionColumn Grid="grid0" Context="x"/>
         }
         @if (ChildContent is not null)
         {
@@ -82,10 +84,7 @@
                                         Title="@prop.Name" />
             }
         }
-        @if (AdditionalColumns is not null)
-        {
-            @AdditionalColumns
-        }
+        @TrailingColumns?.Invoke(row)
     </Columns>
     <Template Context="item">
         @if (ExpandContentView is not null)
@@ -115,12 +114,15 @@
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
-    [Parameter] public RenderFragment AdditionalColumns { get; set; }
+    [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
+    [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
+    [Parameter] public EventCallback<TItem> RowSelect { get; set; }
     [Parameter] public string AddButtonUrl { get; set; }
     [Parameter] public bool AddButtonDefault { get; set; } = false;
     [Parameter] public bool ActionColumnDefault { get; set; } = false;
+    private TItem row;
     /// <summary>
     /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
     /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
@@ -145,8 +147,7 @@
     {
         if (AddButtonDefault && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
         {
-            var uri = new Uri(NavigationManager.Uri);
-            AddButtonUrl = uri.AbsolutePath.TrimEnd('/') + "/new"; 
+            AddButtonUrl = NavigationManager.GetPathWith("new");
         }
     }
 

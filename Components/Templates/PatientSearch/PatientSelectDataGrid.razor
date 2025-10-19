@@ -1,0 +1,29 @@
+﻿@using AutoCAC.Components.Templates.DataGrids
+@inject NavigationManager NavigationManager
+
+@if (BackButtonUrl!=null)
+{    
+    <RadzenLink Path="@BackButtonUrl" Text="Back" Icon="arrow_back" />
+}
+<DataGridVanilla TItem="AutoCAC.Models.Patient" IncludeColumns="@(new[] { "ChartNumber", "Name", "Dob" })" SearchColumns="@(new[] { "ChartNumber", "Name" })" 
+RowSelect="@RowSelect"
+/>
+
+@code{
+    [Parameter] public EventCallback<AutoCAC.Models.Patient> RowSelect { get; set; }
+    [Parameter] public string BackButtonUrl { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (BackButtonUrl == null)
+            {                
+                var parentPath = NavigationManager.GetParent();
+
+                BackButtonUrl = string.IsNullOrEmpty(parentPath) ? "/" : parentPath;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+}

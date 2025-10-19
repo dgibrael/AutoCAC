@@ -1,0 +1,132 @@
+﻿@using AutoCAC.Services
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> Db
+@inject UserContextService UserContext
+@inject DialogService DialogService
+@typeparam TItem where TItem : class
+
+<RadzenChat @ref="_chat"
+            Title="@Title"
+            Users="@_users"
+            CurrentUserId="@_currentUsername"
+            Messages="@_messages"
+            ShowUsers="false"
+            ShowUserNames="true"
+            ShowClearButton="false"
+            MessageSent="@OnMessageSent"
+            >
+    <MessageTemplate Context="m">
+        <div class="rz-chat-message @(m.IsUser ? "rz-chat-message-user" : "rz-chat-message-participant")">
+            <div class="rz-chat-message-content rz-stack rz-display-flex rz-flex-column" style="--rz-gap:0.25rem;flex-wrap:nowrap;">
+                <div class="rz-chat-message-info rz-stack rz-display-flex rz-flex-row @(m.IsUser ? "rz-justify-content-flex-end" : "rz-justify-content-flex-start")">
+                    @if (!m.IsUser)
+                    {
+                        <div class="rz-chat-message-participant-name">@m.UserId</div>
+                    }
+                    <div class="rz-chat-message-time">@m.Timestamp.ToString("MM/dd/yyyy HH:mm")</div>
+                    @if (m.IsUser)
+                    {
+                        <RadzenButton Icon="delete"
+                                      Size="ButtonSize.ExtraSmall"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      ButtonType="ButtonType.Button" Variant="Variant.Text"
+                                      Click="@(async () => await DeleteMessageAsync(m.Id))" />
+                    }
+                </div>
+
+                <div class="rz-chat-message-text">
+                    <div class="rz-markdown">
+                        <p class="rz-text-body1">@m.Content</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </MessageTemplate>
+</RadzenChat>
+
+@code {
+    [Parameter, EditorRequired] public Func<Task<IEnumerable<TItem>>> LoadData { get; set; }
+    [Parameter, EditorRequired] public Func<TItem, string> GetUser { get; set; }
+    [Parameter, EditorRequired] public Func<TItem, string> GetMessage { get; set; }
+    [Parameter, EditorRequired] public Func<TItem, DateTime> GetTimestamp { get; set; }
+    [Parameter, EditorRequired] public Func<TItem, string> GetMessageId { get; set; }
+    [Parameter, EditorRequired] public Func<string, TItem> CreateMessage { get; set; }
+    [Parameter] public string Title { get; set; } = "Comments";
+    [Parameter] public EventCallback AfterDelete { get; set; }
+
+    private readonly List<ChatUser> _users = new();
+    private readonly List<ChatMessage> _messages = new();
+    private string _currentUsername = "";
+    private RadzenChat _chat;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await UserContext.InitializeAsync();
+        _currentUsername = UserContext.Username;
+        await RefreshDataAsync();
+    }
+
+    public async Task RefreshDataAsync()
+    {
+        if (LoadData is null) return;
+
+        var data = await LoadData();
+        BuildChatState(data);
+        StateHasChanged();
+    }
+
+    private void BuildChatState(IEnumerable<TItem> data)
+    {
+        _users.Clear();
+        _messages.Clear();
+        foreach (var uname in data
+                     .Select(GetUser)
+                     .Append(_currentUsername)
+                     .Where(u => !string.IsNullOrWhiteSpace(u))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            _users.Add(new ChatUser
+            {
+                Id = uname,
+                Name = uname.RemovePrefix("D1_", StringComparison.OrdinalIgnoreCase)
+            });
+        }
+
+        foreach (var item in data.OrderBy(GetTimestamp))
+        {
+            var userId = GetUser(item);
+            _messages.Add(new ChatMessage
+            {
+                Id = GetMessageId(item),
+                UserId = userId,
+                Content = GetMessage(item),
+                Timestamp = GetTimestamp(item),
+                IsUser = string.Equals(userId, _currentUsername, StringComparison.OrdinalIgnoreCase)
+            });
+        }
+    }
+
+    private async Task OnMessageSent(ChatMessage message)
+    {
+        if (CreateMessage == null) return;
+
+        var newItem = CreateMessage.Invoke(message.Content);
+
+        await Db.AddItemAsync(newItem);
+        await RefreshDataAsync();
+    }
+
+    private async Task DeleteMessageAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return;
+
+        var ok = await DialogService.DeleteConfirm(customMessage: "Delete this message?");
+        if (ok != true) return;
+
+        if (!int.TryParse(id, out var pk)) return; // enforce int PK
+        await Db.DeleteByPkAsync<TItem>(pk);
+
+        if (AfterDelete.HasDelegate) await AfterDelete.InvokeAsync();
+        await RefreshDataAsync();
+    }
+}

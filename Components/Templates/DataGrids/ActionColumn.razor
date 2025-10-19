@@ -12,7 +12,7 @@
                       Sortable="false"
                       Filterable="false" Reorderable="false"
                       Frozen="true" FrozenPosition="FrozenColumnPosition.Right"
-                      Width="120px">
+                      Width="200px">
     <HeaderTemplate>
         <RadzenIcon Icon="settings" />
     </HeaderTemplate>
@@ -20,20 +20,25 @@
         <RadzenButton Icon="edit"
                       ButtonStyle="ButtonStyle.Primary"
                       Click="@(() => OnEdit(data))" />
-        <RadzenButton Icon="delete"
-                      class="ml-1"
-                      ButtonStyle="ButtonStyle.Danger"
-                      Click="@(() => OnDeleteAsync(data))" />
+        @if (ShouldShowDelete(data))
+        {            
+            <RadzenButton Icon="delete"
+                          class="rz-ml-1"
+                          ButtonStyle="ButtonStyle.Danger"
+                          Click="@(() => OnDeleteAsync(data))" />
+        }
+        @ChildContent(data)
     </Template>
 </RadzenDataGridColumn>
 
 @code {
     /// Reference to the parent grid so we can refresh/paginate after delete.
     [Parameter] public RadzenDataGrid<TItem> Grid { get; set; }
-
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
     [Parameter] public Func<TItem, string> EditUrl { get; set; }
-
+    [Parameter] public Func<TItem, bool> ShowDeleteWhen { get; set; }
+    private TItem data;
     private void OnEdit(TItem item)
     {
         var url = EditUrl?.Invoke(item);
@@ -44,6 +49,11 @@
             url = $"{basePath}/{id}";
         }
         Nav.NavigateTo(url!);
+    }
+
+    private bool ShouldShowDelete(TItem item)
+    {
+        return ShowDeleteWhen == default ? true : ShowDeleteWhen?.Invoke(item) == true;
     }
 
     private async Task OnDeleteAsync(TItem item)

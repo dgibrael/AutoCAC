@@ -1,0 +1,26 @@
+﻿@page "/piverify/new"
+@using AutoCAC.Components.Templates.PatientSearch
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject NavigationManager Nav
+@inject IDbContextFactory<mainContext> Db
+@inject AutoCAC.Services.UserContextService UserContext
+<PageTitle>New Private Insurance Verification</PageTitle>
+<h3>New Private Insurance Verification</h3>
+<PatientSelectDataGrid RowSelect="@RowSelect" />
+
+@code {
+	private async Task RowSelect(AutoCAC.Models.Patient selected)
+	{
+		Models.PiVerification piVerification = new Models.PiVerification
+			{
+				PatientId = selected.Id,
+				CreatedAt = DateTime.Now,
+				LastModified = DateTime.Now,
+				CreatedBy = UserContext.Username,
+				CurrentStatus = "New"
+			};
+		var dbRecord = await Db.AddItemAsync(piVerification);
+		Nav.NavigateTo(Nav.GetParentWith(dbRecord.Id.ToString()));
+	}
+}

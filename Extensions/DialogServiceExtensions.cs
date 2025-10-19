@@ -18,6 +18,19 @@ namespace AutoCAC.Extensions
                 CancelButtonText = "No"
             });
         }
+        public static async Task<bool?> DeleteConfirm(
+            this DialogService dialogService,
+            string itemName = "item",
+            string customMessage = null
+            )
+        {
+            string title = "Delete?";
+            if (customMessage == null)
+            {
+                customMessage = $"Are you sure you want to delete this {itemName}";
+            }
+            return await dialogService.Confirm(customMessage, title);
+        }
         /// <summary>
         /// Shows a simple text prompt dialog and returns the entered value (null if cancelled).
         /// </summary>

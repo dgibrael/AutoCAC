@@ -1,0 +1,13 @@
+﻿@inject DialogService DialogService
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService Notifications
+
+<RadzenButton Icon="add_circle_outline"
+              Text="@Text" ButtonStyle="ButtonStyle.Success"
+              Click="@Click"
+              Variant="Variant.Flat" />
+
+@code {
+    [Parameter] public EventCallback Click { get; set; }
+    [Parameter] public string Text { get; set; } = "Add";
+}

@@ -149,5 +149,19 @@ namespace AutoCAC.Extensions
 
             return builder.ToString();
         }
+
+        public static string RemovePrefix(this string value, string prefix, StringComparison stringComparison = StringComparison.Ordinal)
+        {
+            if (value is null) return null!;
+            if (prefix is null) return value;
+            return value.StartsWith(prefix, stringComparison) ? value[prefix.Length..] : value;
+        }
+
+        public static string RemoveSuffix(this string value, string suffix, StringComparison stringComparison = StringComparison.Ordinal)
+        {
+            if (value is null) return null!;
+            if (suffix is null) return value;
+            return value.EndsWith(suffix, stringComparison) ? value[..^suffix.Length] : value;
+        }
     }
 }

@@ -190,7 +190,48 @@ namespace AutoCAC.Extensions
             await db.SaveChangesAsync(cancellationToken);
         }
 
+        public static async Task<TEntity> GetByPkAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            CancellationToken cancellationToken = default,
+            params object[] keyValues)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            return await db.Set<TEntity>().FindAsync(keyValues, cancellationToken);
+        }
 
+        public static async Task<TEntity> GetByPkAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            object id,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            return await factory.GetByPkAsync<TEntity>(cancellationToken, id);
+        }
+
+        public static async Task<bool> DeleteByPkAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            CancellationToken cancellationToken = default,
+            params object[] keyValues)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            var entity = await db.Set<TEntity>().FindAsync(keyValues, cancellationToken);
+            if (entity == null) return false;
+            db.Remove(entity);
+            await db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        public static Task<bool> DeleteByPkAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            object id,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            // forward to the params overload
+            return factory.DeleteByPkAsync<TEntity>(cancellationToken, id);
+        }
     }
 }
 

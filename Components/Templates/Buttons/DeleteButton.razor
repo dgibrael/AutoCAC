@@ -6,21 +6,24 @@
 <RadzenButton Icon="delete"
               ButtonStyle="ButtonStyle.Danger"
               Disabled="@_busy"
-              Size="ButtonSize.Small"
+              Text="@Text"
+              Size="@Size"
               Click="@OnDeleteAsync"
-              class="ml-1"
+              class="rz-ml-1"
               aria-label="Delete" />
 
 @code {
     [Parameter] public TItem Item { get; set; }
     [Parameter] public EventCallback AfterDelete { get; set; }
+    [Parameter] public string Text { get; set; }
+    [Parameter] public ButtonSize Size { get; set; } = ButtonSize.Small;
     bool _busy;
 
     async Task OnDeleteAsync()
     {
         if (_busy || Item is null) return;
 
-        var confirm = await DialogService.Confirm("Are you sure you want to delete?");
+        var confirm = await DialogService.DeleteConfirm();
 
         if (confirm != true) return;
 
@@ -28,22 +31,12 @@
         try
         {
             await DbFactory.DeleteItemAsync(Item);
-            Notifications.Notify(new NotificationMessage
-            {
-                Summary = "Deleted",
-                Duration = 2500
-            });
+            Notifications.Success("Successfully deleted");
             await AfterDelete.InvokeAsync();
         }
         catch (Exception ex)
         {
-            Notifications.Notify(new NotificationMessage
-            {
-                Severity = NotificationSeverity.Error,
-                Summary = "Delete failed",
-                Detail = ex.Message,
-                Duration = 5000
-            });
+            Notifications.Error(ex);
         }
         finally
         {
