@@ -114,7 +114,8 @@
     private async Task LoadData(LoadDataArgs args)
     {
         isLoading = true;
-        var query = BuildQuickOrderQuery();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = BuildQuickOrderQuery(db);
         var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
         data = result.Data;
         count = result.Count;
@@ -129,25 +130,33 @@
             _filterChoices = new ColumnFilterChoices<OrderDialog>();
             _lastSearchText = _searchText;
         }
-        await _filterChoices.GetColumnFilterDataAsync(args, BuildQuickOrderQuery());
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await _filterChoices.GetColumnFilterDataAsync(args, BuildQuickOrderQuery(db));
     }
 
 
-    private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery()
+    private IQueryable<AutoCAC.Models.OrderDialog> BuildQuickOrderQuery(mainContext db)
     {
-        var query = DbFactory.QueryFromSql<AutoCAC.Models.OrderDialog>($"Select * From OrderDialog");
+        var query = db.OrderDialogs
+            .FromSqlRaw("Select * From OrderDialog")
+            .AsQueryable();
+
         if (!string.IsNullOrWhiteSpace(_searchText))
         {
             var keywords = _searchText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             foreach (var keyword in keywords)
             {
-                var temp = keyword; 
-                query = query.Where(q => q.Responses.Contains(temp) || q.DisplayText.Contains(temp) || q.Name.Contains(temp));
+                var temp = keyword;
+                query = query.Where(q =>
+                    q.Responses.Contains(temp) ||
+                    q.DisplayText.Contains(temp) ||
+                    q.Name.Contains(temp));
             }
         }
+
         return query.AsNoTracking();
     }
-
     
     private System.Timers.Timer searchDebounceTimer;
 

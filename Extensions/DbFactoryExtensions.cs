@@ -51,13 +51,6 @@ namespace AutoCAC.Extensions
             return context.Set<T>().FromSqlInterpolated(sql);
         }
 
-        public static IQueryable<T> QueryFromObj<T>(
-            this IDbContextFactory<mainContext> factory) where T : class
-        {
-            var context = factory.CreateDbContext();
-            return context.Set<T>();
-        }
-
         public static async Task<int> ExecuteSqlAsync(
             this IDbContextFactory<mainContext> factory,
             FormattableString sql)

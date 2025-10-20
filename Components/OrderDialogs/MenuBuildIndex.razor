@@ -55,20 +55,22 @@
     protected IEnumerable<AutoCAC.Models.MenuBuildMetum> data;
     protected int count = 0;
     protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
-    private IQueryable<MenuBuildMetum> lastQry;
+    private Func<AutoCAC.Models.mainContext, IQueryable<MenuBuildMetum>> _lastBuilder;
     private LoadDataArgs lastArgs;
     private bool showAll = false;
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
         await using var db = await DbFactory.CreateDbContextAsync();
-        var query = db.MenuBuildMeta.AsNoTracking();
-        if (!showAll)
+        _lastBuilder = ctx =>
         {
-            query = query.Where(x => x.CreatedBy == UserContext.Username);
-        }
-        lastQry = query;
+            var q = ctx.MenuBuildMeta.AsNoTracking();
+            if (!showAll)
+                q = q.Where(x => x.CreatedBy == UserContext.Username);
+            return q;
+        };
         lastArgs = args;
+        var query = _lastBuilder(db);
         var result = await LoadDataGridService.ApplyLoadData(query, args, true);
         data = result.Data;
         count = result.Count;
@@ -103,10 +105,12 @@
         NavigationManager.NavigateTo("menubuild/new");
     }
 
-    private Task DownloadTbl() 
-    { 
-        var args = lastArgs ?? new LoadDataArgs(); 
-        return lastQry.DownloadAsCsvAsync(args, JSRuntime); 
+    private async Task DownloadTbl()
+    {
+        var args = lastArgs ?? new LoadDataArgs();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = (_lastBuilder ?? (ctx => ctx.MenuBuildMeta.AsNoTracking()))(db);
+        await query.DownloadAsCsvAsync(args, JSRuntime);
     }
 
     private async Task DeleteRow(AutoCAC.Models.MenuBuildMetum item)
