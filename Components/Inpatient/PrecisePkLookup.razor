@@ -1,0 +1,39 @@
+﻿@page "/inpatient/precisepk"
+@using AutoCAC.Components.Templates.PatientSearch
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> Db
+<PageTitle>Precise PK Lookup</PageTitle>
+<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist", "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin"  })">
+	<DataGridVanilla @ref="grid" TItem="AutoCAC.Models.PatientLink" IncludeColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" 
+		SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" QueryFactory="@Qry()" >
+		<HeaderContent>
+			<PatientDialogButton AfterPatientSelect="OnSelect" />
+		</HeaderContent>
+		<TrailingColumns>
+			<ActionColumn TItem="AutoCAC.Models.PatientLink" ShowEditWhen="@(a => false)" Grid="grid.Grid" />
+		</TrailingColumns>
+	</DataGridVanilla>
+</AuthorizedGroups>
+@code {
+	private DataGridVanilla<PatientLink> grid;
+	private async Task OnSelect(AutoCAC.Models.Patient patient)
+	{
+		var patientId = patient.Id;
+		var pkPatient = new AutoCAC.Models.PatientLink
+			{
+				PatientId = patientId
+			};
+		var exists = await Db.GetFirstValueAsync<Guid?>("Select LinkID From PatientLink Where PatientID = @patientId", new { patientId });
+		if (exists == null)
+		{
+			await Db.AddItemAsync(pkPatient);
+		}
+		await grid.SetQuickFilter(patient.ChartNumber);
+	}
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PatientLink>> Qry()
+	{
+		return db => db.PatientLinks
+			.Include(x => x.Patient)
+			.AsNoTracking();
+	}
+}

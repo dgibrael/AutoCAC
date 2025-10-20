@@ -1,4 +1,5 @@
 ﻿using AutoCAC.Components.Templates.StaffSearch;
+using AutoCAC.Components.Templates.PatientSearch;
 using Microsoft.AspNetCore.Components;
 using Radzen;
 using System.Threading.Tasks;
@@ -120,7 +121,23 @@ namespace AutoCAC.Extensions
 
             return result as AutoCAC.Models.AdUserDto;
         }
+        public static async Task<AutoCAC.Models.Patient> PatientSelectDialogAsync(
+            this DialogService dialogService,
+            DialogOptions options = null)
+        {
+            var result = await dialogService.OpenAsync<PatientDialogDataGrid>(
+                title: "Patient Search",
+                options: options ?? new DialogOptions
+                {
+                    AutoFocusFirstElement = true,
+                    Width = "75%",
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
 
+            return result as AutoCAC.Models.Patient;
+        }
     }
 }
 

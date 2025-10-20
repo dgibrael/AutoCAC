@@ -1,24 +1,27 @@
 ﻿@inject AutoCAC.Services.UserContextService UserContext
 
-@if(UserContext?.UserProfile == null)
+@switch (isAuthorized)
 {
-    <h4>Loading...</h4>
+    case null:
+        <h4>Loading...</h4>
+        break;
+
+    case true:
+        @ChildContent
+        break;
+
+    case false:
+        if (Unauthorized != null)
+        {
+            @Unauthorized
+        }
+        else
+        {
+            <h3 class="text-danger">@GetUnauthorizedMessage()</h3>
+        }
+        break;
 }
-else if (isAuthorized)
-{
-    @ChildContent
-}
-else
-{
-    @if (Unauthorized != null)
-    {
-        @Unauthorized
-    }
-    else
-    {
-        <h3 class="text-danger">@GetUnauthorizedMessage()</h3>
-    }
-}
+
 
 @code {
     [Parameter] public IEnumerable<string> Groups { get; set; }
@@ -28,13 +31,13 @@ else
     [Parameter] public RenderFragment Unauthorized { get; set; }
     [Parameter] public bool ClinicalUsers { get; set; } = true;
 
-    private bool isAuthorized;
+    private bool? isAuthorized;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await UserContext.InitializeAsync();
+            await UserContext.EnsureInitializedAsync();
             if (Groups != null)
             {
                 isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());

@@ -17,17 +17,28 @@
         <RadzenIcon Icon="settings" />
     </HeaderTemplate>
     <Template Context="data">
-        <RadzenButton Icon="edit"
-                      ButtonStyle="ButtonStyle.Primary"
-                      Click="@(() => OnEdit(data))" />
-        @if (ShouldShowDelete(data))
-        {            
-            <RadzenButton Icon="delete"
-                          class="rz-ml-1"
-                          ButtonStyle="ButtonStyle.Danger"
-                          Click="@(() => OnDeleteAsync(data))" />
+        @if (ShouldShowEdit(data))
+        {
+            <span title="edit" aria-label="edit">
+                <RadzenButton Icon="edit"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Variant="Variant.Text"
+                              Click="@(() => OnEdit(data))" />
+            </span>
         }
-        @ChildContent(data)
+        @if (ShouldShowDelete(data))
+        {
+            <span title="delete" aria-label="delete">
+                <RadzenButton Icon="delete"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Variant="Variant.Text"
+                              Click="@(() => OnDeleteAsync(data))" />
+            </span>
+        }
+        @if (ChildContent != null)
+        {
+            @ChildContent(data)
+        }
     </Template>
 </RadzenDataGridColumn>
 
@@ -38,6 +49,7 @@
     /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
     [Parameter] public Func<TItem, string> EditUrl { get; set; }
     [Parameter] public Func<TItem, bool> ShowDeleteWhen { get; set; }
+    [Parameter] public Func<TItem, bool> ShowEditWhen { get; set; }
     private TItem data;
     private void OnEdit(TItem item)
     {
@@ -54,6 +66,10 @@
     private bool ShouldShowDelete(TItem item)
     {
         return ShowDeleteWhen == default ? true : ShowDeleteWhen?.Invoke(item) == true;
+    }
+    private bool ShouldShowEdit(TItem item)
+    {
+        return ShowEditWhen == default ? true : ShowEditWhen?.Invoke(item) == true;
     }
 
     private async Task OnDeleteAsync(TItem item)

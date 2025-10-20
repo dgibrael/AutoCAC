@@ -52,7 +52,7 @@
     [Parameter] public bool DefaultRowButtonsViewMode { get; set; } = true;
     [Parameter] public bool DefaultRowButtonsEditMode { get; set; } = true;
     [Parameter] public string DataGridName { get; set; }
-    [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
     [Parameter] public EventCallback<TItem> EditButtonClick { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
@@ -79,10 +79,10 @@
         }
 
         _newItems.Add(newItem);
-        await basegrid.grid0.InsertRow(newItem);
-        if ((ExpandContentEdit != null || ExpandContentBoth != null) && !basegrid.grid0.IsRowExpanded(newItem))
+        await basegrid.Grid.InsertRow(newItem);
+        if ((ExpandContentEdit != null || ExpandContentBoth != null) && !basegrid.Grid.IsRowExpanded(newItem))
         {
-            await basegrid.grid0.ExpandRow(newItem);
+            await basegrid.Grid.ExpandRow(newItem);
         }
     }
 
@@ -94,17 +94,17 @@
         }
         else
         {
-            await basegrid.grid0.EditRow(item);
-            if ((ExpandContentEdit!=null || ExpandContentBoth!=null) && !basegrid.grid0.IsRowExpanded(item))
+            await basegrid.Grid.EditRow(item);
+            if ((ExpandContentEdit!=null || ExpandContentBoth!=null) && !basegrid.Grid.IsRowExpanded(item))
             {
-                await basegrid.grid0.ExpandRow(item);
+                await basegrid.Grid.ExpandRow(item);
             }
         }
     }
 
     public void CancelRow(TItem item)
     {
-        basegrid.grid0.CancelEditRow(item);
+        basegrid.Grid.CancelEditRow(item);
         if (_newItems.Remove(item))
             _ = basegrid.ForceReload();
     }
@@ -125,7 +125,7 @@
             Notify(NotificationSeverity.Success, "Saved", "Changes successfully saved.");
             if (leaveEdit)
             {
-                basegrid.grid0.CancelEditRow(item);
+                basegrid.Grid.CancelEditRow(item);
             }
         }
         catch (Exception ex)

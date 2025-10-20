@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Data;
-using System.Threading.Tasks;
-using Dapper;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Data.SqlClient;
-using AutoCAC.Models;
+﻿using AutoCAC.Models;
 using AutoCAC.Utilities;
+using Dapper;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Data;
+using System.Linq.Expressions;
+using System.Threading.Tasks;
 namespace AutoCAC.Extensions
 {
     public static class DbFactoryExtensions
@@ -200,6 +201,19 @@ namespace AutoCAC.Extensions
             return await db.Set<TEntity>().FindAsync(keyValues, cancellationToken);
         }
 
+        public static async Task<TEntity> GetByExpressionAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            Expression<Func<TEntity, bool>> predicate,
+            bool readOnly = false,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            var query = db.Set<TEntity>().AsQueryable();
+            if (readOnly) query = query.AsNoTracking();
+            return await query.FirstOrDefaultAsync(predicate, cancellationToken);
+        }
+
         public static async Task<TEntity> GetByPkAsync<TEntity>(
             this IDbContextFactory<mainContext> factory,
             object id,
@@ -231,6 +245,18 @@ namespace AutoCAC.Extensions
         {
             // forward to the params overload
             return factory.DeleteByPkAsync<TEntity>(cancellationToken, id);
+        }
+
+        public static async Task<bool> ExistsAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            Expression<Func<TEntity, bool>> predicate,
+            CancellationToken cancellationToken = default)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync(cancellationToken);
+            return await db.Set<TEntity>()
+                .AsNoTracking()
+                .AnyAsync(predicate, cancellationToken);
         }
     }
 }

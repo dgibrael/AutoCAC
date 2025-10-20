@@ -8,7 +8,7 @@
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
     <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
     Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
-    <DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory"
+    <DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
                       AddAction="AddRotationAsync">
         <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />
 
@@ -34,13 +34,19 @@
 
 @code {
     [Parameter] public string SelectedUsername { get; set; }
-    private IQueryable<NightShiftRotation> QueryFactory()
+    private Func<AutoCAC.Models.mainContext, IQueryable<NightShiftRotation>> QueryFactory()
     {
-        IQueryable<NightShiftRotation> qry = DbFactory.QueryFromObj<NightShiftRotation>().AsNoTracking();
-        qry = qry.OrderByDescending(x => x.EndDate);
-        if (string.IsNullOrWhiteSpace(SelectedUsername)) return qry;
-        return qry.Where(x => x.StaffUserName == SelectedUsername);
+        return db =>
+        {
+            var qry = db.NightShiftRotations
+                .AsNoTracking()
+                .OrderByDescending(x => x.EndDate);
 
+            if (string.IsNullOrWhiteSpace(SelectedUsername))
+                return qry;
+
+            return qry.Where(x => x.StaffUserName == SelectedUsername);
+        };
     }
     private async Task<NightShiftRotation> AddRotationAsync()
     {

@@ -21,6 +21,9 @@ namespace AutoCAC.Services
         public IEnumerable<AuthGroup> Groups =>
             UserProfile?.AuthUserGroups?.Select(ug => ug.Group) ?? Enumerable.Empty<AuthGroup>();
 
+        public bool UserLoaded { get; private set; }
+        private readonly SemaphoreSlim _initLock = new(1, 1);
+
         public bool IsInGroup(params string[] groupNames)
         {
             if (UserProfile == null || !UserProfile.IsActive)
@@ -45,7 +48,9 @@ namespace AutoCAC.Services
             return Groups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
         }
 
-        public bool IsClinical() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PublicHealth", "Nurse", "Provider");
+        public bool IsClinical() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PublicHealth", "Nurse", "Provider"
+            , "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin");
+        public bool IsPharmacy() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin");
 
         public UserContextService(
             IDbContextFactory<mainContext> dbFactory,
@@ -55,23 +60,35 @@ namespace AutoCAC.Services
             _authProvider = authProvider;
         }
 
-        public async Task InitializeAsync()
+        public async Task EnsureInitializedAsync()
         {
-            if (UserProfile != null)
-                return; // avoid double-initialization
+            if (UserLoaded) return;
 
-            var authState = await _authProvider.GetAuthenticationStateAsync();
-            CurrentUser = authState.User;
+            await _initLock.WaitAsync();
+            try
+            {
+                if (UserLoaded) return; // double-check after acquiring lock
 
-            if (!CurrentUser.Identity?.IsAuthenticated ?? false)
-                return;
+                var authState = await _authProvider.GetAuthenticationStateAsync();
+                CurrentUser = authState.User;
 
-            await using var db = await _dbFactory.CreateDbContextAsync();
-            UserProfile = await db.AuthUsers
-                .Include(u => u.AuthUserGroups)
-                    .ThenInclude(ug => ug.Group)
-                .FirstOrDefaultAsync(u => u.Username.ToLower() == Username);
+                if (!(CurrentUser.Identity?.IsAuthenticated ?? false))
+                {
+                    UserLoaded = true; // avoid redoing on every call while unauthenticated
+                    return;
+                }
+
+                await using var db = await _dbFactory.CreateDbContextAsync();
+                UserProfile = await db.AuthUsers
+                    .Include(u => u.AuthUserGroups).ThenInclude(ug => ug.Group)
+                    .FirstOrDefaultAsync(u => u.Username.ToLower() == Username);
+
+                UserLoaded = true;
+            }
+            finally
+            {
+                _initLock.Release();
+            }
         }
     }
-
 }

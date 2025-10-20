@@ -61,9 +61,8 @@
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
-        var query = DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>()
-        .AsNoTracking()
-        ;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = db.MenuBuildMeta.AsNoTracking();
         if (!showAll)
         {
             query = query.Where(x => x.CreatedBy == UserContext.Username);
@@ -88,13 +87,10 @@
     {
         args.Top = null;
         args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum>(
-                () => DbFactory.QueryFromObj<AutoCAC.Models.MenuBuildMetum>().AsNoTracking()
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var qry = db.MenuBuildMeta.AsQueryable().AsNoTracking();
+        _filterChoices ??= new ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum>();
+        await _filterChoices.GetColumnFilterDataAsync(args, qry);
     }
 
     protected async Task EditRow(AutoCAC.Models.MenuBuildMetum args)

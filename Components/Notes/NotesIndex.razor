@@ -3,14 +3,15 @@
 <AuthorizedGroups>
     <DataGridVanilla TItem="AutoCAC.Models.Tiu" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "DocumentType", "Author"})"
                      IncludeColumns="@(new List<string>{"Patient.Name", "Patient.ChartNumber", "DocumentType", "Author", "EntryDateTime"})"
-                     QueryFactory="Qry">
+                     QueryFactory="@Qry()">
     </DataGridVanilla>
 </AuthorizedGroups>
 
 @code{
-    private IQueryable<AutoCAC.Models.Tiu> Qry()
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Tiu>> Qry()
     {
-        var db = DbFactory.CreateDbContext();
-        return db.Tius.Include(x => x.Patient).AsNoTracking();
+        return db => db.Tius
+            .Include(x => x.Patient)
+            .AsNoTracking();
     }
 }

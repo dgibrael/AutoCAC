@@ -1,126 +1,43 @@
 ﻿@typeparam TItem where TItem : class
-
-@inject NavigationManager NavigationManager
-@inject DialogService DialogService
-@inject ContextMenuService ContextMenuService
-@inject TooltipService TooltipService
-@inject NotificationService NotificationService
-@inject LoadDataGridService LoadDataGridService
-@using AutoCAC.Models
-@using Microsoft.EntityFrameworkCore
-@using AutoCAC.Extensions
-@inject AutoCAC.Services.UserContextService UserContext
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @using System.Linq
 @using System.Reflection
 @using AutoCAC.Components.Templates.Forms
+@inject DialogService DialogService
+@* add the namespace that contains DataGridVanilla if different *@
+@* @using AutoCAC.Components.Templates.Grids *@
 
-<RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
-                LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
-                AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true"
-                ColumnWidth="200px" @bind-Settings="Settings"
-                PageSizeOptions=@(new int[]{5, 10, 20, 30, 50})
-                ShowPagingSummary="true"
-                RowSelect="@OnSelect"
-                >
-    <Columns>
-        @if (ChildContent is not null)
-        {
-            @ChildContent
-        }
-        else if (IncludeColumns is not null && IncludeColumns.Any())
-        {
-            @foreach (var col in IncludeColumns)
-            {
-                <RadzenDataGridColumn TItem="TItem"
-                                      Property="@col"
-                                      Title="@col" />
-            }
-        }
-        else
-        {
-            var props = typeof(TItem)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            // exclude explicit names first
-            .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
-
-            @foreach (var prop in props)
-            {
-                <RadzenDataGridColumn TItem="TItem"
-                                      Property="@prop.Name"
-                                      Title="@prop.Name" />
-            }
-        }
-    </Columns>
-</RadzenDataGrid>
+<DataGridVanilla TItem="TItem"
+                 @ref="_vanilla"
+                 QueryFactory="QueryFactory"
+                 IncludeColumns="IncludeColumns"
+                 ExcludeColumns="ExcludeColumns"
+                 SearchColumns="@SearchColumns"
+                 RowSelect="OnSelect"
+                 ExpandContentView="ExpandContentView"
+                 ExpandContentEdit="ExpandContentEdit"
+                 ExpandContentBoth="ExpandContentBoth"
+                 LeadingColumns="LeadingColumns"
+                 TrailingColumns="TrailingColumns"
+                 DataGridName="DataGridName"
+                 ChildContent="ChildContent"
+                 />
 <CancelDialogButton />
+
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
-    /// <summary>
-    /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
-    /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
-    /// </summary>
-    [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
-    protected IEnumerable<TItem> data;
-    protected int count = 0;
-    public RadzenDataGrid<TItem> grid0;
-    public bool? ShouldCount { get; set; } = true;
-    private IQueryable<TItem> lastQry;
-    private LoadDataArgs lastArgs;
-    DataGridSettings Settings;
-    private string loadedTemplateName = "";
-    private bool IsLoading { get; set; } = true;
-    private ColumnFilterChoices<TItem> _filterChoices;
-    public virtual async Task LoadData(LoadDataArgs args)
-    {
-        IsLoading = true;
-        try
-        {
-            var query = (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>())
-                .AsNoTracking();
+    [Parameter] public string[] SearchColumns { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
+    [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
+    [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
+    [Parameter] public string DataGridName { get; set; }
+    private DataGridVanilla<TItem> _vanilla;
 
-            lastQry = query;
-            lastArgs = args;
+    public Task ForceReload() => _vanilla?.ForceReload() ?? Task.CompletedTask;
 
-            var result = await LoadDataGridService.ApplyLoadData(query, args, ShouldCount);
-            data = result.Data;
-            count = result.Count;
-            ShouldCount = null;
-        }
-        catch (Exception ex)
-        {
-            await DialogService.Alert(ex.Message, "Load Error");
-        }
-        finally
-        {
-            IsLoading = false;
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    public virtual async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<TItem> args)
-    {
-        args.Top = null;
-        args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<TItem>(
-                () => (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>()).AsNoTracking()
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
-    }
-
-    public async Task ForceReload()
-    {
-        ShouldCount = true;
-        await grid0.FirstPage(true);
-    }
-
-    public void OnSelect(TItem selected)
-    {
-        DialogService.Close(selected);
-    }
+    public void OnSelect(TItem selected) => DialogService.Close(selected);
 }

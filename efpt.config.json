@@ -67,6 +67,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[PatientLink]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[PharmacyOrderableItem]",
          "ObjectType": 0
       },

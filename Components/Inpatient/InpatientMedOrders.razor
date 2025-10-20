@@ -71,13 +71,12 @@
     protected async Task LoadData(LoadDataArgs args)
     {
         await Layout.SetLoading(true);
-        var query = DbFactory.QueryFromObj<AutoCAC.Models.InpatientMedOrder>()
-        .AsNoTracking()
-        ;
-        lastQry = query;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var qry = db.InpatientMedOrders.AsQueryable().AsNoTracking();
+        lastQry = qry;
         lastArgs = args;
         var json = JsonSerializer.Serialize(args?.Filters);
-        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
+        var result = await LoadDataGridService.ApplyLoadData(qry, args, shouldCount);
         data = result.Data;
         count = result.Count;
         shouldCount = null;
@@ -88,13 +87,10 @@
     {
         args.Top = null;
         args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<InpatientMedOrder>(
-                () => DbFactory.QueryFromObj<AutoCAC.Models.InpatientMedOrder>().AsNoTracking()
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var qry = db.InpatientMedOrders.AsQueryable().AsNoTracking();
+        _filterChoices ??= new ColumnFilterChoices<AutoCAC.Models.InpatientMedOrder>();
+        await _filterChoices.GetColumnFilterDataAsync(args, qry);
     }
     
     private async Task DownloadTbl()

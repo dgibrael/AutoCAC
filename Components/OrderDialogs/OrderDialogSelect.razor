@@ -124,13 +124,12 @@
 
     private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<OrderDialog> args)
     {
-        // Recreate the helper if it's the first time OR the search text changed
         if (_filterChoices == null || !string.Equals(_lastSearchText, _searchText, StringComparison.Ordinal))
         {
-            _filterChoices = new ColumnFilterChoices<OrderDialog>(() => BuildQuickOrderQuery());
+            _filterChoices = new ColumnFilterChoices<OrderDialog>();
             _lastSearchText = _searchText;
         }
-        await _filterChoices.GetColumnFilterDataAsync(args);
+        await _filterChoices.GetColumnFilterDataAsync(args, BuildQuickOrderQuery());
     }
 
 

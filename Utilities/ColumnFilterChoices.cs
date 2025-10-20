@@ -10,18 +10,11 @@ namespace AutoCAC.Utilities
 {
     public class ColumnFilterChoices<T> where T : class
     {
-        private readonly Func<IQueryable<T>> _sourceFactory;
-
         // page + count caches (unchanged)
         private readonly Dictionary<(string Property, string Filter, int Skip, int Top), IEnumerable<T>> _pageCache = new();
         private readonly Dictionary<(string Property, string Filter), int> _countCache = new();
 
-        public ColumnFilterChoices(Func<IQueryable<T>> sourceFactory)
-        {
-            _sourceFactory = sourceFactory;
-        }
-
-        public async Task GetColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
+        public async Task GetColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args, IQueryable<T> query)
         {
             var propertyName = args.Column.GetFilterProperty();
             var currentFilter = args.Filter ?? string.Empty;
@@ -74,9 +67,6 @@ namespace AutoCAC.Utilities
                 _pageCache[pageKey] = list; _countCache[countKey] = list.Count;
                 return;
             }
-
-            // ⬇️ NEW: build a fresh query (fresh DbContext) for THIS call
-            IQueryable<T> query = _sourceFactory();
 
             if (!string.IsNullOrEmpty(currentFilter))
             {

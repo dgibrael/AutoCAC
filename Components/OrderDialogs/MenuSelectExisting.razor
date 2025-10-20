@@ -76,13 +76,10 @@
     {
         args.Top = null;
         args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<AutoCAC.Models.OrderDialog>(
-                BuildQuery
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var qry = db.OrderDialogs.AsQueryable().AsNoTracking();
+        _filterChoices ??= new ColumnFilterChoices<AutoCAC.Models.OrderDialog>();
+        await _filterChoices.GetColumnFilterDataAsync(args, qry);
     }
 
     private IQueryable<AutoCAC.Models.OrderDialog> BuildQuery()

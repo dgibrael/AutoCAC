@@ -34,6 +34,7 @@
                         Click="@OnAddClickInternal"
                         Variant="Variant.Flat" />
     }
+    @HeaderContent
     <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
     <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))" ButtonStyle="ButtonStyle.Base">
         <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
@@ -41,7 +42,7 @@
     </RadzenSplitButton>
     <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
 </RadzenStack>
-<RadzenDataGrid @ref="grid0" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
+<RadzenDataGrid @ref="Grid" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
                 LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
                 AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
                 AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
@@ -55,7 +56,7 @@
         @LeadingColumns?.Invoke(row)
         @if (ActionColumnDefault)
         {
-            <ActionColumn Grid="grid0" Context="x"/>
+            <ActionColumn Grid="Grid" Context="x"/>
         }
         @if (ChildContent is not null)
         {
@@ -116,6 +117,7 @@
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
+    [Parameter] public RenderFragment HeaderContent { get; set; }
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public EventCallback<TItem> RowSelect { get; set; }
@@ -127,16 +129,19 @@
     /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
     /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
     /// </summary>
-    [Parameter] public Func<IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
+    private static Func<AutoCAC.Models.mainContext, IQueryable<TItem>> DefaultQuery
+        => db => db.Set<TItem>().AsQueryable();
+
+    private Func<AutoCAC.Models.mainContext, IQueryable<TItem>> _lastBuilder;
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     private string _searchText;
     protected IEnumerable<TItem> data;
     protected int count = 0;
-    public RadzenDataGrid<TItem> grid0;
+    public RadzenDataGrid<TItem> Grid;
     public bool? ShouldCount { get; set; } = true;
-    private IQueryable<TItem> lastQry;
     private LoadDataArgs lastArgs;
     DataGridSettings Settings;
     private string loadedTemplateName = "";
@@ -156,11 +161,17 @@
         IsLoading = true;
         try
         {
-            var query = (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>())
-                .AsNoTracking();
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var query = (QueryFactory ?? DefaultQuery)(db).AsNoTracking();
             if (!string.IsNullOrWhiteSpace(_searchText) && SearchColumns?.Length > 0)
                 query = query.QuickSearch(_searchText, SearchColumns);
-            lastQry = query;
+            _lastBuilder = ctx =>
+            {
+                var q = (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking();
+                if (!string.IsNullOrWhiteSpace(_searchText) && SearchColumns?.Length > 0)
+                    q = q.QuickSearch(_searchText, SearchColumns);
+                return q;
+            };
             lastArgs = args;
 
             var result = await LoadDataGridService.ApplyLoadData(query, args, ShouldCount);
@@ -183,29 +194,37 @@
     {
         args.Top = null;
         args.Skip = null;
-        if (_filterChoices == null)
-        {
-            _filterChoices = new ColumnFilterChoices<TItem>(
-                () => (QueryFactory?.Invoke() ?? DbFactory.QueryFromObj<TItem>()).AsNoTracking()
-            );
-        }
-        await _filterChoices.GetColumnFilterDataAsync(args);
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Use the same builder shape you adopted elsewhere
+        var builder = QueryFactory ?? (ctx => ctx.Set<TItem>().AsQueryable());
+
+        // Base query for distinct values; no paging, no tracking
+        var query = builder(db).AsNoTracking();
+        _filterChoices ??= new ColumnFilterChoices<TItem>();
+        await _filterChoices.GetColumnFilterDataAsync(args, query);
     }
 
-    public virtual Task DownloadTbl()
+    public virtual async Task DownloadTbl()
     {
         if (count > 100000)
         {
-            return DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
+            await DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
+            return;
         }
-        var args = lastArgs ?? new LoadDataArgs();
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var query = (_lastBuilder ?? DefaultQuery)(db);
+
         var visibleProps = Settings?.Columns?
             .Where(c => c.Visible)
             .Select(c => c.Property)
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Distinct()
             .ToList();
-        return lastQry.DownloadAsCsvAsync(args, JSRuntime, includeProperties: visibleProps);
+
+        await query.DownloadAsCsvAsync(lastArgs ?? new(), JSRuntime, includeProperties: visibleProps);
     }
 
     private string PageName =>
@@ -217,7 +236,7 @@
     {
         loadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
         Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings) ? null : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
-        await grid0.ReloadSettings();
+        await Grid.ReloadSettings();
     }
 
     public virtual async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
@@ -249,7 +268,7 @@
     public async Task ForceReload()
     {
         ShouldCount = true;
-        await grid0.FirstPage(true);
+        await Grid.FirstPage(true);
     }
 
     private async Task OnAddClickInternal()

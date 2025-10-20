@@ -11,7 +11,7 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
-
+@using AutoCAC.Components.Templates.PatientSearch
 <PageTitle>Home</PageTitle>
 @if(UserContext.UserProfile != null)
 {

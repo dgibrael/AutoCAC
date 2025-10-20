@@ -1,0 +1,10 @@
+﻿<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Visible="@Visible" class="rz-my-2">
+    <RadzenButton Click="@CancelClick" ButtonType="ButtonType.Button" Text="Cancel" Size="ButtonSize.Medium"
+                  ButtonStyle="ButtonStyle.Base" />
+    <RadzenButton ButtonType="ButtonType.Submit" Text="Save Insurance Info" ButtonStyle="ButtonStyle.Primary" />
+</RadzenStack>
+
+@code{
+    [Parameter] public bool Visible { get; set; } = true;
+    [Parameter, EditorRequired] public EventCallback CancelClick { get; set; }
+}

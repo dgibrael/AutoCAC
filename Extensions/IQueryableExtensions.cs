@@ -82,22 +82,33 @@ namespace AutoCAC.Extensions
             var param = Expression.Parameter(typeof(T), "e");
             Expression final = null;
 
+            // EF.Functions
+            var efFunctionsProp = Expression.Property(null, typeof(EF).GetProperty(nameof(EF.Functions))!);
+
             foreach (var kw in keywords)
             {
                 Expression perKeywordOr = null;
-                var kwConst = Expression.Constant(kw);
+                var pattern = Expression.Constant($"%{kw}%");
 
                 foreach (var col in columns.Where(c => !string.IsNullOrWhiteSpace(c)))
                 {
-                    // Resolve navigation path, e.g. "Patient.Name"
-                    Expression prop = ResolvePropertyPath(param, col);
-                    if (prop == null || prop.Type != typeof(string))
+                    var prop = ResolvePropertyPath(param, col);  // your resolver
+                    if (prop == null)
                         continue;
 
-                    // (e.Prop ? string.Empty).Contains(kw)
-                    var contains = Expression.Call(prop, nameof(string.Contains), Type.EmptyTypes, kwConst);
+                    // Convert any type to string with null handling: (prop?.ToString()) ?? ""
+                    var strExpr = ToSafeString(prop);
 
-                    perKeywordOr = perKeywordOr == null ? contains : Expression.OrElse(perKeywordOr, contains);
+                    // EF.Functions.Like(strExpr, "%kw%")
+                    var likeCall = Expression.Call(
+                        typeof(DbFunctionsExtensions),
+                        nameof(DbFunctionsExtensions.Like),
+                        Type.EmptyTypes,
+                        efFunctionsProp,
+                        strExpr,
+                        pattern);
+
+                    perKeywordOr = perKeywordOr == null ? likeCall : Expression.OrElse(perKeywordOr, likeCall);
                 }
 
                 if (perKeywordOr == null)
@@ -112,6 +123,25 @@ namespace AutoCAC.Extensions
             var lambda = Expression.Lambda<Func<T, bool>>(final, param);
             return source.Where(lambda);
         }
+
+        private static Expression ToSafeString(Expression prop)
+        {
+            // If Nullable<T>, use .Value before ToString()
+            if (Nullable.GetUnderlyingType(prop.Type) is Type underlying)
+            {
+                prop = Expression.Property(prop, nameof(Nullable<int>.Value));
+                // update type to underlying
+            }
+
+            // For non-string types call ToString(); for string keep as-is
+            Expression asString = prop.Type == typeof(string)
+                ? prop
+                : Expression.Call(prop, nameof(object.ToString), Type.EmptyTypes);
+
+            // Coalesce to empty string: (asString ?? "")
+            return Expression.Coalesce(asString, Expression.Constant(string.Empty));
+        }
+
 
         // Helper to support navigation properties like "Patient.Name" or "Address.City.Name"
         private static Expression ResolvePropertyPath(Expression param, string path)

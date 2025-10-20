@@ -61,7 +61,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await UserContext.InitializeAsync();
+        await UserContext.EnsureInitializedAsync();
         _currentUsername = UserContext.Username;
         await RefreshDataAsync();
     }

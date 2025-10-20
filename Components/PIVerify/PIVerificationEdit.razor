@@ -1,74 +1,84 @@
 ﻿@page "/piverify/{Id:int}"
 @using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Extensions
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> Db
 @inject AutoCAC.Services.UserContextService UserContext
-
 <PageTitle>Private Insurance Verification</PageTitle>
+<AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
+    <BackLink />
+    @if (notFound)
+    {
+        <p>Record not found</p>
+    }
+    else if (_piVerification is null)
+    {
+        <span>Loading...</span>
+    }
+    else
+    {
+        <h3>@($"Private Insurance Verification for {_piVerification.Patient?.Name} ({_piVerification.Patient?.ChartNumber})")</h3>
 
-@if (_piVerification is null)
-{
-    <span>Loading...</span>
-}
-else
-{
-    <h3>@($"Private Insurance Verification for {_piVerification.Patient.Name} ({_piVerification.Patient.ChartNumber})")</h3>
-
-    <RadzenTemplateForm Data="@_piVerification">
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="5px">
-            <RadzenText TextStyle="TextStyle.DisplayH4" Text="Insurance Information:" Style="margin-bottom: 1px; margin-top: 0px" />
-            <RadzenButton Click="ToggleInsuranceEdit" ButtonType="ButtonType.Button" Icon="edit" Text="Edit Insurance Info" Size="ButtonSize.Medium" />
-        </RadzenStack>
-        <RadzenStack Orientation="Orientation.Horizontal">
-            <RadzenCard>
-                <RadzenLabel Text="BIN" />
-                <RadzenTextBox Disabled="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
+        <RadzenTemplateForm Data="@_piVerification" Submit="@InsuranceSave" TItem="AutoCAC.Models.PiVerification" >
+            <RadzenCard Variant="Variant.Outlined" >
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="5px">
+                    <RadzenText TextStyle="TextStyle.DisplayH4" Text="Insurance Information:" Style="margin-bottom: 1px; margin-top: 0px" />
+                    <RadzenButton Click="@(() => ToggleInsuranceEdit(true))" ButtonType="ButtonType.Button" Icon="edit" Text="Edit Insurance Info" Size="ButtonSize.Medium" 
+                        Visible="@(!_insuranceEditMode)"/>
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal">
+                    <RadzenCard>
+                        <RadzenLabel Text="BIN" />
+                        <RadzenTextBox Disabled="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
+                    </RadzenCard>
+                    <RadzenCard>
+                        <strong>PCN</strong>
+                        <span>@_piVerification.Pcn</span>
+                    </RadzenCard>
+                    <RadzenCard>
+                        <strong>Group ID</strong>
+                        <span>@_piVerification.GroupId</span>
+                    </RadzenCard>
+                    <RadzenCard>
+                        <strong>Cardholder ID</strong>
+                        <span>@_piVerification.CardholderId</span>
+                    </RadzenCard>
+                </RadzenStack>
+                <StandardButtons CancelClick="@(() => ToggleInsuranceEdit(false))" Visible="@_insuranceEditMode" />
             </RadzenCard>
+        </RadzenTemplateForm>
+        <RadzenPanel class="rz-my-5">
             <RadzenCard>
-                <strong>PCN</strong>
-                <span>@_piVerification.Pcn</span>
+                <strong>Status</strong>
+                <span>@_piVerification.CurrentStatus</span>
             </RadzenCard>
-            <RadzenCard>
-                <strong>Group ID</strong>
-                <span>@_piVerification.GroupId</span>
-            </RadzenCard>
-            <RadzenCard>
-                <strong>Cardholder ID</strong>
-                <span>@_piVerification.CardholderId</span>
-            </RadzenCard>
-        </RadzenStack>
-    </RadzenTemplateForm>
-    <RadzenPanel class="rz-my-5">
-        <RadzenCard>
-            <strong>Status</strong>
-            <span>@_piVerification.CurrentStatus</span>
-        </RadzenCard>
-    </RadzenPanel>
+        </RadzenPanel>
         
-    <ChatTemplate TItem="PiVerificationComment"
-                    Title="Comments"
-                    LoadData="LoadCommentsAsync"
-                    GetMessageId="@(c => c.Id.ToString())"
-                    GetUser="@(c => c.CreatedBy)"
-                    GetMessage="@(c => $"[{c.CommentStep}] {c.Comment}")"
-                    GetTimestamp="@(c => c.CreatedAt)"
-                    CreateMessage="@CreateComment"
-                    />
+        <ChatTemplate TItem="PiVerificationComment"
+                        Title="Comments"
+                        LoadData="LoadCommentsAsync"
+                        GetMessageId="@(c => c.Id.ToString())"
+                        GetUser="@(c => c.CreatedBy)"
+                        GetMessage="@(c => $"[{c.CommentStep}] {c.Comment}")"
+                        GetTimestamp="@(c => c.CreatedAt)"
+                        CreateMessage="@CreateComment"
+                        />
 
-    <DeleteButton Item="@_piVerification"
-                    Size="ButtonSize.Medium"
-                    Text="Delete Insurance Verification Record" />
-}
+        <DeleteButton Item="@_piVerification"
+                        Size="ButtonSize.Medium"
+                        Text="Delete Insurance Verification Record" />
+    }
+</AuthorizedGroups>
 
 @code {
     [Parameter] public int Id { get; set; }
     private bool _insuranceEditMode = false;
     private PiVerification _piVerification;
-
+    private bool notFound { get; set; } = false;
     protected override async Task OnInitializedAsync()
     {
-        await UserContext.InitializeAsync();
+        await UserContext.EnsureInitializedAsync();
         await LoadPiVerification();
     }
 
@@ -79,6 +89,7 @@ else
             .Where(x => x.Id == Id)
             .Include(x => x.Patient)
             .FirstOrDefaultAsync();
+        notFound = _piVerification == null;
     }
 
     // ChatTemplate hooks
@@ -102,9 +113,18 @@ else
             CommentStep = _piVerification.CurrentStatus
         };
     }
-    private void ToggleInsuranceEdit()
+
+    private void ToggleInsuranceEdit(bool? setTo)
     {
-        _insuranceEditMode = !_insuranceEditMode;
+        _insuranceEditMode = setTo ?? !_insuranceEditMode;
+        StateHasChanged();
+    }
+
+    private async Task InsuranceSave()
+    {
+        await Db.UpdateItemAsync(_piVerification);
+        await LoadPiVerification();
+        _insuranceEditMode = false;
         StateHasChanged();
     }
 }

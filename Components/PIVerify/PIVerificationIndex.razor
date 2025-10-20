@@ -9,8 +9,9 @@
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
-        <DataGridVanilla TItem="PiVerification" QueryFactory="@QueryFactory" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })" 
-        AddButtonDefault="true">
+        <DataGridVanilla TItem="PiVerification" QueryFactory="@QueryFactory()" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })" @ref="grid" 
+        AddButtonDefault="false">
+            <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
             <ChildContent>
                 <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient"/>
                 <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #"/>
@@ -20,22 +21,17 @@
                 <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
                 <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID"/>
                 <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
-                <ActionColumn Context="t" TItem="PiVerification" ShowDeleteWhen="@(x => x.CreatedBy == currentUsername)">
-                    @{
-                        string curStatus = t.CurrentStatus;
-                        string nextStatus = statusChoices.Next(curStatus);
-                        string prevStatus = statusChoices.Previous(curStatus);
-                    }
-                    @if(curStatus != "New")
+                <ActionColumn Context="t" TItem="PiVerification" ShowDeleteWhen="@(x => x.CreatedBy == currentUsername)" Grid="grid.Grid">
+                    @if (t.CurrentStatus != "New")
                     {
                         <span title="move back">
-                            <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Warning" Variant="Variant.Flat" />
+                            <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Warning" Variant="Variant.Text" />
                         </span>
                     }
-                    @if(curStatus != "Completed")
+                    @if (t.CurrentStatus != "Completed")
                     {
                         <span title="Complete">
-                            <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Success" Variant="Variant.Flat" />
+                            <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Success" Variant="Variant.Text" />
                         </span>
                     }
                 </ActionColumn>
@@ -45,20 +41,47 @@
 </div>
 
 @code {
+    private DataGridVanilla<PiVerification> grid;
     private string currentUsername;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await UserContext.InitializeAsync();
+            await UserContext.EnsureInitializedAsync();
             currentUsername = UserContext.Username;
             await InvokeAsync(StateHasChanged);
         }
     }
-    private IQueryable<AutoCAC.Models.PiVerification> QueryFactory()
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PiVerification>> QueryFactory()
     {
-        IQueryable<AutoCAC.Models.PiVerification> qry = DbFactory.QueryFromObj<AutoCAC.Models.PiVerification>().AsNoTracking();
-        return qry.Include(x => x.Patient).Include(x => x.PiVerificationComments);
+        return db => db.PiVerifications
+            .Include(x => x.Patient)
+            .Include(x => x.PiVerificationComments)
+            .AsNoTracking();
+    }
+
+    private async Task NewPatientSelect(AutoCAC.Models.Patient selected)
+    {
+        var existingRecord = await DbFactory.GetByExpressionAsync<PiVerification>(x => x.PatientId == selected.Id);
+        if (existingRecord != null)
+        {
+            var continueAnyway = await DialogService.YesNoDialog("Patient already exists. Click yes to create a new record anyway. Click no to view existing record.", "Duplicate");
+            if (continueAnyway != true)
+            {
+                Nav.NavigateTo(Nav.GetPathWith(existingRecord.Id.ToString()));
+                return;
+            }
+        }
+        Models.PiVerification piVerification = new Models.PiVerification
+        {
+            PatientId = selected.Id,
+            CreatedAt = DateTime.Now,
+            LastModified = DateTime.Now,
+            CreatedBy = UserContext.Username,
+            CurrentStatus = "New"
+        };
+        var dbRecord = await DbFactory.AddItemAsync(piVerification);
+        Nav.NavigateTo(Nav.GetPathWith(dbRecord.Id.ToString()));
     }
 }

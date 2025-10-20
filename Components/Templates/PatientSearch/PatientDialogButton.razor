@@ -1,0 +1,17 @@
+﻿@inject DialogService DialogService
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService Notifications
+@using AutoCAC.Components.Templates.Buttons
+
+
+<AddButton Text="Add" Click="@Click" />
+
+@code {
+    [Parameter, EditorRequired] public EventCallback<AutoCAC.Models.Patient> AfterPatientSelect { get; set; }
+    private async Task Click()
+    {
+        var patient = await DialogService.PatientSelectDialogAsync();
+        if (patient is null) return;
+        await AfterPatientSelect.InvokeAsync(patient);
+    }
+}

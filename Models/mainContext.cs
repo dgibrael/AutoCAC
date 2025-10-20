@@ -43,6 +43,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Patient> Patients { get; set; }
 
+    public virtual DbSet<PatientLink> PatientLinks { get; set; }
+
     public virtual DbSet<PharmacyOrderableItem> PharmacyOrderableItems { get; set; }
 
     public virtual DbSet<PiVerification> PiVerifications { get; set; }
@@ -426,6 +428,23 @@ public partial class mainContext : DbContext
             entity.Property(e => e.WardLocation).IsUnicode(false);
             entity.Property(e => e.WorkPhone).IsUnicode(false);
             entity.Property(e => e.ZipCode).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<PatientLink>(entity =>
+        {
+            entity.HasKey(e => e.LinkId).HasName("PK__PatientL__2D12215575D04739");
+
+            entity.ToTable("PatientLink");
+
+            entity.Property(e => e.LinkId)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("LinkID");
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.PatientLinks)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_PatientLink_PatientID");
         });
 
         modelBuilder.Entity<PharmacyOrderableItem>(entity =>
