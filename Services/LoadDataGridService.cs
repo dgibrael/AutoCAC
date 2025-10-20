@@ -9,7 +9,7 @@ using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 namespace AutoCAC{
-    public class LoadDataResult<T>
+    public class LoadDataServiceResult<T>
     {
         public IEnumerable<T> Data { get; set; } = Enumerable.Empty<T>();
         public int Count { get; set; }
@@ -22,7 +22,7 @@ namespace AutoCAC{
         private string _lastFilter = null;
         private int _lastCount = 0;
 
-        public async Task<LoadDataResult<T>> ApplyLoadData<T>(
+        public async Task<LoadDataServiceResult<T>> ApplyLoadData<T>(
             IQueryable<T> query,
             LoadDataArgs args,
             bool? shouldCount = null,
@@ -60,7 +60,7 @@ namespace AutoCAC{
 
             var data = await query.ToListAsync();
 
-            return new LoadDataResult<T>
+            return new LoadDataServiceResult<T>
             {
                 Data = data,
                 Count = _lastCount

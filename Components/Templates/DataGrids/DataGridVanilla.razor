@@ -6,7 +6,6 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-@inject LoadDataGridService LoadDataGridService
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
 @using AutoCAC.Extensions
@@ -19,7 +18,6 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Linq
 @using System.Reflection
-
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
     @if (SearchColumns != null)
     {
@@ -42,7 +40,7 @@
     </RadzenSplitButton>
     <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
 </RadzenStack>
-<RadzenDataGrid @ref="Grid" Data="data" Count="count" LoadData="LoadData" IsLoading="IsLoading"
+<RadzenDataGrid @ref="Grid" Data="_loadDataResult?.Data" Count="_loadDataResult.Count" LoadData="LoadData" IsLoading="IsLoading"
                 LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
                 AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
                 AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
@@ -56,7 +54,7 @@
         @LeadingColumns?.Invoke(row)
         @if (ActionColumnDefault)
         {
-            <ActionColumn Grid="Grid" Context="x"/>
+            <DeleteEditColumn Grid="Grid" Context="x"/>
         }
         @if (ChildContent is not null)
         {
@@ -138,15 +136,13 @@
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     private string _searchText;
-    protected IEnumerable<TItem> data;
-    protected int count = 0;
     public RadzenDataGrid<TItem> Grid;
     public bool? ShouldCount { get; set; } = true;
-    private LoadDataArgs lastArgs;
     DataGridSettings Settings;
     private string loadedTemplateName = "";
     private bool IsLoading { get; set; } = true;
     private ColumnFilterChoices<TItem> _filterChoices;
+    private readonly LoadDataGridExtensions.LoadDataResult<TItem> _loadDataResult = new() { Data = null, Count = 0 };
 
     protected override void OnParametersSet()
     {
@@ -163,20 +159,19 @@
         {
             await using var db = await DbFactory.CreateDbContextAsync();
             var query = (QueryFactory ?? DefaultQuery)(db).AsNoTracking();
-            if (!string.IsNullOrWhiteSpace(_searchText) && SearchColumns?.Length > 0)
-                query = query.QuickSearch(_searchText, SearchColumns);
+            _loadDataResult.QuickSearchColumns = SearchColumns;
+            await query.LoadDataGridAsync(args, _loadDataResult, _searchText, ShouldCount);
             _lastBuilder = ctx =>
             {
                 var q = (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking();
-                if (!string.IsNullOrWhiteSpace(_searchText) && SearchColumns?.Length > 0)
-                    q = q.QuickSearch(_searchText, SearchColumns);
+
+                var s = _loadDataResult.QuickSearchString;
+                var cols = _loadDataResult.QuickSearchColumns;
+
+                if (!string.IsNullOrWhiteSpace(s) && cols?.Length > 0)
+                    q = q.QuickSearch(s, cols);
                 return q;
             };
-            lastArgs = args;
-
-            var result = await LoadDataGridService.ApplyLoadData(query, args, ShouldCount);
-            data = result.Data;
-            count = result.Count;
             ShouldCount = null;
         }
         catch (Exception ex)
@@ -208,7 +203,7 @@
 
     public virtual async Task DownloadTbl()
     {
-        if (count > 100000)
+        if (_loadDataResult.Count > 100000)
         {
             await DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
             return;
@@ -224,7 +219,7 @@
             .Distinct()
             .ToList();
 
-        await query.DownloadAsCsvAsync(lastArgs ?? new(), JSRuntime, includeProperties: visibleProps);
+        await query.DownloadAsCsvAsync(_loadDataResult.Args ?? new(), JSRuntime, includeProperties: visibleProps);
     }
 
     private string PageName =>

@@ -5,6 +5,9 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> Db
 @inject AutoCAC.Services.UserContextService UserContext
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService NotificationService
 <PageTitle>Private Insurance Verification</PageTitle>
 <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
     <BackLink />
@@ -18,7 +21,7 @@
     }
     else
     {
-        <h3>@($"Private Insurance Verification for {_piVerification.Patient?.Name} ({_piVerification.Patient?.ChartNumber})")</h3>
+        <h3>@($"Private Insurance Verification for {_piVerification.Patient?.Name} ({_piVerification.Patient?.ChartNumber}). Status: {_piVerification?.CurrentStatus}")</h3>
 
         <RadzenTemplateForm Data="@_piVerification" Submit="@InsuranceSave" TItem="AutoCAC.Models.PiVerification" >
             <RadzenCard Variant="Variant.Outlined" >
@@ -30,30 +33,24 @@
                 <RadzenStack Orientation="Orientation.Horizontal">
                     <RadzenCard>
                         <RadzenLabel Text="BIN" />
-                        <RadzenTextBox Disabled="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
+                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
                     </RadzenCard>
                     <RadzenCard>
-                        <strong>PCN</strong>
-                        <span>@_piVerification.Pcn</span>
+                        <RadzenLabel Text="PCN" />
+                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Pcn" />
                     </RadzenCard>
                     <RadzenCard>
-                        <strong>Group ID</strong>
-                        <span>@_piVerification.GroupId</span>
+                        <RadzenLabel Text="Group ID" />
+                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.GroupId" />
                     </RadzenCard>
                     <RadzenCard>
-                        <strong>Cardholder ID</strong>
-                        <span>@_piVerification.CardholderId</span>
+                        <RadzenLabel Text="Cardholder ID" />
+                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.CardholderId" />
                     </RadzenCard>
                 </RadzenStack>
-                <StandardButtons CancelClick="@(() => ToggleInsuranceEdit(false))" Visible="@_insuranceEditMode" />
+                <StandardButtons CancelClick="@(() => ToggleInsuranceEdit(false))" Visible="@_insuranceEditMode"/>
             </RadzenCard>
         </RadzenTemplateForm>
-        <RadzenPanel class="rz-my-5">
-            <RadzenCard>
-                <strong>Status</strong>
-                <span>@_piVerification.CurrentStatus</span>
-            </RadzenCard>
-        </RadzenPanel>
         
         <ChatTemplate TItem="PiVerificationComment"
                         Title="Comments"
@@ -64,10 +61,7 @@
                         GetTimestamp="@(c => c.CreatedAt)"
                         CreateMessage="@CreateComment"
                         />
-
-        <DeleteButton Item="@_piVerification"
-                        Size="ButtonSize.Medium"
-                        Text="Delete Insurance Verification Record" />
+        <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Actions"/>
     }
 </AuthorizedGroups>
 
@@ -125,6 +119,65 @@
         await Db.UpdateItemAsync(_piVerification);
         await LoadPiVerification();
         _insuranceEditMode = false;
+        NotificationService.Success("insurance information saved");
         StateHasChanged();
     }
+    private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
+
+    IEnumerable<SplitButtonItem> BuildButtons => new[]
+    {
+        new SplitButtonItem
+        {
+            Text = "Move Back",
+            Value = "Back",
+            Icon = "undo",
+            IconColor = Colors.WarningLight,
+            Disabled = () => _piVerification.CurrentStatus == "New",
+            Action = async () =>
+            {
+                var newStatus = statusChoices.Previous(_piVerification.CurrentStatus);
+                _piVerification.CurrentStatus = newStatus;
+                _piVerification.LastModified = DateTime.Now;
+                await Db.UpdateItemAsync(_piVerification);
+                await LoadPiVerification();
+                NotificationService.Success($"Status updated to {newStatus}");
+                StateHasChanged();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Move to Next Step",
+            Value = "Forward",
+            Icon = "done_all",
+            IconColor = Colors.Success,
+            Disabled = () => _piVerification.CurrentStatus == "Completed",
+            Action = async () =>
+            {
+                var newStatus = statusChoices.Next(_piVerification.CurrentStatus);
+                _piVerification.CurrentStatus = newStatus;
+                _piVerification.LastModified = DateTime.Now;
+                await Db.UpdateItemAsync(_piVerification);
+                await LoadPiVerification();
+                NotificationService.Success($"Status updated to {newStatus}");
+                StateHasChanged();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Delete Record",
+            Value = "Delete",
+            Icon = "delete",
+            IconColor = Colors.Danger,
+            Action = async () =>
+            {
+                var confirm = await DialogService.DeleteConfirm("Insurance Verification Record");
+                if (confirm == true)
+                {
+                    await Db.DeleteItemAsync(_piVerification);
+                    Nav.NavigateToRelative(fromParent: true);
+                }
+            }
+        }
+    };
+
 }

@@ -1,6 +1,7 @@
 ﻿using AutoCAC.Models;
 using AutoCAC.Utilities;
 using Dapper;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -250,6 +251,37 @@ namespace AutoCAC.Extensions
             return await db.Set<TEntity>()
                 .AsNoTracking()
                 .AnyAsync(predicate, cancellationToken);
+        }
+
+        public static object GetPrimaryKeyValue<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity entity)
+            where TEntity : class
+        {
+            if (entity is null) return null;
+
+            using var db = factory.CreateDbContext(); // cheap factory context
+            var et = db.Model.FindEntityType(typeof(TEntity))
+                     ?? throw new InvalidOperationException($"No entityType for {typeof(TEntity).Name}");
+            var pk = et.FindPrimaryKey()
+                     ?? throw new InvalidOperationException($"No PK for {typeof(TEntity).Name}");
+            if (pk.Properties.Count != 1)
+                throw new NotSupportedException("Composite keys not supported.");
+
+            var propInfo = pk.Properties[0].PropertyInfo
+                           ?? throw new InvalidOperationException("PK property has no PropertyInfo.");
+            return propInfo.GetValue(entity);
+        }
+
+        public static async Task NavigateToEdit<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            NavigationManager nav,
+            TEntity entity)
+            where TEntity : class
+        {
+            var pk = factory.GetPrimaryKeyValue(entity);
+            if (pk is null) return;
+            nav.NavigateTo(nav.GetPathWith(pk.ToString()));
         }
     }
 }

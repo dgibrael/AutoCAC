@@ -5,7 +5,9 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Components.Templates.PatientSearch
 @using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.Buttons
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService NotificationService
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
@@ -21,19 +23,8 @@
                 <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
                 <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID"/>
                 <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
-                <ActionColumn Context="t" TItem="PiVerification" ShowDeleteWhen="@(x => x.CreatedBy == currentUsername)" Grid="grid.Grid">
-                    @if (t.CurrentStatus != "New")
-                    {
-                        <span title="move back">
-                            <RadzenButton Icon="arrow_back" ButtonStyle="ButtonStyle.Warning" Variant="Variant.Text" />
-                        </span>
-                    }
-                    @if (t.CurrentStatus != "Completed")
-                    {
-                        <span title="Complete">
-                            <RadzenButton Icon="arrow_forward" ButtonStyle="ButtonStyle.Success" Variant="Variant.Text" />
-                        </span>
-                    }
+                <ActionColumn TItem="PiVerification" Context="row">
+                    <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
                 </ActionColumn>
             </ChildContent>
         </DataGridVanilla>
@@ -84,4 +75,70 @@
         var dbRecord = await DbFactory.AddItemAsync(piVerification);
         Nav.NavigateTo(Nav.GetPathWith(dbRecord.Id.ToString()));
     }
+
+    IEnumerable<SplitButtonItem> BuildButtons(PiVerification row) => new[]
+    {
+        new SplitButtonItem
+        {
+            Text = "Edit",
+            Value = "Edit",
+            Icon = "edit",
+            IconColor = Colors.Primary,
+            Action = async () =>
+            {
+                Nav.NavigateTo(Nav.GetPathWith(row.Id.ToString()));
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Move Back",
+            Value = "Back",
+            Icon = "undo",
+            IconColor = Colors.WarningLight,
+            Disabled = () => row.CurrentStatus == "New",
+            Action = async () =>
+            {
+                var newStatus = statusChoices.Previous(row.CurrentStatus);
+                row.CurrentStatus = newStatus;
+                row.LastModified = DateTime.Now;
+                await DbFactory.UpdateItemAsync(row);
+                NotificationService.Success($"Status updated to {newStatus}");
+                await grid.Grid.Reload();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Move to Next Step",
+            Value = "Forward",
+            Icon = "done_all",
+            IconColor = Colors.Success,
+            Disabled = () => row.CurrentStatus == "Completed",
+            Action = async () =>
+            {
+                var newStatus = statusChoices.Next(row.CurrentStatus);
+                row.CurrentStatus = newStatus;
+                row.LastModified = DateTime.Now;
+                await DbFactory.UpdateItemAsync(row);
+                NotificationService.Success($"Status updated to {newStatus}");
+                await grid.Grid.Reload();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Delete Record",
+            Value = "Delete",
+            Icon = "delete",
+            IconColor = Colors.Danger,
+            Action = async () =>
+            {
+                var confirm = await DialogService.DeleteConfirm("Insurance Verification Record");
+                if (confirm == true)
+                {
+                    await DbFactory.DeleteItemAsync(row);
+                    NotificationService.Success($"Deleted");
+                    await grid.ForceReload();
+                }
+            }
+        }
+    };
 }

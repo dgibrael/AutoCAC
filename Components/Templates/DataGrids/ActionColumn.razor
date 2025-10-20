@@ -1,5 +1,4 @@
-﻿@using Radzen
-@using Radzen.Blazor
+﻿@using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject NavigationManager Nav
 @inject DialogService DialogService
@@ -8,33 +7,14 @@
 @typeparam TItem where TItem : class
 
 <RadzenDataGridColumn TItem="TItem"
-                      Title="Actions"
                       Sortable="false"
                       Filterable="false" Reorderable="false"
                       Frozen="true" FrozenPosition="FrozenColumnPosition.Right"
-                      Width="200px">
+                      Width="@Width">
     <HeaderTemplate>
         <RadzenIcon Icon="settings" />
     </HeaderTemplate>
     <Template Context="data">
-        @if (ShouldShowEdit(data))
-        {
-            <span title="edit" aria-label="edit">
-                <RadzenButton Icon="edit"
-                              ButtonStyle="ButtonStyle.Primary"
-                              Variant="Variant.Text"
-                              Click="@(() => OnEdit(data))" />
-            </span>
-        }
-        @if (ShouldShowDelete(data))
-        {
-            <span title="delete" aria-label="delete">
-                <RadzenButton Icon="delete"
-                              ButtonStyle="ButtonStyle.Danger"
-                              Variant="Variant.Text"
-                              Click="@(() => OnDeleteAsync(data))" />
-            </span>
-        }
         @if (ChildContent != null)
         {
             @ChildContent(data)
@@ -43,51 +23,6 @@
 </RadzenDataGridColumn>
 
 @code {
-    /// Reference to the parent grid so we can refresh/paginate after delete.
-    [Parameter] public RadzenDataGrid<TItem> Grid { get; set; }
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
-    /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
-    [Parameter] public Func<TItem, string> EditUrl { get; set; }
-    [Parameter] public Func<TItem, bool> ShowDeleteWhen { get; set; }
-    [Parameter] public Func<TItem, bool> ShowEditWhen { get; set; }
-    private TItem data;
-    private void OnEdit(TItem item)
-    {
-        var url = EditUrl?.Invoke(item);
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            var basePath = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
-            var id = GetId(item);
-            url = $"{basePath}/{id}";
-        }
-        Nav.NavigateTo(url!);
-    }
-
-    private bool ShouldShowDelete(TItem item)
-    {
-        return ShowDeleteWhen == default ? true : ShowDeleteWhen?.Invoke(item) == true;
-    }
-    private bool ShouldShowEdit(TItem item)
-    {
-        return ShowEditWhen == default ? true : ShowEditWhen?.Invoke(item) == true;
-    }
-
-    private async Task OnDeleteAsync(TItem item)
-    {
-        var confirm = await DialogService.Confirm("Are you sure you want to delete?");
-        if (confirm != true) return;
-
-        await DbFactory.DeleteItemAsync(item);
-
-        if (Grid is not null)
-            await Grid.FirstPage(true);
-    }
-
-    // Minimal reflection: look for a public property named "Id" (case-insensitive).
-    private static object GetId(TItem item)
-        => item?.GetType().GetProperty("Id",
-               System.Reflection.BindingFlags.Public |
-               System.Reflection.BindingFlags.Instance |
-               System.Reflection.BindingFlags.IgnoreCase)
-           ?.GetValue(item);
+    [Parameter] public string Width { get; set; } = "150px";
 }

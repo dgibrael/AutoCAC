@@ -41,5 +41,10 @@ namespace AutoCAC.Extensions
             var parent = navigationManager.GetParent();
             return parent.TrimEnd('/') + "/" + suffix.TrimStart('/');
         }
+        public static void NavigateToRelative(this NavigationManager navigationManager, string suffix = null, bool fromParent = false)
+        {
+            var newUrl = fromParent ? navigationManager.GetParentWith(suffix) : navigationManager.GetPathWith(suffix);
+            navigationManager.NavigateTo(newUrl);
+        }
     }
 }

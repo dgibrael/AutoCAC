@@ -1,0 +1,58 @@
+﻿@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+
+<RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="ButtonStyle.Primary" Text="@ButtonText"
+                    IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="more_vert">
+    @foreach (var btn in Buttons)
+    {
+        <RadzenSplitButtonItem Value="@btn.Value"
+                                Text="@btn.Text"
+                                Icon="@btn.Icon"
+                                IconColor="@btn.IconColor"
+                                Disabled="@(btn.Disabled?.Invoke() ?? false)" />
+    }
+</RadzenSplitButton>
+
+@code {
+    bool _isBusy;
+    [Parameter] public Func<Task> DefaultAction { get; set; }
+    [Parameter] public string DefaultButtonValue { get; set; }
+    [Parameter] public string ButtonText { get; set; } = "Edit";
+    [Parameter] public IEnumerable<SplitButtonItem> Buttons { get; set; }
+    private Func<Task> _resolvedDefaultAction;
+
+    protected override void OnParametersSet()
+    {
+        // Priority: explicit DefaultAction > DefaultButtonValue match > null
+        _resolvedDefaultAction = DefaultAction
+            ?? (string.IsNullOrWhiteSpace(DefaultButtonValue)
+                ? null
+                : Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Action);
+    }
+
+    private async Task OnClick(RadzenSplitButtonItem item)
+    {
+        if (_isBusy) return;
+        _isBusy = true;
+        try
+        {
+            if (item is null)
+            {
+                if (_resolvedDefaultAction is not null)
+                    await _resolvedDefaultAction();
+                return;
+            }
+            else
+            {
+                var match = Buttons.FirstOrDefault(b => b.Value == (string)item.Value);
+                if (match?.Action != null)
+                    await match.Action();
+            }
+        }
+        finally { _isBusy = false; }
+    }
+}

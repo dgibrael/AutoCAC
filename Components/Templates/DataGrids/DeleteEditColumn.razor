@@ -1,0 +1,88 @@
+﻿@using Radzen
+@using Radzen.Blazor
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+@typeparam TItem where TItem : class
+
+<RadzenDataGridColumn TItem="TItem"
+                      Title="Actions"
+                      Sortable="false"
+                      Filterable="false" Reorderable="false"
+                      Frozen="true" FrozenPosition="FrozenColumnPosition.Right"
+                      Width="200px">
+    <HeaderTemplate>
+        <RadzenIcon Icon="settings" />
+    </HeaderTemplate>
+    <Template Context="data">
+        @if (ShowEdit)
+        {
+            <span title="@(ShouldDisableEdit(data) ? "edit not allowed" : "edit")" aria-label="edit">
+                <RadzenButton Icon="edit"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Variant="Variant.Text" Disabled="@(ShouldDisableEdit(data))"
+                              Click="@(() => OnEdit(data))" />
+            </span>
+        }
+        @if (ShowDelete)
+        {
+            <span title="@(ShouldDisableDelete(data) ? "delete not allowed" : "delete")" aria-label="delete">
+                <RadzenButton Icon="delete"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Variant="Variant.Text" Disabled="@(ShouldDisableDelete(data))"
+                              Click="@(() => OnDeleteAsync(data))" />
+            </span>
+        }
+        @if (ChildContent != null)
+        {
+            @ChildContent(data)
+        }
+    </Template>
+</RadzenDataGridColumn>
+
+@code {
+    /// Reference to the parent grid so we can refresh/paginate after delete.
+    [Parameter] public RadzenDataGrid<TItem> Grid { get; set; }
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+    /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
+    [Parameter] public Func<TItem, string> EditUrl { get; set; }
+    [Parameter] public Func<TItem, bool> DisableDeleteWhen { get; set; }
+    [Parameter] public Func<TItem, bool> DisableEditWhen { get; set; }
+    [Parameter] public bool ShowEdit { get; set; } = true;
+    [Parameter] public bool ShowDelete { get; set; } = true;
+    private TItem data;
+    private void OnEdit(TItem item)
+    {
+        var url = EditUrl?.Invoke(item);
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            var basePath = new Uri(Nav.Uri).AbsolutePath.TrimEnd('/');
+            var id = DbFactory.GetPrimaryKeyValue<TItem>(item);
+            url = $"{basePath}/{id}";
+        }
+        Nav.NavigateTo(url!);
+    }
+
+    private bool ShouldDisableDelete(TItem item)
+    {
+        return DisableDeleteWhen == default ? false : DisableDeleteWhen?.Invoke(item) == true;
+    }
+
+    private bool ShouldDisableEdit(TItem item)
+    {
+        return DisableEditWhen == default ? false : DisableEditWhen?.Invoke(item) == true;
+    }
+
+    private async Task OnDeleteAsync(TItem item)
+    {
+        var confirm = await DialogService.Confirm("Are you sure you want to delete?");
+        if (confirm != true) return;
+
+        await DbFactory.DeleteItemAsync(item);
+
+        if (Grid is not null)
+            await Grid.FirstPage(true);
+    }
+}

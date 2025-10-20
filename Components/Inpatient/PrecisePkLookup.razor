@@ -10,7 +10,7 @@
 			<PatientDialogButton AfterPatientSelect="OnSelect" />
 		</HeaderContent>
 		<TrailingColumns>
-			<ActionColumn TItem="AutoCAC.Models.PatientLink" ShowEditWhen="@(a => false)" Grid="grid.Grid" />
+			<DeleteEditColumn TItem="AutoCAC.Models.PatientLink" ShowEdit="false" Grid="grid.Grid" />
 		</TrailingColumns>
 	</DataGridVanilla>
 </AuthorizedGroups>
