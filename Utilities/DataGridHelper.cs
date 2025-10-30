@@ -43,16 +43,18 @@ public sealed class DataGridHelper<T> where T : class
             ? _dataGridName!
             : typeof(T).Name;
 
-    public string LoadedTemplateName {  get; set; }
-
+    public DataGridTemplate LoadedTemplate { get; set; }
+    public string UserName { get; set; }
     public DataGridHelper(
         IDbContextFactory<AutoCAC.Models.mainContext> db,
+        string username,
         Func<AutoCAC.Models.mainContext, IQueryable<T>> source = null,
-        bool ignoreFilter = false,
         string[] searchColumns = null,
-        string dataGridName = null)
+        string dataGridName = null,
+        bool ignoreFilter = false)
     {
         _db = db;
+        UserName = username;
         Source = source ?? DefaultQuery;
         IgnoreFilter = ignoreFilter;
         SearchColumns = searchColumns;
@@ -138,25 +140,24 @@ public sealed class DataGridHelper<T> where T : class
         await query.DownloadAsCsvAsync(new LoadDataArgs(), js, includeProperties: visibleProps);
     }
 
-    public async Task<List<DataGridTemplate>> GetTemplatesAsync(string username)
+    public async Task<List<DataGridTemplate>> GetTemplatesAsync()
     {
         await using var db = await _db.CreateDbContextAsync();
         return await db.DataGridTemplates
                     .AsNoTracking()
-                    .Where(t => t.DataGridName == PageName && t.CreatedBy == username)
+                    .Where(t => t.DataGridName == PageName && t.CreatedBy == UserName)
                     .ToListAsync();
     }
 
-    public async Task SaveTemplate(string templateName, string username, bool isPublic)
+    public async Task SaveTemplate(string templateName, bool isPublic)
     {
         await using var db = await _db.CreateDbContextAsync();
-        await db.UpsertDataGridTemplate(templateName, PageName, username, Settings, isPublic);
-        LoadedTemplateName = templateName;
+        LoadedTemplate = await db.UpsertDataGridTemplate(templateName, PageName, UserName, Settings, isPublic);
     }
 
     public void SetSettingsFromTemplate(DataGridTemplate tmpl)
     {
-        LoadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
+        LoadedTemplate = tmpl;
         Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
             ? null
             : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);

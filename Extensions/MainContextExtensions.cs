@@ -37,7 +37,7 @@ namespace AutoCAC.Extensions
               .OrderBy(t => t.TemplateName)
               .ToListAsync(ct);
 
-        public static async Task UpsertDataGridTemplate(
+        public static async Task<DataGridTemplate> UpsertDataGridTemplate(
             this mainContext db,
             string templateName,
             string dataGridName,
@@ -47,27 +47,37 @@ namespace AutoCAC.Extensions
             CancellationToken ct = default)
         {
             var json = JsonSerializer.Serialize(dataGridSettings);
-            var rows = await db.DataGridTemplates
-                .Where(t => t.TemplateName == templateName
-                         && t.CreatedBy == createdBy
-                         && t.DataGridName == dataGridName)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(t => t.IsShared, isShared)
-                    .SetProperty(t => t.DataGridSettings, json),
-                    ct);
-            if (rows > 0) return;
-            var entity = new DataGridTemplate
-            {
-                TemplateName = templateName,
-                CreatedBy = createdBy,
-                DataGridName = dataGridName,
-                IsShared = isShared,
-                DataGridSettings = json
-            };
 
-            db.DataGridTemplates.Add(entity);
+            var entity = await db.DataGridTemplates
+                .FirstOrDefaultAsync(t =>
+                    t.TemplateName == templateName &&
+                    t.CreatedBy == createdBy &&
+                    t.DataGridName == dataGridName, ct);
+
+            if (entity is null)
+            {
+                entity = new DataGridTemplate
+                {
+                    TemplateName = templateName,
+                    CreatedBy = createdBy,
+                    DataGridName = dataGridName,
+                    IsShared = isShared,
+                    DataGridSettings = json
+                };
+
+                db.DataGridTemplates.Add(entity);
+            }
+            else
+            {
+                entity.IsShared = isShared;
+                entity.DataGridSettings = json;
+                // no need to call Update; tracked entity will be saved
+            }
+
             await db.SaveChangesAsync(ct);
+            return entity; // includes generated Id after SaveChanges
         }
+
 
 
         public static async Task<bool> SaveChangesHandleConcurrencyAsync(

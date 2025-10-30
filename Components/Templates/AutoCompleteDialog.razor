@@ -20,7 +20,7 @@
 </RadzenTemplateForm>
 
 @code {
-    [Parameter] public List<string> Suggestions { get; set; }
+    [Parameter] public IEnumerable<string> Suggestions { get; set; }
     [Parameter] public string Placeholder { get; set; } = string.Empty;
     [Parameter] public string Value { get; set; } = "";
 }

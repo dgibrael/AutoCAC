@@ -17,10 +17,10 @@
 @using System.Reflection
 
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-    @if (_helper?.SearchColumns != null)
+    @if (Helper?.SearchColumns != null)
     {
         <RadzenColumn Size="4">
-            <QuickSearch @bind-Value="_helper.SearchText" @bind-Value:after="ForceReload" />
+            <QuickSearch @bind-Value="Helper.SearchText" @bind-Value:after="ForceReload" />
         </RadzenColumn>
     }
     @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
@@ -34,22 +34,22 @@
     @HeaderContent
     <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
     <RadzenSplitButton Text="Save Template" Icon="save"
-                       Disabled="@(_helper?.Settings is null)"
+                       Disabled="@(Helper?.Settings is null)"
                        Click="@(item => SaveGridSettingsClick(item))"
                        ButtonStyle="ButtonStyle.Base">
         <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
         <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
     </RadzenSplitButton>
-    <SearchTemplateDropown DataGridName="@PageName"
+    <SearchTemplateDropown DataGridName="@Helper.PageName" @ref="templateDropdown"
                            SelectedTemplateChanged="OnTemplatePicked"
                            Placeholder="Load Saved Template..." />
 </RadzenStack>
 
-<RadzenDataGrid @ref="Grid" @bind-Settings="_helper.Settings"
-                Data="_helper.Data"
-                Count="_helper.Count"
+<RadzenDataGrid @ref="Grid" @bind-Settings="Helper.Settings"
+                Data="Helper.Data"
+                Count="Helper.Count"
                 LoadData="LoadData"
-                LoadColumnFilterData="_helper.LoadColumnFilterDataAsync"
+                LoadColumnFilterData="Helper.LoadColumnFilterDataAsync"
                 TItem="TItem"
                 IsLoading="IsLoading"
                 AllowFiltering="true"
@@ -127,22 +127,22 @@
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
-    [Parameter] public DataGridHelper<TItem> Helper { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     private string _searchText;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
-    private DataGridHelper<TItem> _helper;
+    public DataGridHelper<TItem> Helper;
+    public SearchTemplateDropown templateDropdown;
     private TItem row;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
+        await UserContext.EnsureInitializedAsync();
         if (AddButtonDefault && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
             AddButtonUrl = NavigationManager.GetPathWith("new");
 
         // Use the provided helper or create one
-        _helper = Helper ?? new DataGridHelper<TItem>(DbFactory, source: QueryFactory);
-        if (SearchColumns is not null) _helper.SearchColumns = SearchColumns;
+        Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory, SearchColumns);
     }
 
     public async Task LoadData(LoadDataArgs args)
@@ -150,7 +150,7 @@
         IsLoading = true;
         try
         {
-            await _helper.LoadAsync(args);
+            await Helper.LoadAsync(args);
         }
         catch (Exception ex)
         {
@@ -167,7 +167,7 @@
     {
         try
         {
-            await _helper.DownloadCsvAsync(JSRuntime);
+            await Helper.DownloadCsvAsync(JSRuntime);
         }
         catch (Exception ex)
         {
@@ -177,13 +177,13 @@
 
     public async Task SetQuickFilter(string filterText = "")
     {
-        _helper.SetQuickFilter(filterText);
+        Helper.SetQuickFilter(filterText);
         await Grid.FirstPage(true);
     }
 
     public async Task ForceReload()
     {
-        _helper.ShouldCount = true;
+        Helper.ShouldCount = true;
         await Grid.FirstPage(true);
     }
 
@@ -202,8 +202,8 @@
 
     public async Task OnTemplatePicked(DataGridTemplate tmpl)
     {
-        _helper.LoadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
-        _helper.Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
+        Helper.LoadedTemplate = tmpl;
+        Helper.Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
             ? null
             : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
         await Grid.ReloadSettings();
@@ -212,16 +212,18 @@
     public async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
     {
         var isPublic = string.Equals(item?.Value?.ToString(), "public", StringComparison.OrdinalIgnoreCase);
-        var templates = await _helper.GetTemplateNamesAsync(UserContext.Username);
+        var templates = await Helper.GetTemplatesAsync();
+        var templateNames = templates.Select(x => x.TemplateName);
         var templateName = await DialogService.AutoCompleteDialogAsync(
-            _helper.LoadedTemplateName,
-            templates,
+            Helper.LoadedTemplate.TemplateName,
+            templateNames,
             isPublic ? "Save Public Search Template" : "Save Search Template"
         );
         if (string.IsNullOrWhiteSpace(templateName))
             return;
-        await _helper.SaveTemplate(templateName, UserContext.Username, isPublic);
+        await Helper.SaveTemplate(templateName, isPublic);
         NotificationService.Success("Settings successfully saved");
+        await templateDropdown.LoadTemplates(Helper.LoadedTemplate);
 
     }
 }

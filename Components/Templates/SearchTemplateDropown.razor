@@ -6,12 +6,11 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @rendermode InteractiveServer
 
-<RadzenDropDown TValue="int?"
+<RadzenDropDown TValue="DataGridTemplate"
                 Data="@templates"
-                Value="@selectedTemplateId"
+                Value="@selectedTemplate"
                 Change="@OnTemplateChanged"
                 TextProperty="TemplateName"
-                ValueProperty="Id"
                 AllowClear="true"
                 Placeholder="@Placeholder"
                 Style="width: 280px" />
@@ -21,33 +20,49 @@
     [Parameter] public bool IncludeShared { get; set; } = true;
     [Parameter] public string Placeholder { get; set; } = "Search templates...";
 
-    // Raised when the user picks (or clears) a template. Null means "no selection".
+    // Optional: initial value
+    [Parameter] public DataGridTemplate InitialValue { get; set; }
+
+    // Event raised when user picks/clears a template
     [Parameter] public EventCallback<DataGridTemplate> SelectedTemplateChanged { get; set; }
 
     private List<DataGridTemplate> templates = [];
-    private int? selectedTemplateId;
+    private DataGridTemplate selectedTemplate;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if(firstRender)
-        {            
-            templates = await Db.GetDataGridTemplatesAsync(DataGridName, UserContext.Username, IncludeShared);
+        await LoadTemplates();
 
-            // Keep selection stable if still present; clear if not.
-            if (selectedTemplateId is { } id && !templates.Any(t => t.Id == id))
-            {
-                selectedTemplateId = null;
-                await SelectedTemplateChanged.InvokeAsync(null);
-            }
+        // Apply initial value if supplied and valid
+        if (InitialValue is not null)
+        {
+            selectedTemplate = templates.FirstOrDefault(t => t.Id == InitialValue.Id);
+            if (selectedTemplate != null)
+                await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
         }
     }
 
-    private async Task OnTemplateChanged(object value)
+    public async Task LoadTemplates(DataGridTemplate initialSelection = null)
     {
-        selectedTemplateId = value is int templateId ? templateId : null;
-        await SelectedTemplateChanged.InvokeAsync(SelectedTemplate);
+        templates = await Db.GetDataGridTemplatesAsync(DataGridName, UserContext.Username, IncludeShared);
+
+        if (initialSelection != null)
+        {
+            selectedTemplate = templates.FirstOrDefault(t => t.Id == initialSelection.Id);
+            await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
+        }
+        else if (selectedTemplate?.Id is { } id && !templates.Any(t => t.Id == id))
+        {
+            await SelectedTemplateChanged.InvokeAsync(null);
+        }
+
+        StateHasChanged();
     }
 
-    private DataGridTemplate SelectedTemplate =>
-        selectedTemplateId is null ? null : templates.FirstOrDefault(t => t.Id == selectedTemplateId);
+
+    private async Task OnTemplateChanged(object value)
+    {
+        selectedTemplate = value as DataGridTemplate;
+        await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
+    }
 }

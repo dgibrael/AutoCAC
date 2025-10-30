@@ -11,7 +11,8 @@
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
-        <DataGridVanilla TItem="PiVerification" @ref="grid" 
+        <DataGridVanilla TItem="PiVerification" @ref="grid" QueryFactory="@Qry()"
+            SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })"
         AddButtonDefault="false">
             <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
             <ChildContent>
@@ -35,18 +36,12 @@
     private DataGridVanilla<PiVerification> grid;
     private string currentUsername;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
-    private DataGridHelper<PiVerification> _helper;
-
-    protected override void OnInitialized()
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PiVerification>> Qry()
     {
-        _helper = new DataGridHelper<PiVerification>(
-            DbFactory,
-            source: db => db.PiVerifications
+        return db => db.PiVerifications
                 .Include(x => x.Patient)
                 .Include(x => x.PiVerificationComments)
-                .AsNoTracking(),
-            searchColumns: new[] { "Patient.Name", "Patient.ChartNumber" }
-        );
+                .AsNoTracking();
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

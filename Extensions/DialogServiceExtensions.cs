@@ -143,7 +143,7 @@ namespace AutoCAC.Extensions
         public static async Task<string> AutoCompleteDialogAsync(
             this DialogService dialogService,
             string value,
-            List<string> suggestions,
+            IEnumerable<string> suggestions,
             string title = "Enter Text")
         {
             var result = await dialogService.OpenAsync<AutoCompleteDialog>(
