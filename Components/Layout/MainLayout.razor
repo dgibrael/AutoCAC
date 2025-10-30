@@ -48,12 +48,16 @@
             <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
             @if (UserContext.UserProfile != null)
             {
-                if(UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
-                {
                     <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
-                        <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
-                        <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+                        @if (UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
+                        {
+                            <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
+                            <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+                        }
+                        <RadzenPanelMenuItem Text="Drug Table" Path="drugs" />
                     </RadzenPanelMenuItem>
+                if (UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
+                {
                     <RadzenPanelMenuItem Text="Supervisors" Icon="supervisor_account">
                         <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
                         <RadzenPanelMenuItem Text="Nurse Compound Training" Path="supervisor/inpatient/NurseCompoundTraining" />

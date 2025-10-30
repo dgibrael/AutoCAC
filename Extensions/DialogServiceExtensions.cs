@@ -1,5 +1,7 @@
-﻿using AutoCAC.Components.Templates.StaffSearch;
+﻿using AutoCAC.Components.Templates;
 using AutoCAC.Components.Templates.PatientSearch;
+using AutoCAC.Components.Templates.StaffSearch;
+using ClosedXML.Excel;
 using Microsoft.AspNetCore.Components;
 using Radzen;
 using System.Threading.Tasks;
@@ -137,6 +139,21 @@ namespace AutoCAC.Extensions
                 });
 
             return result as AutoCAC.Models.Patient;
+        }
+        public static async Task<string> AutoCompleteDialogAsync(
+            this DialogService dialogService,
+            string value,
+            List<string> suggestions,
+            string title = "Enter Text")
+        {
+            var result = await dialogService.OpenAsync<AutoCompleteDialog>(
+                title,
+                new Dictionary<string, object>
+                {
+                    { "Suggestions", suggestions },
+                    { "Value", value }
+                });
+            return result as string;
         }
     }
 }

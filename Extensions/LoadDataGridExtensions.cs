@@ -30,7 +30,7 @@ namespace AutoCAC.Extensions
             if (!string.IsNullOrWhiteSpace(QuickSearchString) && state.QuickSearchColumns?.Length > 0)
                 filtered = filtered.QuickSearch<T>(QuickSearchString, state.QuickSearchColumns);
             if (!ignoreFilter && !string.IsNullOrWhiteSpace(args.Filter))
-                filtered = filtered.Where(Dyn, args.Filter);
+                filtered = filtered.Where(args.Filter);
 
             var needCount = shouldCount ??
                             (

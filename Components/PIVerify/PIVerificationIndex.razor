@@ -11,7 +11,7 @@
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
-        <DataGridVanilla TItem="PiVerification" QueryFactory="@QueryFactory()" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })" @ref="grid" 
+        <DataGridVanilla TItem="PiVerification" @ref="grid" 
         AddButtonDefault="false">
             <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
             <ChildContent>
@@ -35,6 +35,19 @@
     private DataGridVanilla<PiVerification> grid;
     private string currentUsername;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
+    private DataGridHelper<PiVerification> _helper;
+
+    protected override void OnInitialized()
+    {
+        _helper = new DataGridHelper<PiVerification>(
+            DbFactory,
+            source: db => db.PiVerifications
+                .Include(x => x.Patient)
+                .Include(x => x.PiVerificationComments)
+                .AsNoTracking(),
+            searchColumns: new[] { "Patient.Name", "Patient.ChartNumber" }
+        );
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -43,13 +56,6 @@
             currentUsername = UserContext.Username;
             await InvokeAsync(StateHasChanged);
         }
-    }
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PiVerification>> QueryFactory()
-    {
-        return db => db.PiVerifications
-            .Include(x => x.Patient)
-            .Include(x => x.PiVerificationComments)
-            .AsNoTracking();
     }
 
     private async Task NewPatientSelect(AutoCAC.Models.Patient selected)

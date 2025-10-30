@@ -30,24 +30,26 @@
 
     [Parameter] public RenderFragment Unauthorized { get; set; }
     [Parameter] public bool ClinicalUsers { get; set; } = true;
+    [Parameter] public bool? IsAuthorized { get; set; }
 
     private bool? isAuthorized;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnParametersSetAsync()
     {
-        if (firstRender)
+        await UserContext.EnsureInitializedAsync();
+        if (IsAuthorized != null)
         {
-            await UserContext.EnsureInitializedAsync();
-            if (Groups != null)
-            {
-                isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
-            }
-            else
-            {
-                isAuthorized = ClinicalUsers ? UserContext.IsClinical() : UserContext.IsInGroupOrSuperuser();
-            }
-            await InvokeAsync(StateHasChanged);
+            isAuthorized = IsAuthorized;
         }
+        else if (Groups != null)
+        {
+            isAuthorized = UserContext.IsInGroupOrSuperuser(Groups?.ToArray());
+        }
+        else
+        {
+            isAuthorized = ClinicalUsers ? UserContext.IsClinical() : UserContext.IsInGroupOrSuperuser();
+        }
+        await InvokeAsync(StateHasChanged);
     }
     private string GetUnauthorizedMessage()
     {

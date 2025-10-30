@@ -9,6 +9,7 @@
 <DataGridVanilla TItem="TItem"
                  @ref="_vanilla"
                  QueryFactory="QueryFactory"
+                 Helper="Helper"
                  IncludeColumns="IncludeColumns"
                  ExcludeColumns="ExcludeColumns"
                  SearchColumns="@SearchColumns"
@@ -25,7 +26,6 @@
 
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
-    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
@@ -35,6 +35,8 @@
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
     [Parameter] public string DataGridName { get; set; }
+    [Parameter] public DataGridHelper<TItem> Helper { get; set; }
+    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     private DataGridVanilla<TItem> _vanilla;
 
     public Task ForceReload() => _vanilla?.ForceReload() ?? Task.CompletedTask;

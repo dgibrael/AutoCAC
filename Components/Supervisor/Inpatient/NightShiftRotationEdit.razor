@@ -8,7 +8,7 @@
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
     <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
     Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
-    <DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
+    <DataGridEditable TItem="NightShiftRotation" Helper="_helper"
                       AddAction="AddRotationAsync">
         <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />
 
@@ -34,6 +34,24 @@
 
 @code {
     [Parameter] public string SelectedUsername { get; set; }
+    private DataGridHelper<NightShiftRotation> _helper;
+
+    protected override void OnInitialized()
+    {
+        _helper = new DataGridHelper<NightShiftRotation>(
+            DbFactory,
+            source: ctx =>
+            {
+                var qry = ctx.NightShiftRotations
+                    .AsNoTracking();
+
+                if (!string.IsNullOrWhiteSpace(SelectedUsername))
+                    qry = qry.Where(x => x.StaffUserName == SelectedUsername);
+
+                return qry.OrderByDescending(x => x.EndDate);
+            }
+        );
+    }
     private Func<AutoCAC.Models.mainContext, IQueryable<NightShiftRotation>> QueryFactory()
     {
         return db =>

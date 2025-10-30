@@ -6,55 +6,73 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-@using AutoCAC.Models
-@using Microsoft.EntityFrameworkCore
-@using AutoCAC.Extensions
 @inject AutoCAC.Services.UserContextService UserContext
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC
+@using AutoCAC.Extensions
 @using System.Text.Json
-@using System
-@using System.Collections
-@using System.ComponentModel
-@using System.ComponentModel.DataAnnotations
-@using System.Linq
 @using System.Reflection
+
 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-    @if (SearchColumns != null)
+    @if (_helper?.SearchColumns != null)
     {
-    <RadzenColumn Size="4">
-        <QuickSearch @bind-Value="_searchText" @bind-Value:after="ForceReload" />
-    </RadzenColumn>
-        }
+        <RadzenColumn Size="4">
+            <QuickSearch @bind-Value="_helper.SearchText" @bind-Value:after="ForceReload" />
+        </RadzenColumn>
+    }
     @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
     {
         <RadzenButton Icon="add_circle_outline"
-                        Text="Add" ButtonStyle="ButtonStyle.Success"
-                        Click="@OnAddClickInternal"
-                        Variant="Variant.Flat" />
+                      Text="Add"
+                      ButtonStyle="ButtonStyle.Success"
+                      Click="@OnAddClickInternal"
+                      Variant="Variant.Flat" />
     }
     @HeaderContent
     <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-    <RadzenSplitButton Text="Save Template" Icon="save" Disabled="@(Settings is null)" Click="@(item => SaveGridSettingsClick(item))" ButtonStyle="ButtonStyle.Base">
+    <RadzenSplitButton Text="Save Template" Icon="save"
+                       Disabled="@(_helper?.Settings is null)"
+                       Click="@(item => SaveGridSettingsClick(item))"
+                       ButtonStyle="ButtonStyle.Base">
         <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
         <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
     </RadzenSplitButton>
-    <SearchTemplateDropown DataGridName="@PageName" SelectedTemplateChanged="OnTemplatePicked" Placeholder="Load Saved Template..." />
+    <SearchTemplateDropown DataGridName="@PageName"
+                           SelectedTemplateChanged="OnTemplatePicked"
+                           Placeholder="Load Saved Template..." />
 </RadzenStack>
-<RadzenDataGrid @ref="Grid" Data="_loadDataResult?.Data" Count="_loadDataResult.Count" LoadData="LoadData" IsLoading="IsLoading"
-                LoadColumnFilterData="@LoadColumnFilterData" TItem="TItem"
-                AllowFiltering="true" AllowPaging="true" PageSize="10" AllowSorting="true" AllowColumnResize="true" 
-                AllowColumnReorder="true" ColumnWidth="200px" @bind-Settings="Settings" 
-                PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) 
-                AllowGrouping="true"  AllowCompositeDataCells="true"
-                AllowColumnPicking="true" ShowPagingSummary="true"
+
+<RadzenDataGrid @ref="Grid" @bind-Settings="_helper.Settings"
+                Data="_helper.Data"
+                Count="_helper.Count"
+                LoadData="LoadData"
+                LoadColumnFilterData="_helper.LoadColumnFilterDataAsync"
+                TItem="TItem"
+                IsLoading="IsLoading"
+                AllowFiltering="true"
+                AllowPaging="true"
+                PageSize="10"
+                AllowSorting="true"
+                AllowColumnResize="true"
+                AllowColumnReorder="true"
+                AllowGrouping="true"
+                AllowCompositeDataCells="true"
+                AllowColumnPicking="true"
+                ShowPagingSummary="true"
+                ColumnWidth="200px"
+                PageSizeOptions="@(new int[]{5,10,20,30,50})"
                 ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
-                Context="row" RowSelect="@RowSelect"
-                >
+                Context="row"
+                RowSelect="@RowSelect">
+
     <Columns>
         @LeadingColumns?.Invoke(row)
         @if (ActionColumnDefault)
         {
-            <DeleteEditColumn Grid="Grid" Context="x"/>
+            <DeleteEditColumn Grid="Grid" Context="x" />
         }
         @if (ChildContent is not null)
         {
@@ -64,47 +82,31 @@
         {
             @foreach (var col in IncludeColumns)
             {
-                <RadzenDataGridColumn TItem="TItem"
-                                        Property="@col"
-                                        Title="@col" />
+                <RadzenDataGridColumn TItem="TItem" Property="@col" Title="@col" />
             }
         }
         else
         {
             var props = typeof(TItem)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            // exclude explicit names first
-            .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
 
             @foreach (var prop in props)
             {
-                <RadzenDataGridColumn TItem="TItem"
-                                        Property="@prop.Name"
-                                        Title="@prop.Name" />
+                <RadzenDataGridColumn TItem="TItem" Property="@prop.Name" Title="@prop.Name" />
             }
         }
         @TrailingColumns?.Invoke(row)
     </Columns>
+
     <Template Context="item">
-        @if (ExpandContentView is not null)
-        {
-            @ExpandContentView(item)
-        }
-        @if (ExpandContentBoth is not null)
-        {
-            @ExpandContentBoth(item)
-        }
+        @ExpandContentView?.Invoke(item)
+        @ExpandContentBoth?.Invoke(item)
     </Template>
 
     <EditTemplate Context="item">
-        @if (ExpandContentEdit is not null)
-        {
-            @ExpandContentEdit(item)
-        }
-        @if (ExpandContentBoth is not null)
-        {
-            @ExpandContentBoth(item)
-        }
+        @ExpandContentEdit?.Invoke(item)
+        @ExpandContentBoth?.Invoke(item)
     </EditTemplate>
 </RadzenDataGrid>
 
@@ -122,57 +124,33 @@
     [Parameter] public string AddButtonUrl { get; set; }
     [Parameter] public bool AddButtonDefault { get; set; } = false;
     [Parameter] public bool ActionColumnDefault { get; set; } = false;
-    private TItem row;
-    /// <summary>
-    /// Optional: provide a custom base query (e.g., with Includes or tenant scoping).
-    /// If null, defaults to DbFactory.QueryFromObj<TItem>().AsNoTracking().
-    /// </summary>
-    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
-    private static Func<AutoCAC.Models.mainContext, IQueryable<TItem>> DefaultQuery
-        => db => db.Set<TItem>().AsQueryable();
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<TItem>> _lastBuilder;
     [Parameter] public List<string> ExcludeColumns { get; set; } = new();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
+    [Parameter] public DataGridHelper<TItem> Helper { get; set; }
+    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     private string _searchText;
+    private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
-    public bool? ShouldCount { get; set; } = true;
-    DataGridSettings Settings;
-    private string loadedTemplateName = "";
-    private bool IsLoading { get; set; } = true;
-    private ColumnFilterChoices<TItem> _filterChoices;
-    private readonly LoadDataGridExtensions.LoadDataResult<TItem> _loadDataResult = new() { Data = null, Count = 0 };
+    private DataGridHelper<TItem> _helper;
+    private TItem row;
 
     protected override void OnParametersSet()
     {
         if (AddButtonDefault && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
-        {
             AddButtonUrl = NavigationManager.GetPathWith("new");
-        }
+
+        // Use the provided helper or create one
+        _helper = Helper ?? new DataGridHelper<TItem>(DbFactory, source: QueryFactory);
+        if (SearchColumns is not null) _helper.SearchColumns = SearchColumns;
     }
 
-    public virtual async Task LoadData(LoadDataArgs args)
+    public async Task LoadData(LoadDataArgs args)
     {
         IsLoading = true;
         try
         {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            var query = (QueryFactory ?? DefaultQuery)(db).AsNoTracking();
-            _loadDataResult.QuickSearchColumns = SearchColumns;
-            await query.LoadDataGridAsync(args, _loadDataResult, _searchText, ShouldCount);
-            _lastBuilder = ctx =>
-            {
-                var q = (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking();
-
-                var s = _loadDataResult.QuickSearchString;
-                var cols = _loadDataResult.QuickSearchColumns;
-
-                if (!string.IsNullOrWhiteSpace(s) && cols?.Length > 0)
-                    q = q.QuickSearch(s, cols);
-                return q;
-            };
-            ShouldCount = null;
+            await _helper.LoadAsync(args);
         }
         catch (Exception ex)
         {
@@ -181,45 +159,40 @@
         finally
         {
             IsLoading = false;
-            await InvokeAsync(StateHasChanged);
+            StateHasChanged();
         }
     }
 
-    public virtual async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<TItem> args)
+    public async Task DownloadTbl()
     {
-        args.Top = null;
-        args.Skip = null;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        // Use the same builder shape you adopted elsewhere
-        var builder = QueryFactory ?? (ctx => ctx.Set<TItem>().AsQueryable());
-
-        // Base query for distinct values; no paging, no tracking
-        var query = builder(db).AsNoTracking();
-        _filterChoices ??= new ColumnFilterChoices<TItem>();
-        await _filterChoices.GetColumnFilterDataAsync(args, query);
-    }
-
-    public virtual async Task DownloadTbl()
-    {
-        if (_loadDataResult.Count > 100000)
+        try
         {
-            await DialogService.Alert("Data set too large to download, filter first", "Data Over Limit");
-            return;
+            await _helper.DownloadCsvAsync(JSRuntime);
         }
+        catch (Exception ex)
+        {
+            await DialogService.Alert(ex.Message, "Download Error");
+        }
+    }
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var query = (_lastBuilder ?? DefaultQuery)(db);
+    public async Task SetQuickFilter(string filterText = "")
+    {
+        _helper.SetQuickFilter(filterText);
+        await Grid.FirstPage(true);
+    }
 
-        var visibleProps = Settings?.Columns?
-            .Where(c => c.Visible)
-            .Select(c => c.Property)
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct()
-            .ToList();
+    public async Task ForceReload()
+    {
+        _helper.ShouldCount = true;
+        await Grid.FirstPage(true);
+    }
 
-        await query.DownloadAsCsvAsync(_loadDataResult.Args ?? new(), JSRuntime, includeProperties: visibleProps);
+    private async Task OnAddClickInternal()
+    {
+        if (AddButtonClick.HasDelegate)
+            await AddButtonClick.InvokeAsync();
+        else if (!string.IsNullOrEmpty(AddButtonUrl))
+            NavigationManager.NavigateTo(AddButtonUrl);
     }
 
     private string PageName =>
@@ -227,55 +200,28 @@
             ? DataGridName!
             : typeof(TItem).Name;
 
-    public virtual async Task OnTemplatePicked(DataGridTemplate tmpl)
+    public async Task OnTemplatePicked(DataGridTemplate tmpl)
     {
-        loadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
-        Settings = tmpl == null || string.IsNullOrWhiteSpace(tmpl.DataGridSettings) ? null : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+        _helper.LoadedTemplateName = string.IsNullOrWhiteSpace(tmpl?.TemplateName) ? "" : tmpl.TemplateName;
+        _helper.Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
+            ? null
+            : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
         await Grid.ReloadSettings();
     }
 
-    public virtual async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
+    public async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
     {
         var isPublic = string.Equals(item?.Value?.ToString(), "public", StringComparison.OrdinalIgnoreCase);
+        var templates = await _helper.GetTemplateNamesAsync(UserContext.Username);
+        var templateName = await DialogService.AutoCompleteDialogAsync(
+            _helper.LoadedTemplateName,
+            templates,
+            isPublic ? "Save Public Search Template" : "Save Search Template"
+        );
+        if (string.IsNullOrWhiteSpace(templateName))
+            return;
+        await _helper.SaveTemplate(templateName, UserContext.Username, isPublic);
+        NotificationService.Success("Settings successfully saved");
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var templates = await db.DataGridTemplates
-              .AsNoTracking()
-              .Where(t => t.DataGridName == PageName && t.CreatedBy == UserContext.Username)
-              .Select(t => t.TemplateName)
-              .ToListAsync();
-        var templateNameObj = await DialogService.OpenAsync<AutoCompleteDialog>(
-            isPublic ? "Save Public Search Template" : "Save Search Template",
-            parameters: new Dictionary<string, object> { { "Suggestions", templates }, { "Value", loadedTemplateName } });
-        var templateName = templateNameObj as string;
-
-        if (string.IsNullOrWhiteSpace(templateName)) return;
-
-        await db.UpsertDataGridTemplate(templateName, PageName, UserContext.Username, Settings, isPublic);
     }
-
-    public async Task SetQuickFilter(string filterText = "")
-    {
-        _searchText = filterText;
-        await ForceReload();
-    }
-
-    public async Task ForceReload()
-    {
-        ShouldCount = true;
-        await Grid.FirstPage(true);
-    }
-
-    private async Task OnAddClickInternal()
-    {
-        if (AddButtonClick.HasDelegate)
-        {
-            await AddButtonClick.InvokeAsync();
-        }
-        else if (!string.IsNullOrEmpty(AddButtonUrl))
-        {
-            NavigationManager.NavigateTo(AddButtonUrl);
-        }
-    }
-
 }

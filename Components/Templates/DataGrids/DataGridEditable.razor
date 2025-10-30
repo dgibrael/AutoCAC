@@ -4,14 +4,13 @@
 
 @typeparam TItem where TItem : class, new()
 
-<DataGridVanilla TItem="TItem"
+<DataGridVanilla TItem="TItem" Helper="Helper"
                  @ref="basegrid"
                  DataGridName="@DataGridName"
-                 QueryFactory="@QueryFactory"
                  SearchColumns="@SearchColumns"
-                 AddButtonClick="OnAddClick"
+                 AddButtonClick="@(DefaultAddButton ? OnAddClick : null)"
                  ExpandContentView="@ExpandContentView" ExpandContentEdit="@ExpandContentEdit"
-                 ExpandContentBoth="@ExpandContentBoth"
+                 ExpandContentBoth="@ExpandContentBoth" QueryFactory="QueryFactory"
                  ActionColumnDefault="false">
     <ChildContent>
         @ChildContent
@@ -51,6 +50,7 @@
     [Parameter] public RenderFragment<TItem> RowButtonsViewMode { get; set; }
     [Parameter] public bool DefaultRowButtonsViewMode { get; set; } = true;
     [Parameter] public bool DefaultRowButtonsEditMode { get; set; } = true;
+    [Parameter] public bool DefaultAddButton { get; set; } = true;
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
@@ -59,7 +59,7 @@
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
-
+    [Parameter] public DataGridHelper<TItem> Helper { get; set; }
     public DataGridVanilla<TItem> basegrid;
     private readonly HashSet<TItem> _newItems = new();
 

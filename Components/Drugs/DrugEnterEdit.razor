@@ -20,7 +20,7 @@
     <hr>
     @if(selectedNdf != null)
     {
-        <DrugsTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
+        <DrugLookupTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
     }
     else
     {
@@ -33,7 +33,7 @@
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private string ndcInput = string.Empty;
-    private DrugsTbl DrugsTblRef;
+    private DrugLookupTbl DrugsTblRef;
     private Ndf selectedNdf;
     private Drug selectedDrug;
 

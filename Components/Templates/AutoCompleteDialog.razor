@@ -5,7 +5,7 @@
                         @bind-Value="Value"
                         Placeholder="@Placeholder"
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                        OpenOnFocus="true"
+                        OpenOnFocus="@(string.IsNullOrEmpty(Value))"
                         Style="width:100%;" />
 
     <div class="mt-3 flex justify-end gap-2">
@@ -20,7 +20,7 @@
 </RadzenTemplateForm>
 
 @code {
-    [Parameter] public List<string> Suggestions { get; set; } = new();
+    [Parameter] public List<string> Suggestions { get; set; }
     [Parameter] public string Placeholder { get; set; } = string.Empty;
     [Parameter] public string Value { get; set; } = "";
 }
