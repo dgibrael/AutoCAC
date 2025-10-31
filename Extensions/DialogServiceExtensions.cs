@@ -151,7 +151,7 @@ namespace AutoCAC.Extensions
                 new Dictionary<string, object>
                 {
                     { "Suggestions", suggestions },
-                    { "Value", value }
+                    { "InitialValue", value }
                 });
             return result as string;
         }

@@ -34,7 +34,7 @@
 
     private bool? isAuthorized;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
         await UserContext.EnsureInitializedAsync();
         if (IsAuthorized != null)

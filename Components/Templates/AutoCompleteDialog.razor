@@ -1,11 +1,11 @@
 ﻿@inject DialogService DialogService
 
-<RadzenTemplateForm TItem="string" Data="@Value" Submit="() => DialogService.Close(Value)">
+<RadzenTemplateForm TItem="string" Data="@_value" Submit="() => DialogService.Close(_value)">
     <RadzenAutoComplete Data="Suggestions"
-                        @bind-Value="Value"
+                        @bind-Value="_value" @ref="_autocomplete"
                         Placeholder="@Placeholder"
                         FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                        OpenOnFocus="@(string.IsNullOrEmpty(Value))"
+                        OpenOnFocus="@(string.IsNullOrEmpty(InitialValue))"
                         Style="width:100%;" />
 
     <div class="mt-3 flex justify-end gap-2">
@@ -14,13 +14,27 @@
                       Click="() => DialogService.Close(null)" />
         <RadzenButton Text="OK"
                       ButtonStyle="ButtonStyle.Primary"
-                      Disabled="@string.IsNullOrWhiteSpace(Value)"
+                      Disabled="@string.IsNullOrWhiteSpace(_value)"
                       ButtonType="ButtonType.Submit" />
     </div>
 </RadzenTemplateForm>
 
 @code {
-    [Parameter] public IEnumerable<string> Suggestions { get; set; }
+    [Parameter, EditorRequired] public IEnumerable<string> Suggestions { get; set; }
     [Parameter] public string Placeholder { get; set; } = string.Empty;
-    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public string InitialValue { get; set; }
+    private string _value;
+    protected RadzenAutoComplete _autocomplete;
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _value = InitialValue;
+            StateHasChanged();
+        }
+    }
+    void SubmitForm()
+    {
+        DialogService.Close(_value);
+    }
 }
