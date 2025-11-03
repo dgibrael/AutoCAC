@@ -128,7 +128,6 @@
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
-    private string _searchText;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
     public DataGridHelper<TItem> Helper;

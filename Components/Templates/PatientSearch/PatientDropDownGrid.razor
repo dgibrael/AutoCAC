@@ -44,7 +44,7 @@
         var query = db.Patients.AsQueryable();
         if (initialRender && Value!=0)
         {
-            initialFilter = await Db.GetFirstValueAsync("Select Name From Patient Where id = @Value", new { Value });
+            initialFilter = await Db.GetFirstValueAsync($"Select Name From Patient Where id = {Value}");
             query = query.Where(x => x.Name.Contains(initialFilter) || x.ChartNumber.Contains(initialFilter));
         }
         else if (!string.IsNullOrWhiteSpace(args.Filter))

@@ -7,67 +7,47 @@
 @inject NavigationManager Nav
 @inject DialogService DialogService
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-<RadzenButton ButtonType="ButtonType.Button" Text="View/Edit Entries" Icon="more_vert"
-Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation/edit"))" />
-<HelpButton HelpText="@helpTxt" />
-<RadzenDataGrid TItem="RotationSummary"
-                Data="@rows"
-                Count="@totalCount"
-                LoadData="@LoadData"
-                AllowFiltering="true"
-                FilterMode="FilterMode.Advanced"
-                AllowSorting="true"
-                AllowPaging="true" IsLoading="@isLoading"
-                RowSelect="@(x => Nav.NavigateTo($"/supervisor/inpatient/nightshiftrotation/edit/{x.StaffUserName}"))"
-                PageSize="20">
-    <Columns>
+<DataGridVanilla TItem="RotationSummary" QueryFactory="Qry()"
+                RowSelect="@(x => Nav.NavigateTo($"/supervisor/inpatient/nightshiftrotation/edit/{x.StaffUserName}"))">
+    <HeaderContent>
+        <RadzenButton ButtonType="ButtonType.Button" Text="View/Edit Entries" Icon="more_vert"
+                        Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation/edit"))" />
+        <HelpButton HelpText="@helpTxt" />
+    </HeaderContent>
+    <ChildContent>
         <RadzenDataGridColumn TItem="RotationSummary" Property="StaffUserName" Title="Staff" />
         <RadzenDataGridColumn TItem="RotationSummary" Property="LastEndDate" Title="Last Shift End"/>
-        <RadzenDataGridColumn TItem="RotationSummary" Property="Count" Title="Total Shifts" />
-    </Columns>  
-</RadzenDataGrid>
+        <RadzenDataGridColumn TItem="RotationSummary" Property="TotalDays" Title="Total Days" />
+        <RadzenDataGridColumn TItem="RotationSummary" Property="TotalDaysYear" Title="Total Days This Year" />
+    </ChildContent>
+</DataGridVanilla>
 </AuthorizedGroups>
 @code {
-    private bool isLoading = true;
-    // Inline DTO for grouping projection
     private sealed class RotationSummary
     {
         public string StaffUserName { get; set; } = null!;
         public DateOnly LastEndDate { get; set; }
-        public int Count { get; set; }
+        public int TotalDays { get; set; }
+        public int TotalDaysYear { get; set; }
     }
     private string helpTxt = @"This page shows the Total number of night shift rotations each pharmacist has done and when their last shift ended.\nTo see or edit the full log, click the 'View/Edit Entries' button. To see the log for an individual user, click on them in the table below";
-    private IEnumerable<RotationSummary> rows;
-    private int totalCount;
 
-    private async Task LoadData(LoadDataArgs args)
+    private Func<AutoCAC.Models.mainContext, IQueryable<RotationSummary>> Qry()
     {
-        isLoading = true;
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
+        int currentYear = DateTime.Now.Year;
 
-            var source = db.NightShiftRotations.AsNoTracking();
-
-            IQueryable<RotationSummary> query =
-                source
-                .GroupBy(r => r.StaffUserName)
-                .Select(g => new RotationSummary
-                    {
-                        StaffUserName = g.Key,
-                        LastEndDate = g.Max(x => x.EndDate),
-                        Count = g.Count()
-                    })
-                .OrderBy(x => x.LastEndDate)
-                ;
-
-            var result = await LoadDataGridService.ApplyLoadData(query, args);
-            rows = result.Data;
-            totalCount = result.Count;
-        }
-        finally
-        {
-            isLoading = false;
-        }
+        return db => db.NightShiftRotations
+            .GroupBy(r => r.StaffUserName)
+            .Select(g => new RotationSummary
+            {
+                StaffUserName = g.Key,
+                LastEndDate = g.Max(x => x.EndDate),
+                TotalDays = g.Sum(x => EF.Functions.DateDiffDay(x.StartDate, x.EndDate)),
+                TotalDaysYear = g.Sum(x =>
+                    x.EndDate.Year == currentYear
+                        ? EF.Functions.DateDiffDay(x.StartDate, x.EndDate)
+                        : 0)
+            })
+            .OrderBy(x => x.LastEndDate);
     }
 }

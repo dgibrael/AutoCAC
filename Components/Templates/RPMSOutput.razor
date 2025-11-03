@@ -99,8 +99,8 @@
     public double PctComplete { get; set; } = -1;
     private async void OnStatusChange()
     {
-        var _status = await DbFactory.GetFirstValueAsync(@"Select Status From DataImportStatus 
-                    Where JobID = @TaskNumber and TableName = @TableName", new { TaskNumber, TableName});
+        var _status = await DbFactory.GetFirstValueAsync($@"Select Status From DataImportStatus 
+                    Where JobID = {TaskNumber} and TableName = {TableName}");
         switch (_status)
         {
             case ("REQUESTED"):

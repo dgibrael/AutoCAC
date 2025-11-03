@@ -27,7 +27,7 @@
         <div class="rz-my-3">
             <p><strong>Display Name:</strong> @currentMenu.DisplayText</p>
             <p><strong>Columns:</strong> @currentMenu.Columns</p>
-        </div>
+        </div> 
     }
     else
     {
@@ -57,12 +57,8 @@
                 </RadzenColumn>
             </RadzenRow>
             <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn Size="2">
-                    <RadzenLabel Text="IEN of Menu To Replace:" />
-                </RadzenColumn>
-                <RadzenColumn Size="10">
-                    <RadzenNumeric @bind-Value="currentMenu.ExistingMenu" Min="0" />
-                </RadzenColumn>
+                <RadzenButton Click="@OverwriteMenu"
+                              Text="@($"Overwrite an existing RPMS Menu{(!string.IsNullOrWhiteSpace(overWritingMenu) ? $" ({overWritingMenu})" : "")}")" />
             </RadzenRow>
             <RadzenButton Text="Save" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" class="rz-mr-2" />
             <RadzenButton Text="Cancel" Click="ToggleEditAsync" ButtonStyle="ButtonStyle.Light" Icon="cancel" />
@@ -206,7 +202,7 @@
     private int additionalRows = 1;
     private bool editMode;
     private MenuBuild dragSourceItem;
-
+    private string overWritingMenu;
     private int MaxRow => (newItems.Any() ? newItems.Max(mb => mb.RowNum) : 1) + additionalRows;
 
     private int MaxTxtLength => currentMenu?.Columns switch
@@ -229,8 +225,11 @@
     private async Task GetCurrentMenu(mainContext db)
     {
         currentMenu = await db.MenuBuildMeta
-                //.Include(m => m.ExistingMenuNavigation)
+                .Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
+        overWritingMenu = (currentMenu?.ExistingMenu.NotNullOrZero() != true ) ? 
+                            currentMenu.ExistingMenuNavigation.DisplayText
+                            .ValueIfNullOrWhitespace(currentMenu.ExistingMenuNavigation.Name) : "";
     }
 
     private async Task ToggleEditAsync()
@@ -244,42 +243,11 @@
 
     private async Task SaveMenuMeta()
     {
+        currentMenu.RequestStatus = "EDITS IN PROGRESS";
+        await DbFactory.UpdateItemWithConcurrencyAsync(currentMenu, DialogService);
         await using var db = await DbFactory.CreateDbContextAsync();
-
-        // Attach the instance you're editing in the UI
-        db.Attach(currentMenu);
-        db.Entry(currentMenu).State = currentMenu.Id == 0
-            ? EntityState.Added
-            : EntityState.Modified;
-
-        try
-        {
-            await db.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            // Resolve and retry (client-wins overwrite)
-            var entry = ex.Entries.Single(e => e.Entity is MenuBuildMetum);
-
-            var databaseValues = await entry.GetDatabaseValuesAsync();
-            if (databaseValues == null)
-            {
-                // It was deleted by someone else -> re-insert
-                entry.State = EntityState.Added;
-            }
-            else
-            {
-                // Align original to DB so our current values (from currentMenu) can be saved on retry
-                entry.OriginalValues.SetValues(databaseValues);
-                // (entry.CurrentValues already contains currentMenu's values)
-            }
-
-            await db.SaveChangesAsync(); // retry once
-            // EF updates the RowVersion on currentMenu automatically on success
-        }
-
+        await GetNewItems(db);
         editMode = false;
-        await SaveMenuChanges();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -314,7 +282,8 @@
         await GetNewItems(db);
         if (!string.IsNullOrWhiteSpace(updateStatus))
         {
-            await db.SetMenuBuildMetaStatusAsync(Id, updateStatus);
+            currentMenu.RequestStatus = updateStatus;
+            await DbFactory.UpdateItemForceConcurrencyAsync(currentMenu);
             await GetCurrentMenu(db);
         }
     }
@@ -506,10 +475,10 @@
         else
         {
             await SaveMenuChanges();
-            await db.SetMenuBuildMetaStatusAsync(Id);
         }
         await InvokeAsync(StateHasChanged);
     }
+
 
     private async Task UpdateItem(MenuBuild item)
     {
@@ -599,12 +568,24 @@
                   AND ColNum = {dragSourceItem.ColNum} 
                   AND Menu_id = {Id}");
         }
-
-        await DbFactory.ExecuteSqlTransactionsAsync(commands);
-        await SaveMenuChanges();
-
-        dragSourceItem = null;
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            await DbFactory.ExecuteSqlTransactionsAsync(commands);
+            await SaveMenuChanges();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            NotificationService.Notify(NotificationSeverity.Error
+                , "Concurrency error", "This menu was modified by another user. Refreshing data");
+            await using var db = await DbFactory.CreateDbContextAsync();
+            await GetCurrentMenu(db);
+            await GetNewItems(db);
+        }
+        finally
+        {
+            dragSourceItem = null;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     public class PlaceholderField
@@ -612,6 +593,21 @@
         public string MenuTxt { get; set; }
         public string ExtendedTxt { get; set; }
         public int MaxLength { get; set; }
+    }
+
+    private async Task OverwriteMenu()
+    {
+        AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<MenuSelectExisting>(
+            "Order Dialog",
+            options: new DialogOptions { Width = "75%", Resizable = true });
+        if (selectedMenu is null) return;
+        currentMenu.ExistingMenu = selectedMenu.Id;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        overWritingMenu = await db.OrderDialogs
+                            .Where(x => x.Id == selectedMenu.Id)
+                            .Select(x => !string.IsNullOrWhiteSpace(x.DisplayText) ? x.DisplayText : x.Name )
+                            .FirstOrDefaultAsync();
+        StateHasChanged();
     }
 
     private async Task CopyExistingMenu()
@@ -629,7 +625,21 @@
                                           FROM [main].[dbo].[OrderMenu]
                                           Where id={selectedMenu.Id}"
             };
-            await DbFactory.ExecuteSqlTransactionsAsync(commands);
+            try
+            {
+                await DbFactory.ExecuteSqlTransactionsAsync(commands);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                NotificationService.Notify(NotificationSeverity.Error
+                    , "Concurrency error", "This menu was modified by another user. Refreshing data");
+                await using var db = await DbFactory.CreateDbContextAsync();
+                await GetCurrentMenu(db);
+                await GetNewItems(db);
+                await InvokeAsync(StateHasChanged);
+                return;
+
+            }
             await SaveMenuChanges();
             currentMenu.Columns = ((byte)newItems.Max(x => x.ColNum));
             await SaveMenuMeta();

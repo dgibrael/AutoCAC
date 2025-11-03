@@ -8,6 +8,7 @@
 <AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
     <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
     Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
+
     <DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
                       AddAction="AddRotationAsync">
         <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />

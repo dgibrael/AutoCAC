@@ -163,5 +163,13 @@ namespace AutoCAC.Extensions
             if (suffix is null) return value;
             return value.EndsWith(suffix, stringComparison) ? value[..^suffix.Length] : value;
         }
+        public static string ValueIfNullOrWhitespace(this string value, string newString)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                value = newString;
+            }
+            return value;
+        }
     }
 }

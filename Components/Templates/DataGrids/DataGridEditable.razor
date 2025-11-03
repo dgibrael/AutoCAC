@@ -125,6 +125,7 @@
             if (leaveEdit)
             {
                 basegrid.Grid.CancelEditRow(item);
+                await basegrid.Grid.Reload();
             }
         }
         catch (Exception ex)

@@ -23,7 +23,7 @@
 			{
 				PatientId = patientId
 			};
-		var exists = await Db.GetFirstValueAsync<Guid?>("Select LinkID From PatientLink Where PatientID = @patientId", new { patientId });
+		var exists = await Db.GetFirstValueAsync<Guid?>($"Select LinkID From PatientLink Where PatientID = {patientId}");
 		if (exists == null)
 		{
 			await Db.AddItemAsync(pkPatient);
