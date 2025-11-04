@@ -54,7 +54,7 @@
                 IsLoading="IsLoading"
                 AllowFiltering="true"
                 AllowPaging="true"
-                PageSize="10"
+                PageSize="@PageSize"
                 AllowSorting="true"
                 AllowColumnResize="true"
                 AllowColumnReorder="true"
@@ -128,6 +128,7 @@
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
+    int PageSize;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
     public DataGridHelper<TItem> Helper;
@@ -142,6 +143,24 @@
 
         // Use the provided helper or create one
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory, SearchColumns);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var height = await JSRuntime.InvokeAsync<int>(
+            "eval",
+            "window.innerHeight"
+        );
+
+        if (height < 800)
+            PageSize = 5;      // small screens
+        else if (height < 1200)
+            PageSize = 10;     // medium
+        else
+            PageSize = 20;     // large
+        StateHasChanged();
     }
 
     public async Task LoadData(LoadDataArgs args)

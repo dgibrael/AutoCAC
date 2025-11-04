@@ -73,8 +73,7 @@ public sealed class DataGridHelper<T> where T : class
     {
         await using var ctx = await _db.CreateDbContextAsync(ct);
         IQueryable<T> query = Source(ctx).AsNoTracking();
-
-        if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
+        if (!string.IsNullOrEmpty(args.Filter) && !args.Filter.Trim().Equals("0=1", StringComparison.OrdinalIgnoreCase))
             query = query.Where(args.Filter);
 
         if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)

@@ -227,7 +227,7 @@
         currentMenu = await db.MenuBuildMeta
                 .Include(m => m.ExistingMenuNavigation)
                 .FirstOrDefaultAsync(o => o.Id == Id);
-        overWritingMenu = (currentMenu?.ExistingMenu.NotNullOrZero() != true ) ? 
+        overWritingMenu = (currentMenu?.ExistingMenu.NotNullOrZero() == true ) ? 
                             currentMenu.ExistingMenuNavigation.DisplayText
                             .ValueIfNullOrWhitespace(currentMenu.ExistingMenuNavigation.Name) : "";
     }

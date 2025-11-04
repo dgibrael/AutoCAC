@@ -129,7 +129,11 @@
         )
         .Include(x => x.Item)
         .ToListAsync();
-
+        foreach (var mb in addLst)
+        {
+            if (mb.DisplayOnly?.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase) == true)
+                mb.DisplayOnly = "";
+        }
         maxRow = addLst.Max(mb => mb.RowNum);
         maxCol = addLst.Max(mb => mb.ColNum);
         await InvokeAsync(StateHasChanged);
@@ -142,7 +146,8 @@
         var menuId = currentMenu?.ExistingMenuNavigation.Id;
         if (menuId==null)
         {
-            throw new Exception("Must be linked to existing RPMS menu");
+            NotificationService.Notify(NotificationSeverity.Error, "Must be linked to existing RPMS menu");
+            return;
         }
         await Layout.RPMS.SendAsync($"`{menuId}");
         Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
