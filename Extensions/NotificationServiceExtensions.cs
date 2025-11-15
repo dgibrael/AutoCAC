@@ -14,15 +14,71 @@ namespace AutoCAC.Extensions
                 Duration = 3000
             });
         }
-        public static void Error(this NotificationService notificationService, Exception ex)
+        public static void Error(this NotificationService notificationService, Exception ex, string customMsg = null)
         {
             notificationService.Notify(new NotificationMessage
             {
                 Severity = NotificationSeverity.Error,
                 Summary = ex.GetType().Name,
-                Detail = ex.Message,
+                Detail = customMsg ?? ex.Message,
                 Duration = 5000
             });
+        }
+        /// <summary>
+        /// Executes the async action and notifies success or error.
+        /// </summary>
+        public static async Task<bool> TryNotify(this NotificationService notificationService,
+            Func<Task> action,
+            string successMessage = "Success",
+            string successTitle = "Success",
+            bool rethrow = false)
+        {
+            try
+            {
+                await action();
+                notificationService.Success(successMessage, successTitle);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                // Optional: ignore cancellations (don’t notify as error).
+                return false;
+            }
+            catch (Exception ex)
+            {
+                notificationService.Error(ex);
+                if (rethrow) throw;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Executes the async function and notifies success or error.
+        /// Returns the function's result.
+        /// </summary>
+        public static async Task<T> TryNotify<T>(this NotificationService notificationService,
+            Func<Task<T>> action,
+            string successMessage = "Success",
+            string successTitle = "Success",
+            bool rethrow = false)
+        {
+            try
+            {
+                var result = await action();
+                notificationService.Success(successMessage, successTitle);
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                // Optional: ignore cancellations (don’t notify as error).
+                return default(T);
+            }
+            catch (Exception ex)
+            {
+                notificationService.Error(ex);
+                if (rethrow) throw;
+                return default(T);
+            }
         }
     }
 }

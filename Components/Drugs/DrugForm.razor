@@ -68,7 +68,7 @@
                     <RadzenLabel Text="Dispense Units Per Order Unit" Component="DispenseUnitsPerOrderUnit" style="width: 100%" />
                 </RadzenColumn>
                 <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnitsPerOrderUnit)" Name="DispenseUnitsPerOrderUnit" />
+                    <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnitsPerOrderUnit)" Name="DispenseUnitsPerOrderUnit" />
                 </RadzenColumn>
             </RadzenRow>
             <RadzenRow style="margin-bottom: 1rem">
@@ -138,7 +138,9 @@
             ApplicationPackage = "O,U,X",
             DispenseUnit = SelectedNdf?.DispenseUnit,
             OrderUnit = GetDefaultOrderUnit(SelectedNdf?.PackageType),
-            DispenseUnitsPerOrderUnit = SelectedNdf?.PackageSize,
+            DispenseUnitsPerOrderUnit = double.TryParse(SelectedNdf?.PackageSize, out double size)
+                                        ? size
+                                        : 0.0,
             NcpdpDispenseUnit = GetDefaultNcpdpDispenseUnit(SelectedNdf?.DispenseUnit),
             DeaSpcl = MapDea(SelectedNdf?.Dea)
         };

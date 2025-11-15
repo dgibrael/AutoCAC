@@ -4,6 +4,9 @@
 @inject AuthenticationStateProvider Auth
 @using AutoCAC.Extensions
 @inject AutoCAC.Services.UserContextService UserContext
+@inject DialogService Dialog
+@inject NotificationService Notification
+@inject IDbContextFactory<mainContext> DbFactory
 @rendermode InteractiveServer
 
 <RadzenDropDown TValue="DataGridTemplate"
@@ -13,8 +16,13 @@
                 TextProperty="TemplateName"
                 AllowClear="true"
                 Placeholder="@Placeholder"
-                Style="width: 280px" />
-
+                Style="width: 280px">
+   <Template>
+        @(GetName((context as DataGridTemplate)))
+   </Template>
+</RadzenDropDown>
+<RadzenButton Text="Delete Template" Icon="delete" ButtonStyle="ButtonStyle.Danger" ButtonType="ButtonType.Button" Variant="Variant.Outlined" 
+Disabled="@(!string.Equals(selectedTemplate?.CreatedBy, UserContext?.Username, StringComparison.OrdinalIgnoreCase))" Click="DeleteTemplate" />
 @code {
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public bool IncludeShared { get; set; } = true;
@@ -25,7 +33,6 @@
 
     // Event raised when user picks/clears a template
     [Parameter] public EventCallback<DataGridTemplate> SelectedTemplateChanged { get; set; }
-
     private List<DataGridTemplate> templates = [];
     private DataGridTemplate selectedTemplate;
 
@@ -40,6 +47,12 @@
             if (selectedTemplate != null)
                 await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
         }
+    }
+
+    private string GetName(DataGridTemplate context)
+    {
+        var createdby = string.Equals(context?.CreatedBy, UserContext.Username, StringComparison.OrdinalIgnoreCase) ? "me" : context?.CreatedBy;
+        return $"{context.TemplateName} ({createdby})";
     }
 
     public async Task LoadTemplates(DataGridTemplate initialSelection = null)
@@ -64,5 +77,19 @@
     {
         selectedTemplate = value as DataGridTemplate;
         await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
+    }
+
+    private async Task DeleteTemplate()
+    {
+        var deleteOk = await Dialog.DeleteConfirm(customMessage: "Are you sure you want to delete this search template?");
+        if (deleteOk == true)
+        {
+            var success = await Notification.TryNotify(async () => await DbFactory.DeleteItemAsync(selectedTemplate));
+            if (success)
+            {
+                selectedTemplate = null;
+                await LoadTemplates();
+            }
+        }
     }
 }

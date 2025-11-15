@@ -140,9 +140,9 @@
             await Layout.RPMS.EnterUntil("DEA, SPECIAL HDLG:");
             await Layout.RPMS.SendAsync(selectedDrug.DeaSpcl);
             Layout.RPMS.CheckPromptAndThrow("DAW CODE:");
-            await Layout.RPMS.SendAsync("^ORDER UNIT", selectedDrug.OrderUnit, selectedDrug.DispenseUnit, selectedDrug.DispenseUnitsPerOrderUnit, selectedDrug.NcpdpDispenseUnit, selectedNdf.Ndc);
+            await Layout.RPMS.SendAsync("^ORDER UNIT", selectedDrug.OrderUnit, selectedDrug.DispenseUnit, selectedDrug.DispenseUnitsPerOrderUnit?.ToString(), selectedDrug.NcpdpDispenseUnit, selectedNdf.Ndc);
             Layout.RPMS.CheckPromptAndThrow("PRICE PER ORDER UNIT:");
-            await Layout.RPMS.SendAsync(selectedDrug.PricePerOrderUnit);
+            await Layout.RPMS.SendAsync(selectedDrug.PricePerOrderUnit?.ToString());
             await Layout.RPMS.EnterUntil("NATIONAL DRUG file?");
             await Layout.RPMS.SendAsync("YES");
             await Layout.RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>

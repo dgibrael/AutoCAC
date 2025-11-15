@@ -52,7 +52,6 @@
     [Parameter] public Func<TItem, bool> DisableEditWhen { get; set; }
     [Parameter] public bool ShowEdit { get; set; } = true;
     [Parameter] public bool ShowDelete { get; set; } = true;
-    private TItem data;
     private void OnEdit(TItem item)
     {
         var url = EditUrl?.Invoke(item);

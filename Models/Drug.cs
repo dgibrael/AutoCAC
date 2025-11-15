@@ -19,15 +19,15 @@ public partial class Drug
 
     public string? OrderUnit { get; set; }
 
-    public string? PricePerOrderUnit { get; set; }
+    public double? PricePerOrderUnit { get; set; }
 
-    public string? BenchmarkPricePerDispenseUnit { get; set; }
+    public double? BenchmarkPricePerDispenseUnit { get; set; }
 
     public string? DispenseUnit { get; set; }
 
-    public string? DispenseUnitsPerOrderUnit { get; set; }
+    public double? DispenseUnitsPerOrderUnit { get; set; }
 
-    public string? PricePerDispenseUnit { get; set; }
+    public double? PricePerDispenseUnit { get; set; }
 
     public string? NcpdpDispenseUnit { get; set; }
 

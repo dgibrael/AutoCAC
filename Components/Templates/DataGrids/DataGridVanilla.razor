@@ -41,7 +41,6 @@ else
         @HeaderContent
         <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
         <RadzenSplitButton Text="Save Template" Icon="save"
-                           Disabled="@(Helper?.Settings is null)"
                            Click="@(item => SaveGridSettingsClick(item))"
                            ButtonStyle="ButtonStyle.Base">
             <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
@@ -237,19 +236,29 @@ else
 
     public async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
     {
-        var isPublic = string.Equals(item?.Value?.ToString(), "public", StringComparison.OrdinalIgnoreCase);
+        var isPublic = Helper.LoadedTemplate?.IsShared == true;
+
+        // Override default if the user explicitly selected a value
+        if (item?.Value != null)
+        {
+            var value = item.Value.ToString();
+            if (string.Equals(value, "public", StringComparison.OrdinalIgnoreCase))
+                isPublic = true;
+            else if (string.Equals(value, "private", StringComparison.OrdinalIgnoreCase))
+                isPublic = false;
+        }
         var templates = await Helper.GetTemplatesAsync();
         var templateNames = templates.Select(x => x.TemplateName);
         var templateName = await DialogService.AutoCompleteDialogAsync(
             Helper.LoadedTemplate?.TemplateName,
             templateNames,
-            isPublic ? "Save Public Search Template" : "Save Search Template"
+            isPublic ? "Save Public Search Template" : "Save Search Template (Private)"
         );
         if (string.IsNullOrWhiteSpace(templateName))
             return;
         await Helper.SaveTemplate(templateName, isPublic);
-        NotificationService.Success("Settings successfully saved");
+        var savedas = isPublic ? "public" : "private";
+        NotificationService.Success($"Settings successfully saved as {savedas} template");
         await templateDropdown.LoadTemplates(Helper.LoadedTemplate);
-
     }
 }

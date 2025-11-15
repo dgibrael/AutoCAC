@@ -186,10 +186,8 @@ public partial class mainContext : DbContext
                 .ValueGeneratedNever()
                 .HasColumnName("id");
             entity.Property(e => e.ApplicationPackage).IsUnicode(false);
-            entity.Property(e => e.BenchmarkPricePerDispenseUnit).IsUnicode(false);
             entity.Property(e => e.DeaSpcl).IsUnicode(false);
             entity.Property(e => e.DispenseUnit).IsUnicode(false);
-            entity.Property(e => e.DispenseUnitsPerOrderUnit).IsUnicode(false);
             entity.Property(e => e.DosageForm).IsUnicode(false);
             entity.Property(e => e.DrugClass).IsUnicode(false);
             entity.Property(e => e.Generic).IsUnicode(false);
@@ -210,8 +208,6 @@ public partial class mainContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("PharmacyOrderableItemID");
             entity.Property(e => e.PossibleDosages).IsUnicode(false);
-            entity.Property(e => e.PricePerDispenseUnit).IsUnicode(false);
-            entity.Property(e => e.PricePerOrderUnit).IsUnicode(false);
             entity.Property(e => e.Restriction).IsUnicode(false);
             entity.Property(e => e.RxCui)
                 .IsUnicode(false)
@@ -300,7 +296,7 @@ public partial class mainContext : DbContext
             entity.Property(e => e.RequestStatus)
                 .HasMaxLength(200)
                 .IsUnicode(false)
-                .HasDefaultValue("NEW");
+                .HasDefaultValue("NEW", "DEFAULT_MenuBuildMeta_RequestStatus");
             entity.Property(e => e.RowVersion)
                 .IsRowVersion()
                 .IsConcurrencyToken();
@@ -486,7 +482,7 @@ public partial class mainContext : DbContext
                 .HasMaxLength(100)
                 .HasColumnName("CardholderID");
             entity.Property(e => e.CompletedBy).HasMaxLength(255);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())", "DF_PI_Verification_CreatedAt");
             entity.Property(e => e.CreatedBy).HasMaxLength(255);
             entity.Property(e => e.CurrentStatus)
                 .HasMaxLength(255)
