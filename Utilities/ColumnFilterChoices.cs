@@ -48,6 +48,7 @@ namespace AutoCAC.Utilities
                 }
                 return;
             }
+
             var param = Expression.Parameter(typeof(T), "x");
             var propertyExpr = Expression.PropertyOrField(param, propertyName);
             var propertyType = propertyExpr.Type;
@@ -55,16 +56,16 @@ namespace AutoCAC.Utilities
             // bool / bool? -> no paging
             if (propertyType == typeof(bool))
             {
-                var list = ObjectFactoryHelpers.CreateStubs<T>(propertyName, true, false);
-                args.Data = list; args.Count = list.Count;
-                _pageCache[pageKey] = list; _countCache[countKey] = list.Count;
+                var boollst = ObjectFactoryHelpers.CreateStubs<T>(propertyName, true, false);
+                args.Data = boollst; args.Count = boollst.Count;
+                _pageCache[pageKey] = boollst; _countCache[countKey] = boollst.Count;
                 return;
             }
             if (propertyType == typeof(bool?))
             {
-                var list = ObjectFactoryHelpers.CreateStubs<T>(propertyName, (bool?)true, (bool?)false, (bool?)null);
-                args.Data = list; args.Count = list.Count;
-                _pageCache[pageKey] = list; _countCache[countKey] = list.Count;
+                var boollst = ObjectFactoryHelpers.CreateStubs<T>(propertyName, (bool?)true, (bool?)false, (bool?)null);
+                args.Data = boollst; args.Count = boollst.Count;
+                _pageCache[pageKey] = boollst; _countCache[countKey] = boollst.Count;
                 return;
             }
 
@@ -81,37 +82,49 @@ namespace AutoCAC.Utilities
                 query = query.Where(lambda);
             }
 
-            // query.GroupBy(x => x.Prop).Select(g => g.First())
+            // --- CHANGED SECTION: use Select + Distinct instead of GroupBy ---
             var keySelector = Expression.Lambda(propertyExpr, param);
-            var groupByM = typeof(Queryable).GetMethods().First(m => m.Name == nameof(Queryable.GroupBy) && m.GetParameters().Length == 2)
-                              .MakeGenericMethod(typeof(T), propertyExpr.Type);
-            var groupQuery = (IQueryable)groupByM.Invoke(null, new object[] { query, keySelector })!;
 
-            var groupingType = typeof(IGrouping<,>).MakeGenericType(propertyExpr.Type, typeof(T));
-            var firstM = typeof(Enumerable).GetMethods().First(m => m.Name == nameof(Enumerable.First) && m.GetParameters().Length == 1)
-                              .MakeGenericMethod(typeof(T));
-            var selectM = typeof(Queryable).GetMethods().First(m => m.Name == nameof(Queryable.Select) && m.GetParameters().Length == 2)
-                              .MakeGenericMethod(groupingType, typeof(T));
-            var gParam = Expression.Parameter(groupingType, "g");
-            var firstCall = Expression.Call(firstM, gParam);
-            var selector = Expression.Lambda(firstCall, gParam);
-            var finalQuery = (IQueryable<T>)selectM.Invoke(null, new object[] { groupQuery, selector })!;
+            // query.Select(x => x.Prop)
+            var selectM = typeof(Queryable)
+                .GetMethods()
+                .First(m => m.Name == nameof(Queryable.Select) && m.GetParameters().Length == 2)
+                .MakeGenericMethod(typeof(T), propertyExpr.Type);
+            var valuesQuery = (IQueryable)selectM.Invoke(null, new object[] { query, keySelector })!;
+
+            // query.Select(...).Distinct()
+            var distinctM = typeof(Queryable)
+                .GetMethods()
+                .First(m => m.Name == nameof(Queryable.Distinct) && m.GetParameters().Length == 1)
+                .MakeGenericMethod(propertyExpr.Type);
+            var distinctQuery = (IQueryable)distinctM.Invoke(null, new object[] { valuesQuery })!;
+
+            // Materialize stub entities with the distinct values
+            var prop = typeof(T).GetProperty(propertyName)!;
+            var list = new List<T>();
+            foreach (var val in await EntityFrameworkQueryableExtensions.ToListAsync((dynamic)distinctQuery))
+            {
+                var stub = Activator.CreateInstance<T>();
+                prop.SetValue(stub, val);
+                list.Add(stub);
+            }
+            var finalQuery = list.AsQueryable();
+            // --- END CHANGED SECTION ---
 
             if (top == -1)
             {
-                var list = await finalQuery.AsNoTracking().ToListAsync();
-                args.Data = list; args.Count = list.Count;
-                _pageCache[pageKey] = list; _countCache[countKey] = list.Count;
+                var all = finalQuery.ToList();
+                args.Data = all; args.Count = all.Count;
+                _pageCache[pageKey] = all; _countCache[countKey] = all.Count;
             }
             else
             {
-                var paged = finalQuery.Skip(skip).Take(top);
-                var pageList = await paged.AsNoTracking().ToListAsync();
+                var pageList = finalQuery.Skip(skip).Take(top).ToList();
 
                 int totalDistinct;
                 if (!_countCache.TryGetValue(countKey, out totalDistinct))
                 {
-                    totalDistinct = await finalQuery.CountAsync();
+                    totalDistinct = finalQuery.Count();
                     _countCache[countKey] = totalDistinct;
                 }
 

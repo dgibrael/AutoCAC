@@ -1,6 +1,46 @@
 ﻿@page "/drugs"
 @using AutoCAC.Components.Templates.DataGrids
 
-<DataGridVanilla TItem="AutoCAC.Models.Drug">
-	<HeaderContent><h4>Drugs</h4></HeaderContent>
+<DataGridVanilla TItem="AutoCAC.Models.Drug" SearchColumns="@(new[] { "Name", "PharmacyOrderableItem", "VaPrintName" })">
+	<HeaderContent><h2>Drugs</h2></HeaderContent>
+	<ChildContent>
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="Id" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Name" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PharmacyOrderableItem" Title="PharmacyOrderableItem" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DosageForm" Title="DosageForm" FilterMode="FilterMode.CheckBoxList" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DeaSpcl" Title="DeaSpcl" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="OrderUnit" Title="OrderUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PricePerOrderUnit" Title="PricePerOrderUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="BenchmarkPricePerDispenseUnit" Title="BenchmarkPricePerDispenseUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnit" Title="DispenseUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnitsPerOrderUnit" Title="DispenseUnitsPerOrderUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PricePerDispenseUnit" Title="PricePerDispenseUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="NcpdpDispenseUnit" Title="NcpdpDispenseUnit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="VaPrintName" Title="VaPrintName" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PackageSize" Title="PackageSize" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PackageType" Title="PackageType" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DrugClass" Title="DrugClass" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Ndc" Title="Ndc" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="ApplicationPackage" Title="ApplicationPackage" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Message" Title="Message" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Nf" Title="Nf" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Strength" Title="Strength" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Unit" Title="Unit" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PossibleDosages" Title="PossibleDosages" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="LocalPossibleDosage" Title="LocalPossibleDosage" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Synonym" Title="Synonym" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Generic" Title="Generic" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="InactiveDate" Title="InactiveDate" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PharmacyOrderableItemId" Title="PharmacyOrderableItemId" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="RxCui" Title="RxCui" />
+	</ChildContent>
 </DataGridVanilla>
+
+@code{
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
+	{
+		return db => db.Drugs
+			.Where(x => !string.IsNullOrWhiteSpace(x.DosageForm))
+			.AsNoTracking();
+	}
+}
