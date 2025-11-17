@@ -10,26 +10,24 @@
 @inject NotificationService NotificationService
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
-    <AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
-        <DataGridVanilla TItem="PiVerification" @ref="grid" QueryFactory="@Qry()"
-            SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })"
-        AddButtonDefault="false">
-            <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
-            <ChildContent>
-                <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="150px"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID"/>
-                <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
-                <ActionColumn TItem="PiVerification" Context="row">
-                    <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
-                </ActionColumn>
-            </ChildContent>
-        </DataGridVanilla>
-    </AuthorizedGroups>
+    <DataGridVanilla TItem="PiVerification" @ref="grid" QueryFactory="@Qry()"
+        SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })"
+    AddButtonDefault="false">
+        <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
+        <ChildContent>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="150px"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
+            <ActionColumn TItem="PiVerification" Context="row">
+                <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
+            </ActionColumn>
+        </ChildContent>
+    </DataGridVanilla>
 </div>
 
 @code {

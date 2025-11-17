@@ -12,6 +12,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Components.Templates.PatientSearch
+@using System.Security.Claims
 <PageTitle>Home</PageTitle>
 @if(UserContext.UserProfile != null)
 {
@@ -28,6 +29,9 @@
         <h4 class="rz-color-danger">YOU ARE NOT MARKED AS AN ACTIVE USER. YOU WILL NOT BE ABLE TO USE THIS SITE UNTIL AN ADMIN ACTIVATES YOUR ACCOUNT</h4>
     }
     <p><strong>Superuser: </strong>@UserContext.UserProfile.IsSuperuser</p>
+    <p><strong>LastName: </strong>@UserContext.AdLastName</p>
+    <p><strong>FirstName: </strong>@UserContext.AdFirstName</p>
+    <p><strong>Email: </strong>@UserContext.AdEmail</p>
     <ul><strong>Groups: </strong>
         @foreach(var group in UserContext.Groups)
         {
@@ -41,6 +45,9 @@ else
 }
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        await UserContext.EnsureInitializedAsync();
+    }
 }
 

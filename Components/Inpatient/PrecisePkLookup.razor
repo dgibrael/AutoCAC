@@ -3,17 +3,15 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> Db
 <PageTitle>Precise PK Lookup</PageTitle>
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor", "Pharmacist", "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin"  })">
-	<DataGridVanilla @ref="grid" TItem="AutoCAC.Models.PatientLink" IncludeColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" 
-		SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" QueryFactory="@Qry()" >
-		<HeaderContent>
-			<PatientDialogButton AfterPatientSelect="OnSelect" />
-		</HeaderContent>
-		<TrailingColumns>
-			<DeleteEditColumn TItem="AutoCAC.Models.PatientLink" ShowEdit="false" Grid="grid.Grid" />
-		</TrailingColumns>
-	</DataGridVanilla>
-</AuthorizedGroups>
+<DataGridVanilla @ref="grid" TItem="AutoCAC.Models.PatientLink" IncludeColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" 
+	SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" QueryFactory="@Qry()" >
+	<HeaderContent>
+		<PatientDialogButton AfterPatientSelect="OnSelect" />
+	</HeaderContent>
+	<TrailingColumns>
+		<DeleteEditColumn TItem="AutoCAC.Models.PatientLink" ShowEdit="false" Grid="grid.Grid" />
+	</TrailingColumns>
+</DataGridVanilla>
 @code {
 	private DataGridVanilla<PatientLink> grid;
 	private async Task OnSelect(AutoCAC.Models.Patient patient)

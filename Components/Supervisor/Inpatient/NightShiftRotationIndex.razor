@@ -6,7 +6,7 @@
 @inject LoadDataGridService LoadDataGridService
 @inject NavigationManager Nav
 @inject DialogService DialogService
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
+
 <DataGridVanilla TItem="RotationSummary" QueryFactory="Qry()"
                 RowSelect="@(x => Nav.NavigateTo($"/supervisor/inpatient/nightshiftrotation/edit/{x.StaffUserName}"))">
     <HeaderContent>
@@ -21,7 +21,6 @@
         <RadzenDataGridColumn TItem="RotationSummary" Property="TotalDaysYear" Title="Total Days This Year" />
     </ChildContent>
 </DataGridVanilla>
-</AuthorizedGroups>
 @code {
     private sealed class RotationSummary
     {

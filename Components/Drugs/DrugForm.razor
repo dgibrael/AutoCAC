@@ -6,113 +6,111 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @using AutoCAC.Models
-<AuthorizedGroups Groups=@(new[] { "PharmacistSupervisor" })>
-    <RadzenColumn SizeMD=12>
-        <RadzenAlert Shade="Shade.Lighter" Variant="Variant.Flat" Size="AlertSize.Small" AlertStyle="AlertStyle.Danger" Visible="@errorVisible">Cannot save Drug</RadzenAlert>
-        <RadzenTemplateForm TItem="AutoCAC.Models.Drug" Data="@(drug)" Visible="@(drug != null)" Submit="@FormSubmit">
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Name" Component="Name" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Name)" Name="Name" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Message" Component="Message" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Message)" Name="Message" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Dea" Component="Dea" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DeaSpcl)" Name="DeaSpcl" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Order Unit" Component="OrderUnit" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                        <RadzenDropDown @bind-Value="@(drug.OrderUnit)"
-                        Data="@OrderUnitOptions"
-                        TextProperty="Value"
-                        ValueProperty="Key"
-                        Style="width: 100%"
-                        Name="OrderUnit" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Price Per Order Unit" Component="PricePerOrderUnit" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.PricePerOrderUnit)" Name="PricePerOrderUnit" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Dispense Unit" Component="DispenseUnit" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnit)" Name="DispenseUnit" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Dispense Units Per Order Unit" Component="DispenseUnitsPerOrderUnit" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnitsPerOrderUnit)" Name="DispenseUnitsPerOrderUnit" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Ncpdp Dispense Unit" Component="NcpdpDispenseUnit" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                        <RadzenDropDown @bind-Value="@(drug.NcpdpDispenseUnit)"
-                        Data="@UnitOptions"
-                        TextProperty="Value"
-                        ValueProperty="Key"
-                        Style="display: block; width: 100%"
-                        Name="NcpdpDispenseUnit" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Application Packages" Component="ApplicationPackage" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.ApplicationPackage)" Name="ApplicationPackage" />
-                </RadzenColumn>
-            </RadzenRow>
-            <RadzenRow style="margin-bottom: 1rem">
-                <RadzenColumn SizeMD="3">
-                    <RadzenLabel Text="Nf" Component="Nf" style="width: 100%" />
-                </RadzenColumn>
-                <RadzenColumn SizeMD="9">
-                    <RadzenToggleButton @bind-Value="isNf"
-                                        Name="NfToggle"
-                                        style="display: block; width: 100%"
-                                        ToggleIcon="check"
-                                        Shade="Radzen.Shade.Default" ToggleShade="Radzen.Shade.Lighter"
-                                        />
-                </RadzenColumn>
+<RadzenColumn SizeMD=12>
+    <RadzenAlert Shade="Shade.Lighter" Variant="Variant.Flat" Size="AlertSize.Small" AlertStyle="AlertStyle.Danger" Visible="@errorVisible">Cannot save Drug</RadzenAlert>
+    <RadzenTemplateForm TItem="AutoCAC.Models.Drug" Data="@(drug)" Visible="@(drug != null)" Submit="@FormSubmit">
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Name" Component="Name" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Name)" Name="Name" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Message" Component="Message" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.Message)" Name="Message" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Dea" Component="Dea" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DeaSpcl)" Name="DeaSpcl" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Order Unit" Component="OrderUnit" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                    <RadzenDropDown @bind-Value="@(drug.OrderUnit)"
+                    Data="@OrderUnitOptions"
+                    TextProperty="Value"
+                    ValueProperty="Key"
+                    Style="width: 100%"
+                    Name="OrderUnit" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Price Per Order Unit" Component="PricePerOrderUnit" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.PricePerOrderUnit)" Name="PricePerOrderUnit" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Dispense Unit" Component="DispenseUnit" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnit)" Name="DispenseUnit" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Dispense Units Per Order Unit" Component="DispenseUnitsPerOrderUnit" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenNumeric style="display: block; width: 100%" @bind-Value="@(drug.DispenseUnitsPerOrderUnit)" Name="DispenseUnitsPerOrderUnit" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Ncpdp Dispense Unit" Component="NcpdpDispenseUnit" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                    <RadzenDropDown @bind-Value="@(drug.NcpdpDispenseUnit)"
+                    Data="@UnitOptions"
+                    TextProperty="Value"
+                    ValueProperty="Key"
+                    Style="display: block; width: 100%"
+                    Name="NcpdpDispenseUnit" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Application Packages" Component="ApplicationPackage" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenTextBox style="display: block; width: 100%" @bind-Value="@(drug.ApplicationPackage)" Name="ApplicationPackage" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow style="margin-bottom: 1rem">
+            <RadzenColumn SizeMD="3">
+                <RadzenLabel Text="Nf" Component="Nf" style="width: 100%" />
+            </RadzenColumn>
+            <RadzenColumn SizeMD="9">
+                <RadzenToggleButton @bind-Value="isNf"
+                                    Name="NfToggle"
+                                    style="display: block; width: 100%"
+                                    ToggleIcon="check"
+                                    Shade="Radzen.Shade.Default" ToggleShade="Radzen.Shade.Lighter"
+                                    />
+            </RadzenColumn>
 
-            </RadzenRow>
-          <RadzenStack  Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
-                    <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" Icon="save" Text="Save" Variant="Variant.Flat" />
-                    <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Cancel" Variant="Variant.Flat" Click="@CancelButtonClick"  />
-          </RadzenStack>
-        </RadzenTemplateForm>
-    </RadzenColumn>
-</AuthorizedGroups>
+        </RadzenRow>
+        <RadzenStack  Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
+                <RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit" Icon="save" Text="Save" Variant="Variant.Flat" />
+                <RadzenButton ButtonStyle="ButtonStyle.Light" Text="Cancel" Variant="Variant.Flat" Click="@CancelButtonClick"  />
+        </RadzenStack>
+    </RadzenTemplateForm>
+</RadzenColumn>
 @code {
     [Parameter] public Ndf SelectedNdf { get; set; }
     [Parameter] public Drug drug { get; set; }

@@ -4,7 +4,7 @@
 @using Radzen
 @using Radzen.Blazor
 @inject IServiceProvider Services
-
+@inject IDbContextFactory<mainContext> DbFactory
 @if (!OperatingSystem.IsWindows())
 {
     <RadzenAlert Severity="AlertSeverity.Warning" Style="max-width: 640px">
@@ -36,11 +36,12 @@ else
                     PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ShowPagingSummary="true"
                     ColumnWidth="200px"
                     IsLoading="@isLoading"
-                    RowSelect="@OnSelect"
+                    RowSelect="@InternalOnSelect"
                     @ref="_grid">
         <Columns>
             <RadzenDataGridColumn TItem="AdUserDto" Property="DisplayName" Title="Name" FilterPlaceholder="Search by users name" />
             <RadzenDataGridColumn TItem="AdUserDto" Property="SamAccountName" Title="Username (windows D1)" Width="180px" FilterPlaceholder="Search by D1 username" />
+            <RadzenDataGridColumn TItem="AdUserDto" Property="Email" Title="Email" Width="180px" Filterable="false" Sortable="false" />
             <RadzenDataGridColumn TItem="AdUserDto" Property="Enabled" Title="Enabled" Width="120px" Sortable="false"/>
         </Columns>
     </RadzenDataGrid>
@@ -55,6 +56,75 @@ else
     private RadzenDataGrid<AdUserDto> _grid;
     private IEnumerable<AdUserDto> _users;
     private int _count;
+
+    private async Task InternalOnSelect(AdUserDto selected)
+    {
+        var selectedUsername = selected?.SamAccountName;
+        if (string.IsNullOrWhiteSpace(selectedUsername)) return;
+        selectedUsername = "D1_" + selectedUsername;
+        string lastName = "";
+        string firstName = "";
+        var fullName = selected?.DisplayName;
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            fullName = fullName.GetBeforeLastDelimiter("(");
+            lastName = fullName.GetBeforeLastDelimiter(",");
+            firstName = fullName.GetAfterLastDelimiter(",");
+        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existingUser = await db.AuthUsers
+                            .Where(x => selectedUsername.ToLower() == x.Username.ToLower())
+                            .FirstOrDefaultAsync();
+        bool newUserCreated = existingUser == default;
+        bool needUpdate = false;
+        if (newUserCreated)
+        {
+            var newUser = new AuthUser
+            {
+                Username = selectedUsername,
+                FirstName = firstName,
+                LastName = lastName,
+                Email = selected?.Email ?? "",
+                IsActive = true,
+                IsStaff = false,
+                IsSuperuser = false,
+                DateJoined = DateTimeOffset.Now,
+                // Placeholder; not used for authentication. Keep non-null to satisfy schema.
+                Password = "!"
+            };
+
+            db.AuthUsers.Add(newUser);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(existingUser.FirstName))
+            {
+                existingUser.FirstName = firstName;
+                needUpdate = true;
+            }
+            if (string.IsNullOrWhiteSpace(existingUser.LastName))
+            {
+                existingUser.LastName = lastName;
+                needUpdate = true;
+            }
+            if (string.IsNullOrWhiteSpace(existingUser.Email))
+            {
+                existingUser.Email = selected?.Email ?? "";
+                needUpdate = true;
+            }
+            if (!existingUser.IsActive)
+            {
+                existingUser.IsActive = true;
+                needUpdate = true;
+            }
+            if (needUpdate)
+            {
+                db.AuthUsers.Update(existingUser);
+            }
+        }
+        if (newUserCreated || needUpdate) await db.SaveChangesAsync();
+        await OnSelect.InvokeAsync(selected);
+    }
 
     private async Task OnGroupSelect()
     {
@@ -149,6 +219,7 @@ else
         nameof(AdUserDto.DisplayName) => "displayName",
         nameof(AdUserDto.SamAccountName) => "sAMAccountName",
         nameof(AdUserDto.UserPrincipalName) => "userPrincipalName",
+        nameof(AdUserDto.Email) => "mail",
         // "Enabled" is computed from userAccountControl; skip server-side sort
         _ => null
     };

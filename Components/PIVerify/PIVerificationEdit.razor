@@ -9,61 +9,59 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 <PageTitle>Private Insurance Verification</PageTitle>
-<AuthorizedGroups Groups="@(new[] { "PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier" })">
-    <BackLink />
-    @if (notFound)
-    {
-        <p>Record not found</p>
-    }
-    else if (_piVerification is null)
-    {
-        <span>Loading...</span>
-    }
-    else
-    {
-        <h3>@($"Private Insurance Verification for {_piVerification.Patient?.Name} ({_piVerification.Patient?.ChartNumber}). Status: {_piVerification?.CurrentStatus}")</h3>
+<BackLink />
+@if (notFound)
+{
+    <p>Record not found</p>
+}
+else if (_piVerification is null)
+{
+    <span>Loading...</span>
+}
+else
+{
+    <h3>@($"Private Insurance Verification for {_piVerification.Patient?.Name} ({_piVerification.Patient?.ChartNumber}). Status: {_piVerification?.CurrentStatus}")</h3>
 
-        <RadzenTemplateForm Data="@_piVerification" Submit="@InsuranceSave" TItem="AutoCAC.Models.PiVerification" >
-            <RadzenCard Variant="Variant.Outlined" >
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="5px">
-                    <RadzenText TextStyle="TextStyle.DisplayH4" Text="Insurance Information:" Style="margin-bottom: 1px; margin-top: 0px" />
-                    <RadzenButton Click="@(() => ToggleInsuranceEdit(true))" ButtonType="ButtonType.Button" Icon="edit" Text="Edit Insurance Info" Size="ButtonSize.Medium" 
-                        Visible="@(!_insuranceEditMode)"/>
-                </RadzenStack>
-                <RadzenStack Orientation="Orientation.Horizontal">
-                    <RadzenCard>
-                        <RadzenLabel Text="BIN" />
-                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
-                    </RadzenCard>
-                    <RadzenCard>
-                        <RadzenLabel Text="PCN" />
-                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Pcn" />
-                    </RadzenCard>
-                    <RadzenCard>
-                        <RadzenLabel Text="Group ID" />
-                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.GroupId" />
-                    </RadzenCard>
-                    <RadzenCard>
-                        <RadzenLabel Text="Cardholder ID" />
-                        <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.CardholderId" />
-                    </RadzenCard>
-                </RadzenStack>
-                <StandardButtons CancelClick="@(() => ToggleInsuranceEdit(false))" Visible="@_insuranceEditMode"/>
-            </RadzenCard>
-        </RadzenTemplateForm>
+    <RadzenTemplateForm Data="@_piVerification" Submit="@InsuranceSave" TItem="AutoCAC.Models.PiVerification" >
+        <RadzenCard Variant="Variant.Outlined" >
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="5px">
+                <RadzenText TextStyle="TextStyle.DisplayH4" Text="Insurance Information:" Style="margin-bottom: 1px; margin-top: 0px" />
+                <RadzenButton Click="@(() => ToggleInsuranceEdit(true))" ButtonType="ButtonType.Button" Icon="edit" Text="Edit Insurance Info" Size="ButtonSize.Medium" 
+                    Visible="@(!_insuranceEditMode)"/>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal">
+                <RadzenCard>
+                    <RadzenLabel Text="BIN" />
+                    <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Bin" />
+                </RadzenCard>
+                <RadzenCard>
+                    <RadzenLabel Text="PCN" />
+                    <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.Pcn" />
+                </RadzenCard>
+                <RadzenCard>
+                    <RadzenLabel Text="Group ID" />
+                    <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.GroupId" />
+                </RadzenCard>
+                <RadzenCard>
+                    <RadzenLabel Text="Cardholder ID" />
+                    <RadzenTextBox ReadOnly="@(!_insuranceEditMode)" @bind-Value="_piVerification.CardholderId" />
+                </RadzenCard>
+            </RadzenStack>
+            <StandardButtons CancelClick="@(() => ToggleInsuranceEdit(false))" Visible="@_insuranceEditMode"/>
+        </RadzenCard>
+    </RadzenTemplateForm>
         
-        <ChatTemplate TItem="PiVerificationComment"
-                        Title="Comments"
-                        LoadData="LoadCommentsAsync"
-                        GetMessageId="@(c => c.Id.ToString())"
-                        GetUser="@(c => c.CreatedBy)"
-                        GetMessage="@(c => $"[{c.CommentStep}] {c.Comment}")"
-                        GetTimestamp="@(c => c.CreatedAt)"
-                        CreateMessage="@CreateComment"
-                        />
-        <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Actions"/>
-    }
-</AuthorizedGroups>
+    <ChatTemplate TItem="PiVerificationComment"
+                    Title="Comments"
+                    LoadData="LoadCommentsAsync"
+                    GetMessageId="@(c => c.Id.ToString())"
+                    GetUser="@(c => c.CreatedBy)"
+                    GetMessage="@(c => $"[{c.CommentStep}] {c.Comment}")"
+                    GetTimestamp="@(c => c.CreatedAt)"
+                    CreateMessage="@CreateComment"
+                    />
+    <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Actions"/>
+}
 
 @code {
     [Parameter] public int Id { get; set; }

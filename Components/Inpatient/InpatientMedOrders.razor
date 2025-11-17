@@ -16,31 +16,29 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @inject mainContext Db
 @using AutoCAC.Utilities
-<AuthorizedGroups>
-    <DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.InpatientMedOrder" >
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="PatientName" Title="Patient Name" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList"/>
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderableItem" Title="Orderable Item" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="MedRoute" Title="Med Route" FilterMode="FilterMode.CheckBoxList"
-        />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StartDateTime" Title="Start Date Time" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StopDateTime" Title="Stop Date Time"/>
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Location" Title="Location" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Schedule" Title="Schedule" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DoseOrRate" Title="Dose Or Rate" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderType" Title="Order Type" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifyingPharmacist" Title="Verifying Pharmacist" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifiedDateTime" Title="Verified Date Time"  />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="LoginDateTime" Title="Entered DateTime" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ProviderComments" Title="Provider Comments" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DosageOrdered" Title="Dosage Ordered" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Instructions" Title="Instructions" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Remarks" Title="Remarks" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Provider" Title="Provider" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="AppointmentDateTime" Title="Appointment Date Time" />
-    </DataGridVanilla>
-</AuthorizedGroups>
+<DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.InpatientMedOrder" >
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="PatientName" Title="Patient Name" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList"/>
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderableItem" Title="Orderable Item" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="MedRoute" Title="Med Route" FilterMode="FilterMode.CheckBoxList"
+    />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StartDateTime" Title="Start Date Time" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="StopDateTime" Title="Stop Date Time"/>
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Location" Title="Location" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Schedule" Title="Schedule" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DoseOrRate" Title="Dose Or Rate" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="OrderType" Title="Order Type" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifyingPharmacist" Title="Verifying Pharmacist" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="VerifiedDateTime" Title="Verified Date Time"  />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="LoginDateTime" Title="Entered DateTime" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ProviderComments" Title="Provider Comments" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="DosageOrdered" Title="Dosage Ordered" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Instructions" Title="Instructions" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Remarks" Title="Remarks" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Provider" Title="Provider" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="AppointmentDateTime" Title="Appointment Date Time" />
+</DataGridVanilla>
 
 @code {
     protected IEnumerable<AutoCAC.Models.InpatientMedOrder> data;

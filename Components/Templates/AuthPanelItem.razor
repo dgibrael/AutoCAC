@@ -1,0 +1,20 @@
+﻿@using AutoCAC.Services
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService Notifications
+@inject UserContextService UserCtx
+@if (_canAccess)
+{
+    <RadzenPanelMenuItem Text="@Text" Path="@RelativeUrl" Icon="@Icon" />
+}
+@code {
+    [Parameter] public string RelativeUrl { get; set; }
+    [Parameter] public string Text { get; set; }
+    [Parameter] public string Icon { get; set; } = "";
+    private bool _canAccess;
+    protected override async Task OnParametersSetAsync()
+    {
+        await UserCtx.EnsureInitializedAsync();
+        var rel = "/" + RelativeUrl;
+        _canAccess = UserCtx.CanAccess(rel);
+    }
+}

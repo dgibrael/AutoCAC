@@ -34,7 +34,18 @@
         <RadzenRow class="rz-mx-auto content-container">
             <RadzenColumn Size="12">
                 <CascadingValue Value="this" Name="MainLayout">
-                    @Body
+                    @if(_canAccess is null)
+                    {
+                        <p>Loading....</p>
+                    }
+                    else if(_canAccess == true)
+                    {
+                        @Body
+                    }
+                    else
+                    {
+                        <p>Access Denied</p>
+                    }
                 </CascadingValue>
             </RadzenColumn>
         </RadzenRow>
@@ -76,10 +87,7 @@
                     <RadzenPanelMenuItem Text="Notes" Path="notes" Icon="notes" />
                     <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 }
-                if(UserContext.IsInGroupOrSuperuser("PharmacyTech","Pharmacist","PharamcytechSupervisor","PharmacistSupervisor", "InsuranceVerifier"))
-                {
-                    <RadzenPanelMenuItem Text="Private Insurance Verification" Path="piverify" Icon="credit_card" />
-                }
+                <AuthPanelItem RelativeUrl="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
                 <RadzenPanelMenuItem Text="Settings" Icon="settings" >
                     <RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />
                 </RadzenPanelMenuItem>
@@ -102,8 +110,15 @@
         </div>
     }
 </RadzenLayout>
-@code {
+    @code {
     bool sidebarExpanded = true;    
+    private bool? _canAccess;
+    protected override async Task OnParametersSetAsync()
+    {
+        _canAccess = null;
+        await UserContext.EnsureInitializedAsync();
+        _canAccess = UserContext.CanAccess(NavigationManager.GetRelativeUrl());
+    }
 
     void SidebarToggleClick()
     {

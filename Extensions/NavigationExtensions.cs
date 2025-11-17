@@ -4,6 +4,22 @@ namespace AutoCAC.Extensions
 {
     public static class NavigationExtensions
     {
+        public static string GetRelativeUrl(this NavigationManager navigationManager)
+        {
+            var rel = navigationManager.ToBaseRelativePath(navigationManager.Uri) ?? string.Empty;
+
+            // strip hash if any
+            var hashIdx = rel.IndexOf('#');
+            if (hashIdx >= 0) rel = rel.Substring(0, hashIdx);
+
+            // strip query if any
+            var qIdx = rel.IndexOf('?');
+            if (qIdx >= 0) rel = rel.Substring(0, qIdx);
+
+            var path = "/" + rel.Trim('/');
+            return path.Length == 0 ? "/" : path;
+        }
+
         public static string GetPath(this NavigationManager navigationManager)
         {
             var uri = new Uri(navigationManager.Uri);

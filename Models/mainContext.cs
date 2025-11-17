@@ -55,6 +55,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
+    public virtual DbSet<VwUserNameMismatch> VwUserNameMismatches { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Adt>(entity =>
@@ -348,9 +350,12 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Department)
                 .HasMaxLength(255)
                 .IsUnicode(false);
-            entity.Property(e => e.StaffUserName)
-                .HasMaxLength(255)
-                .IsUnicode(false);
+            entity.Property(e => e.StaffUserName).HasMaxLength(150);
+
+            entity.HasOne(d => d.StaffUserNameNavigation).WithMany(p => p.NurseCompoundTrainings)
+                .HasPrincipalKey(p => p.Username)
+                .HasForeignKey(d => d.StaffUserName)
+                .HasConstraintName("FK_NurseCompundTraining_StaffUserName");
         });
 
         modelBuilder.Entity<OrderDialog>(entity =>
@@ -577,6 +582,25 @@ public partial class mainContext : DbContext
             entity.Property(e => e.PackageType).IsUnicode(false);
             entity.Property(e => e.PrintName).IsUnicode(false);
             entity.Property(e => e.ProductName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<VwUserNameMismatch>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_UserNameMismatch");
+
+            entity.Property(e => e.AppFirstName).HasMaxLength(150);
+            entity.Property(e => e.AppLastName).HasMaxLength(150);
+            entity.Property(e => e.RpmsfirstName)
+                .IsUnicode(false)
+                .HasColumnName("RPMSFirstName");
+            entity.Property(e => e.RpmslastName)
+                .IsUnicode(false)
+                .HasColumnName("RPMSLastName");
+            entity.Property(e => e.Username)
+                .HasMaxLength(150)
+                .HasColumnName("username");
         });
 
         OnModelCreatingPartial(modelBuilder);

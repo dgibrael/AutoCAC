@@ -30,4 +30,6 @@ public partial class AuthUser
     public DateTimeOffset DateJoined { get; set; }
 
     public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
+
+    public virtual ICollection<NurseCompoundTraining> NurseCompoundTrainings { get; set; } = new List<NurseCompoundTraining>();
 }

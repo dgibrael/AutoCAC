@@ -1,9 +1,10 @@
 ﻿@page "/supervisor/inpatient/NurseCompoundTraining"
 @using AutoCAC.Models
 @inject DialogService DialogService
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-<DataGridEditable TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync">
-    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Staff User" />
+<DataGridEditable TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync" QueryFactory="@Qry()">
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Username" />
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserNameNavigation.LastName" Title="Last Name" />
+    <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserNameNavigation.FirstName" Title="First name" />
 
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="Department" Title="Department">
         <EditTemplate Context="r">
@@ -47,7 +48,6 @@
         </EditTemplate>
     </RadzenDataGridColumn>
 </DataGridEditable>
-</AuthorizedGroups>
 @code {
     private async Task<NurseCompoundTraining> AddNurseTrainingAsync()
     {
@@ -57,7 +57,7 @@
 
         return new NurseCompoundTraining
         {
-            StaffUserName = $"d1_{user.SamAccountName}"
+            StaffUserName = $"D1_{user.SamAccountName}"
         };
     }
 
@@ -96,4 +96,11 @@
 
     private static DateOnly? FromDateTime(DateTime? dt) =>
         dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
+
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.NurseCompoundTraining>> Qry()
+    {
+        return db => db.NurseCompoundTrainings
+            .Include(x => x.StaffUserNameNavigation)
+            .AsNoTracking();
+    }
 }

@@ -1,7 +1,19 @@
 ﻿@page "/settings"
+@using AutoCAC.Services
+@inject UserContextService User
 <PageTitle>Settings</PageTitle>
 
 <RadzenAppearanceToggle><RadzenIcon Icon="dark_mode" /><span style="text-transform: none;">Toggle Light and Dark Mode</span></RadzenAppearanceToggle>
 <RadzenPanelMenu>
 	<RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />
+	@if (User.CanAccess("settings/stafflink"))
+	{
+		<RadzenPanelMenuItem Text="Link RPMS Staff to User" Path="settings/stafflink" />
+	}
 </RadzenPanelMenu>
+@code{
+	protected override async Task OnInitializedAsync()
+	{
+		await User.EnsureInitializedAsync();
+	}
+}

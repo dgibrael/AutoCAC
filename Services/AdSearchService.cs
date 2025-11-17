@@ -158,7 +158,7 @@ public sealed class UsersQuery
     public UsersQuery ServerTimeLimit(TimeSpan t) { _serverTimeLimit = t; return this; }
 
     public UsersQuery SelectBasic()
-        => Properties("sAMAccountName", "userPrincipalName", "displayName", "userAccountControl");
+        => Properties("sAMAccountName", "userPrincipalName", "displayName", "userAccountControl", "mail");
 
     public Task<List<AdUserDto>> ToListAsync(CancellationToken ct = default)
         => Task.Run(Execute, ct);
@@ -197,12 +197,13 @@ public sealed class UsersQuery
             bool enabled = r.Properties["userAccountControl"] is { Count: > 0 } uac
                 ? (((int)uac[0]) & 0x2) == 0
                 : true;
-
             list.Add(new AdUserDto(
                 Get("sAMAccountName"),
                 Get("userPrincipalName"),
                 Get("displayName"),
-                enabled));
+                enabled,
+                Get("mail")
+                ));
         }
 
         return list

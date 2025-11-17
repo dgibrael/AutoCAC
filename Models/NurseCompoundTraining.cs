@@ -9,7 +9,7 @@ public partial class NurseCompoundTraining
 {
     public int Id { get; set; }
 
-    public string StaffUserName { get; set; } = null!;
+    public string? StaffUserName { get; set; }
 
     public string? Department { get; set; }
 
@@ -20,4 +20,6 @@ public partial class NurseCompoundTraining
     public DateOnly? DateCompetencyQuiz { get; set; }
 
     public DateOnly? DateRenewalDue { get; set; }
+
+    public virtual AuthUser? StaffUserNameNavigation { get; set; }
 }

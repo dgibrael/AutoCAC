@@ -15,20 +15,18 @@
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
-<AuthorizedGroups Groups=@(new[] { "PharmacistSupervisor" })>
-    <NdfLookup SelectionChanged="OnNdfSelected" />
-    <hr>
-    @if(selectedNdf != null)
-    {
-        <DrugLookupTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
-    }
-    else
-    {
-        <span>Select drug from National Drug Formulary above to continue</span>
-    }
-    <hr>
-    <RPMSOutput />
-</AuthorizedGroups>
+<NdfLookup SelectionChanged="OnNdfSelected" />
+<hr>
+@if(selectedNdf != null)
+{
+    <DrugLookupTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
+}
+else
+{
+    <span>Select drug from National Drug Formulary above to continue</span>
+}
+<hr>
+<RPMSOutput />
 
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }

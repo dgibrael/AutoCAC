@@ -1,11 +1,9 @@
 ﻿@page "/notes"
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
-<AuthorizedGroups>
-    <DataGridVanilla TItem="AutoCAC.Models.Tiu" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "DocumentType", "Author"})"
-                     IncludeColumns="@(new List<string>{"Patient.Name", "Patient.ChartNumber", "DocumentType", "Author", "EntryDateTime"})"
-                     QueryFactory="@Qry()">
-    </DataGridVanilla>
-</AuthorizedGroups>
+<DataGridVanilla TItem="AutoCAC.Models.Tiu" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "DocumentType", "Author"})"
+                    IncludeColumns="@(new List<string>{"Patient.Name", "Patient.ChartNumber", "DocumentType", "Author", "EntryDateTime"})"
+                    QueryFactory="@Qry()">
+</DataGridVanilla>
 
 @code{
     private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Tiu>> Qry()

@@ -1,0 +1,64 @@
+﻿@page "/settings/stafflink"
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.DataGrids
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject UserContextService User
+@inject IDbContextFactory<mainContext> DbFactory
+<PageTitle>RPMS Staff Link</PageTitle>
+
+@if (!_autoMatchComplete)
+{
+	<p>Auto-Updating Exact Matches...</p>
+}
+else
+{		
+	<DataGridVanilla TItem="VwUserNameMismatch" 
+		SearchColumns="@(new[] { "Username", "RpmslastName", "AppLastName", "RpmsfirstName", "AppFirstName" })"
+		QueryFactory="@Qry()">
+
+	</DataGridVanilla>
+}
+
+@code{
+	bool _autoMatchComplete = false;
+	protected override async Task OnParametersSetAsync()
+	{
+		if (!_autoMatchComplete)
+		{
+			try
+			{
+				await User.EnsureInitializedAsync();
+				await DbFactory.ExecuteSqlAsync($@"UPDATE u
+					SET
+						u.first_name = a.RPMSFirstName,
+						u.last_name = a.RPMSLastName
+					FROM auth_user u
+					INNER JOIN vw_UserNameMismatch a
+						ON u.username = a.username
+					WHERE
+						a.PossibleMatches = 1
+						AND a.AppFirstName != ''
+						AND a.RPMSFirstName != ''
+						AND a.RPMSLastName != ''
+						AND a.AppLastName != ''
+						and SUBSTRING(a.username, 4, 1)=SUBSTRING(a.RPMSFirstName, 1, 1);");									
+			}
+			finally
+			{
+				_autoMatchComplete = true;
+				StateHasChanged();
+			}
+
+		}
+	}
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.VwUserNameMismatch>> Qry()
+	{
+		//make sure to add QueryFactory="@Qry()" to datagrid params
+		return db => db.VwUserNameMismatches
+			.OrderBy(x => x.PossibleMatches)
+				.ThenBy(x => x.Username)
+			.AsNoTracking();
+	}
+}

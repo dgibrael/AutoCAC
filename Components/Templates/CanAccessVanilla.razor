@@ -1,0 +1,19 @@
+﻿@using AutoCAC.Services
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NotificationService Notifications
+@inject UserContextService UserCtx
+@if (_canAccess)
+{
+    @ChildContent
+}
+@code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string RelativeUrl { get; set; }
+    private bool _canAccess;
+    protected override async Task OnParametersSetAsync()
+    {
+        await UserCtx.EnsureInitializedAsync();
+        var rel = "/" + RelativeUrl;
+        _canAccess = UserCtx.CanAccess(rel);
+    }
+}

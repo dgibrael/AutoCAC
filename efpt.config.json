@@ -101,6 +101,10 @@
       {
          "Name": "[dbo].[vw_NdcLookup]",
          "ObjectType": 3
+      },
+      {
+         "Name": "[dbo].[vw_UserNameMismatch]",
+         "ObjectType": 3
       }
    ],
    "UiHint": null,

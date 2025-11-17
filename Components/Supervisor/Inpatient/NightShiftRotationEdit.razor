@@ -5,33 +5,31 @@
 @inject NavigationManager Nav
 @inject IDbContextFactory<mainContext> DbFactory
 
-<AuthorizedGroups Groups="@(new[] { "PharmacistSupervisor" })">
-    <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
-    Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
+<RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
+Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
 
-    <DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
-                      AddAction="AddRotationAsync">
-        <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />
+<DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
+                    AddAction="AddRotationAsync">
+    <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />
 
-        <RadzenDataGridColumn TItem="NightShiftRotation" Property="StartDate" Title="Start Date">
-            <EditTemplate Context="r">
-                <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
-                                  Value="@(ToDateTime(r.StartDate))"
-                                  Change="@(dt => OnDateChanged(r, "Start", dt))"
-                                  Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
+    <RadzenDataGridColumn TItem="NightShiftRotation" Property="StartDate" Title="Start Date">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                                Value="@(ToDateTime(r.StartDate))"
+                                Change="@(dt => OnDateChanged(r, "Start", dt))"
+                                Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
 
-        <RadzenDataGridColumn TItem="NightShiftRotation" Property="EndDate" Title="End Date">
-            <EditTemplate Context="r">
-                <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
-                                  Value="@(ToDateTime(r.EndDate))"
-                                  Change="@(dt => OnDateChanged(r, "End", dt))"
-                                  Style="width:100%" />
-            </EditTemplate>
-        </RadzenDataGridColumn>
-    </DataGridEditable>
-</AuthorizedGroups>
+    <RadzenDataGridColumn TItem="NightShiftRotation" Property="EndDate" Title="End Date">
+        <EditTemplate Context="r">
+            <RadzenDatePicker TValue="DateTime?" DateFormat="MM/dd/yyyy"
+                                Value="@(ToDateTime(r.EndDate))"
+                                Change="@(dt => OnDateChanged(r, "End", dt))"
+                                Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+</DataGridEditable>
 
 @code {
     [Parameter] public string SelectedUsername { get; set; }
@@ -62,7 +60,7 @@
             var adUser = await DialogService.StaffAdDialog(AdGroupHelper.Pharmacist);
             if (adUser is null || string.IsNullOrWhiteSpace(adUser.SamAccountName))
                 return null;
-            user = $"d1_{adUser.SamAccountName}";
+            user = $"D1_{adUser.SamAccountName}";
         }
 
         return new NightShiftRotation
