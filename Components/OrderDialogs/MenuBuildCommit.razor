@@ -292,6 +292,11 @@
 
     private async Task ShowDialogAndRun()
     {
+        if (currentMenu.ExistingMenu == null || currentMenu.ExistingMenu == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Menu request must be linked to existing menu to run RPMS script. Go back to Menu editor and click edit attributes to link");
+            return;
+        }
         await JS.DialogShow();
         await RPMSRef.RunWhenSignedIn(RunMenuUpdate);
     }

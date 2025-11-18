@@ -5,8 +5,8 @@
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
-
-
+@inject DialogService DialogService
+@using AutoCAC.Components.Templates
 @if(!string.IsNullOrWhiteSpace(ButtonLabel))
 {
     <button onclick="showDialog()" class="rz-button rz-button-md">@ButtonLabel</button>
@@ -27,6 +27,7 @@
         <button onclick="hideDialog()">Close</button>
     </RadzenRow>
 </dialog>
+
 @code {
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     [Parameter] public RenderFragment ChildContent { get; set; }
@@ -61,6 +62,7 @@
 
         if (Layout.RPMS.CurrentMode.SignedIn)
         {
+
             await _queuedAction();
             _queuedAction = null;
         }
@@ -78,6 +80,7 @@
     {
         string menu = "";
         TableName = tableName;
+        if (tableName != "OrderDialog") throw new Exception("menu option not found");
         switch (tableName)
         {
             case ("OrderDialog"):
@@ -86,46 +89,74 @@
         }
         await Layout.GoToMenu(menu);
         await Layout.RPMS.SendAsync();
-
+        await JS.DialogHide();
         var _outputLst = Layout.RPMS.Output.Buffered.Split("\r\n").ToList();
         var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));
-        await JS.DialogHide();
         if (taskLine != null && int.TryParse(taskLine.Split(":").Last().Trim(), out int taskNumber))
         {
             TaskNumber = taskNumber;
-            watcher = SqlWatcher.CreateDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange, true);
+
+            // Use the extension: fixed title/options, only pass Work
+            await DialogService.LoadingDialogAsync(RunStatusWatcherAsync);
         }
     }
-    public double PctComplete { get; set; } = -1;
-    private async void OnStatusChange()
+    private async Task RunStatusWatcherAsync(IProgress<double> progress)
     {
-        var _status = await DbFactory.GetFirstValueAsync($@"Select Status From DataImportStatus 
-                    Where JobID = {TaskNumber} and TableName = {TableName}");
-        switch (_status)
+        var tcs = new TaskCompletionSource<bool>();
+        IDisposable localWatcher = null;
+
+        async void OnStatusChangeForDialog()
         {
-            case ("REQUESTED"):
-                PctComplete = 0;
-                break;
-            case ("RECEIVING"):
-                PctComplete = 10;
-                break;
-            case ("PARSING"):
-                PctComplete = 50;
-                break;
-            case ("UPDATING"):
-                PctComplete = 75;
-                break;
-            case ("DONE"):
-                PctComplete = -1;
-                await DbFactory.ExecuteSqlAsync($"DELETE FROM DataImportStatus Where JobID = {TaskNumber}");
-                await InvokeAsync(StateHasChanged);
-                watcher?.Dispose();
-                if (_onUpdateComplete!=null) await _onUpdateComplete();
-                return;
+            var _status = await DbFactory.GetFirstValueAsync($@"
+            Select Status From DataImportStatus
+            Where JobID = {TaskNumber} and TableName = {TableName}");
+
+            switch (_status)
+            {
+                case "REQUESTED":
+                    progress.Report(0);
+                    break;
+                case "RECEIVING":
+                    progress.Report(10);
+                    break;
+                case "PARSING":
+                    progress.Report(50);
+                    break;
+                case "UPDATING":
+                    progress.Report(75);
+                    break;
+                case "DONE":
+                    progress.Report(100);
+                    await DbFactory.ExecuteSqlAsync(
+                        $"DELETE FROM DataImportStatus Where JobID = {TaskNumber}");
+
+                    localWatcher?.Dispose();
+
+                    if (_onUpdateComplete != null)
+                        await _onUpdateComplete();
+
+                    tcs.TrySetResult(true);
+                    return;
+            }
+
+            // re-arm the watcher for the next change (same pattern you use)
+            localWatcher?.Dispose();
+            localWatcher = SqlWatcher.CreateDataImportStatus(
+                DbFactory, TaskNumber, TableName, OnStatusChangeForDialog, false);
         }
-        await InvokeAsync(StateHasChanged);
-        watcher?.Dispose();
-        watcher = SqlWatcher.CreateDataImportStatus(DbFactory, TaskNumber, TableName, OnStatusChange, false);
+
+        // prime the watcher once
+        localWatcher = SqlWatcher.CreateDataImportStatus(
+            DbFactory, TaskNumber, TableName, OnStatusChangeForDialog, false);
+
+        try
+        {
+            await tcs.Task; // completes when status == DONE
+        }
+        finally
+        {
+            localWatcher?.Dispose();
+        }
     }
 
     public async Task RunUpdateFromRPMS(string tableName, Func<Task> onComplete = null)

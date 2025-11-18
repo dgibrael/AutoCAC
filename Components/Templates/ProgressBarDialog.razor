@@ -1,0 +1,35 @@
+﻿@inject DialogService DialogService
+
+<RadzenProgressBar @bind-Value="PctComplete"  />
+
+@code {
+    private double PctComplete;
+
+    // Parent supplies the work; it should call progress.Report(0..100)
+    [Parameter] public Func<IProgress<double>, Task> Work { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var progress = new Progress<double>(value =>
+        {
+            PctComplete = value;
+            _ = InvokeAsync(StateHasChanged);
+        });
+
+        try
+        {
+            if (Work != null)
+            {
+                await Work(progress);
+            }
+            DialogService.Close(true);
+        }
+        catch
+        {
+            DialogService.Close(false);
+            throw;
+        }
+    }
+}

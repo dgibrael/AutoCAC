@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
@@ -149,9 +150,18 @@ namespace AutoCAC.Extensions
             var type = typeof(TEntity);
             foreach (var prop in type.GetProperties())
             {
-                // skip collections, keep only reference navigations
+                bool isCollection = typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
+                                    && prop.PropertyType != typeof(string)
+                                    && prop.PropertyType != typeof(byte[]);
+
+                bool isTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
+
+                // Null only EF navigation properties — not scalars, byte[], strings, or [Timestamp]
                 if (!prop.PropertyType.IsValueType &&
-                    prop.PropertyType != typeof(string))
+                    prop.PropertyType != typeof(string) &&
+                    prop.PropertyType != typeof(byte[]) &&
+                    !isCollection &&
+                    !isTimestamp)
                 {
                     prop.SetValue(item, null);
                 }
@@ -183,15 +193,19 @@ namespace AutoCAC.Extensions
             var type = typeof(TEntity);
             foreach (var prop in type.GetProperties())
             {
-                if (!prop.PropertyType.IsValueType &&
-                    prop.PropertyType != typeof(string))
-                {
-                    // keep byte[] (rowversion) and any [Timestamp] properties
-                    var isByteArray = prop.PropertyType == typeof(byte[]);
-                    var hasTimestampAttr = prop.GetCustomAttributes(typeof(TimestampAttribute), inherit: true).Any();
-                    if (isByteArray || hasTimestampAttr)
-                        continue;
+                bool isCollection = typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
+                                    && prop.PropertyType != typeof(string)
+                                    && prop.PropertyType != typeof(byte[]);
 
+                bool isTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
+
+                // Null only EF navigation properties — not scalars, byte[], strings, or [Timestamp]
+                if (!prop.PropertyType.IsValueType &&
+                    prop.PropertyType != typeof(string) &&
+                    prop.PropertyType != typeof(byte[]) &&
+                    !isCollection &&
+                    !isTimestamp)
+                {
                     prop.SetValue(item, null);
                 }
             }
@@ -241,11 +255,19 @@ namespace AutoCAC.Extensions
             var type = typeof(TEntity);
             foreach (var prop in type.GetProperties())
             {
-                if (!prop.PropertyType.IsValueType && prop.PropertyType != typeof(string))
+                bool isCollection = typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
+                                    && prop.PropertyType != typeof(string)
+                                    && prop.PropertyType != typeof(byte[]);
+
+                bool isTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
+
+                // Null only EF navigation properties — not scalars, byte[], strings, or [Timestamp]
+                if (!prop.PropertyType.IsValueType &&
+                    prop.PropertyType != typeof(string) &&
+                    prop.PropertyType != typeof(byte[]) &&
+                    !isCollection &&
+                    !isTimestamp)
                 {
-                    var isByteArray = prop.PropertyType == typeof(byte[]);
-                    var hasTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
-                    if (isByteArray || hasTimestamp) continue; // keep RowVersion
                     prop.SetValue(item, null);
                 }
             }
@@ -331,11 +353,19 @@ namespace AutoCAC.Extensions
             var type = typeof(TEntity);
             foreach (var prop in type.GetProperties())
             {
-                if (!prop.PropertyType.IsValueType && prop.PropertyType != typeof(string))
+                bool isCollection = typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
+                                    && prop.PropertyType != typeof(string)
+                                    && prop.PropertyType != typeof(byte[]);
+
+                bool isTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
+
+                // Null only EF navigation properties — not scalars, byte[], strings, or [Timestamp]
+                if (!prop.PropertyType.IsValueType &&
+                    prop.PropertyType != typeof(string) &&
+                    prop.PropertyType != typeof(byte[]) &&
+                    !isCollection &&
+                    !isTimestamp)
                 {
-                    var isByteArray = prop.PropertyType == typeof(byte[]);
-                    var hasTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
-                    if (isByteArray || hasTimestamp) continue; // keep concurrency token
                     prop.SetValue(item, null);
                 }
             }

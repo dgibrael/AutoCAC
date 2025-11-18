@@ -155,6 +155,27 @@ namespace AutoCAC.Extensions
                 });
             return result as string;
         }
+
+        public static async Task LoadingDialogAsync(
+            this DialogService dialogService,
+            Func<IProgress<double>, Task> work)
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                ["Work"] = work
+            };
+
+            var options = new DialogOptions
+            {
+                ShowClose = false,
+                CloseDialogOnOverlayClick = false
+            };
+
+            await dialogService.OpenAsync<ProgressBarDialog>(
+                title: "Loading...",
+                parameters: parameters,
+                options: options);
+        }
     }
 }
 

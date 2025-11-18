@@ -13,11 +13,8 @@
 @using Microsoft.AspNetCore.Components.Web
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
+@inject IJSRuntime JS
 
-@if (RPMSRef?.PctComplete is not null && RPMSRef.PctComplete!=-1)
-{
-    <RadzenProgressBar @bind-Value="@RPMSRef.PctComplete" />
-}
 @if (currentMenu != null)
 {
     @* Menu metadata display/edit *@
@@ -53,7 +50,7 @@
                     <RadzenLabel Text="Columns: (RPMS max width guide: 4: 26, 3: 39, 2: 79, 1: 240)"  />
                 </RadzenColumn>
                 <RadzenColumn Size="10">
-                    <RadzenNumeric @bind-Value="currentMenu.Columns" Min="1" Max="4" />
+                    <RadzenNumeric @bind-Value:get="currentMenu.Columns" @bind-Value:set="OnColumnsChanged" Min="1" Max="4" />
                 </RadzenColumn>
             </RadzenRow>
             <RadzenRow style="margin-bottom: 1rem">
@@ -399,9 +396,8 @@
 
     public async Task AddItem(MenuBuild item)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.MenuBuilds.Add(item);
-        await SaveItemChanges(db);
+        await DbFactory.AddItemAsync(item);
+        await SaveMenuChanges();
     }
 
     private async Task TxtItemEdit(MenuBuild item, string dispOnly = "YES-HEADER")
@@ -482,16 +478,14 @@
 
     private async Task UpdateItem(MenuBuild item)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.MenuBuilds.Update(item);
-        await SaveItemChanges(db);
+        await DbFactory.UpdateItemAsync(item);
+        await SaveMenuChanges();
     }
 
     public async Task DeleteItem(MenuBuild item)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-        db.MenuBuilds.Remove(item);
-        await SaveItemChanges(db);
+        await DbFactory.DeleteItemAsync(item);
+        await SaveMenuChanges();
     }
 
     private async Task EditMnemonic(MenuBuild item)
@@ -506,6 +500,7 @@
     {
         await RPMSRef.RunUpdateFromRPMS("OrderDialog", async () =>
         {
+            await JS.DialogHide();
             foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())
             {
                 await OrderDialogEdit(item);
@@ -642,6 +637,11 @@
             }
             await SaveMenuChanges();
             currentMenu.Columns = ((byte)newItems.Max(x => x.ColNum));
+            var confirmOverwrite = await DialogService.Confirm("Overwrite RPMS Menu", "Would you like this menu to overwrite the existing RPMS menu when complete?");
+            if (confirmOverwrite == true)
+            {
+                currentMenu.ExistingMenu = selectedMenu.Id;
+            }
             await SaveMenuMeta();
             additionalRows = 1;
             await InvokeAsync(StateHasChanged);
@@ -652,5 +652,27 @@
     {
         await SaveMenuChanges("READY FOR REVIEW");
         NavigationManager.NavigateTo($"/menubuild/");
+    }
+
+    private async Task OnColumnsChanged(byte newValue)
+    {
+        if (newValue == currentMenu.Columns)
+            return;
+
+        if (newValue < currentMenu.Columns)
+        {
+            currentMenu.Columns = newValue;
+            return;
+        }
+        bool? userCancelled = await DialogService.Confirm(
+            "Increasing the column count may cause issues updating the RPMS menu. Continue?",
+            "Warning",
+            new ConfirmOptions() { OkButtonText = "No (Recommended)", CancelButtonText = "Yes, continue anyway (NOT Recommended)" }
+        );
+
+        if (userCancelled == false)
+        {
+            currentMenu.Columns = newValue;
+        }
     }
 }
