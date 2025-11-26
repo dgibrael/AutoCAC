@@ -155,6 +155,19 @@ namespace AutoCAC.Extensions
                 });
             return result as string;
         }
+        public static async Task<bool> ProceedAnyway(
+            this DialogService dialogService,
+            string msg = "This action is not recommended. Are you sure you wish to proceed?",
+            string title = "Warning"
+            )
+        {
+
+            var result = await dialogService.Confirm(
+            msg,
+            title,
+            new ConfirmOptions() { OkButtonText = "No (Recommended)", CancelButtonText = "Yes, continue anyway (NOT Recommended)"});
+            return result == false;
+        }
 
         public static async Task LoadingDialogAsync(
             this DialogService dialogService,

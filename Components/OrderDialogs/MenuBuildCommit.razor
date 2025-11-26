@@ -12,8 +12,21 @@
 @inject IJSRuntime JS
 @using System.Text
 @using System.Text.RegularExpressions;
+@{
+    var title = $"Review and Commit changes to RPMS for {currentMenu?.DisplayText} ";
+    if (notLinked)
+    {
+        title += "(Not linked to an RPMS Menu)";
+    }
+    else
+    {
+        var _menuDisplay = !string.IsNullOrWhiteSpace(currentMenu.ExistingMenuNavigation.DisplayText) ?
+                            currentMenu.ExistingMenuNavigation.DisplayText : currentMenu.ExistingMenuNavigation.Name;
+        title += $"(Replacing: {_menuDisplay})";
+    }
+}
 
-<h3>Review and Commit changes to RPMS for @currentMenu?.DisplayText (@Id)</h3>
+<h3>@title</h3>
 <RadzenRow>
     <RadzenColumn>
         <RadzenButton 
@@ -29,126 +42,189 @@
             Click="@ShowDialogAndRun" />
     </RadzenColumn>
 </RadzenRow>
-<RPMSOutput @ref="RPMSRef"/>
-<RadzenRow>
-    <pre>You can either use the "Commit Changes" button above (if you've already linked to an existing menu IEN) OR the following</pre>
-    <pre>Go to ^MN (enter/edit menu) go to the menu you want to replace. 
-        Then Click the button below to copy the following and paste as many times as needed to delete all rows in the menu</pre>
-</RadzenRow>
-<RadzenRow>
-    <RadzenButton 
-        Text="Copy Delete script to clipboard"
-        Icon="content_copy"
-        ButtonStyle="ButtonStyle.Info"
-        Click="@CopyDeleteScript" />
-</RadzenRow>
-<RadzenRow>
-    <pre>
-        Then click the button below to copy the menu content script to your clipboard.
-        A dialog will pop up asking if you want to mark the request as complete, you can wait until you're done to hit yes.
-    </pre>
-</RadzenRow>
-<RadzenRow>
-    <RadzenButton 
-        Text="Copy Menu Content script to clipboard"
-        Icon="content_copy"
-        ButtonStyle="ButtonStyle.Info"
-        Click="@CopyRPMSScript" />
-</RadzenRow>
-<RadzenRow>
-    <pre>
-        Paste the contents of your clipboard to RPMS.
-        *DO NOT LEAVE THE RPMS SCREEN WHILE THE CONTENT IS PASTING*
-    </pre>
-</RadzenRow>
-<div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
-    @for (int row = 1; row <= maxRow; row++)
-    {
-        var currentRow = row;
-        for (int col = 1; col <= maxCol; col++)
-        {
-            var currentCol = col;
-            var cell = addLst?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
-            <RadzenCard>
-                @switch (cell?.DisplayOnly)
+@if (hasIssues)
+{
+    <RadzenCard Variant="Variant.Outlined">
+        <RadzenStack Orientation="Orientation.Vertical" AlignItems="AlignItems.Start">
+            <RadzenText Text="Potential Issues (Click main button to fix all at once, or arrow to fix individually):"/>
+            @foreach (var group in problemGroups)
+            {
+                if (group.Items.Any())
                 {
-                    case "PLACEHOLDER":
-                        <h3 class="rz-color-danger">
-                            @cell.DisplayText
-                        </h3>
-                        break;
-                    case "YES-HEADER":
-                        <strong>@cell.DisplayText</strong>
-                        break;
-                    case "YES":
-                        <span>@cell.DisplayText</span>
-                        break;
-                    default:
-                        if(cell != null)
-                        {
-                            var _newcelldisp = string.IsNullOrWhiteSpace(cell.DisplayText) ? $"{cell.Mnemonic} {cell.Item.DisplayText}" : $"{cell.Mnemonic} {cell.DisplayText}";
-                            <i>@_newcelldisp</i>
-                        }
-                        break;
-                }
-            </RadzenCard>
-        }
-    }
-</div>
+                    <RadzenSplitButton Text="@group.Label"
+                                       ButtonStyle="@group.Style"
+                                       AlwaysOpenPopup="false"
+                                       Click="@(async args =>
+                                       {
+                                           var id = int.Parse(args?.Value?.ToString() ?? "0");
+                                           await group.OnItemClickAsync(id, group);
+                                           await GetLists();
+                                       })">
 
-@* <pre>@RPMSScript</pre> *@
+                        @foreach (var item in group.Items)
+                        {
+                            <RadzenSplitButtonItem Text="@group.ItemText(item)"
+                                                   Value="@item.Id.ToString()" />
+                        }
+
+                    </RadzenSplitButton>
+                }
+            }
+
+        </RadzenStack>
+    </RadzenCard>
+}
+<hr>
+<RadzenPanel AllowCollapse="true" Collapsed="true">
+    <HeaderTemplate>Menu Preview</HeaderTemplate>
+    <ChildContent>
+        <div class="grid" style="display: grid; grid-template-columns: repeat(@maxCol, 1fr); gap: 20px;">
+            @for (int row = 1; row <= maxRow; row++)
+            {
+                var currentRow = row;
+                for (int col = 1; col <= maxCol; col++)
+                {
+                    var currentCol = col;
+                    var cell = addLst?.FirstOrDefault(m => m.RowNum == row && m.ColNum == col);
+                    <RadzenCard>
+                        @switch (cell?.DisplayOnly)
+                        {
+                            case "PLACEHOLDER":
+                                <h3 class="rz-color-danger">
+                                    @cell.DisplayText
+                                </h3>
+                                break;
+                            case "YES-HEADER":
+                                <strong>@cell.DisplayText</strong>
+                                break;
+                            case "YES":
+                                <span>@cell.DisplayText</span>
+                                break;
+                            default:
+                                if(cell != null)
+                                {
+                                    var _newcelldisp = string.IsNullOrWhiteSpace(cell.DisplayText) ? $"{cell.Mnemonic} {cell.Item.DisplayText}" : $"{cell.Mnemonic} {cell.DisplayText}";
+                                    <i>@_newcelldisp</i>
+                                }
+                                break;
+                        }
+                    </RadzenCard>
+                }
+            }
+        </div>
+    </ChildContent>
+</RadzenPanel>
+<RPMSOutput @ref="RPMSRef" />
 @code {
     [Parameter] public int Id { get; set; }
     [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private RPMSOutput RPMSRef;
     private MenuBuildMetum currentMenu;
-    private mainContext db;
     private List<AutoCAC.Models.MenuBuild> addLst;
+    private List<ProblemGroup> problemGroups = new();
+    private string mismatchedTxt = "";
     private int maxRow = 1;
     private int maxCol = 1;
     private string RPMSScript = "";
+    private bool hasIssues => problemGroups.Any(x => x.Items.Any());
+    private bool notLinked => currentMenu?.ExistingMenuNavigation == null;
     protected override async Task OnInitializedAsync()
     {
-        db = await DbFactory.CreateDbContextAsync();
-        currentMenu = await db.MenuBuildMeta
-                .Include(m => m.ExistingMenuNavigation)
-                .FirstOrDefaultAsync(o => o.Id == Id);
-        await GetAddTbl();
-        GetRPMSScript();
+        await GetLists();
         await InvokeAsync(StateHasChanged);
-        //await RPMSRef.RunUpdateFromRPMS("OrderDialog", GetChangesTbl);
     }
 
-    private async Task GetAddTbl()
+    private int MaxTxtLength => currentMenu?.Columns switch
     {
-        addLst = await (
-            from c in db.MenuBuilds
-            where c.MenuId == Id
-            orderby c.ColNum, c.RowNum
-            select c
-        )
-        .Include(x => x.Item)
-        .ToListAsync();
+        4 => 26,
+        3 => 39,
+        2 => 79,
+        _ => 240
+    };
+
+    private async Task GetLists()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        currentMenu = await db.MenuBuildMeta
+                .Include(m => m.ExistingMenuNavigation)
+                .Include(x => x.MenuBuilds)
+                    .ThenInclude(x => x.Item)
+                .FirstOrDefaultAsync(o => o.Id == Id);
+        addLst = currentMenu.MenuBuilds
+            .OrderBy(mb => mb.ColNum)
+            .ThenBy(mb => mb.RowNum)
+            .ToList();
         foreach (var mb in addLst)
         {
-            if (mb.DisplayOnly?.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase) == true)
+            if (mb.DisplayOnly is null || mb.DisplayOnly?.Trim().Equals("NO", StringComparison.OrdinalIgnoreCase) == true)
                 mb.DisplayOnly = "";
         }
         maxRow = addLst.Max(mb => mb.RowNum);
         maxCol = addLst.Max(mb => mb.ColNum);
-        await InvokeAsync(StateHasChanged);
+
+        var menuName = currentMenu?.ExistingMenuNavigation?.Name ?? "";
+
+        // Build problemGroups *here*, after addLst is ready
+        problemGroups = new List<ProblemGroup>
+        {
+            // Text Only
+            new ProblemGroup
+            {
+                Label = "Order Dialogs Marked as Text Only",
+                Style = ButtonStyle.Danger,
+                Items = addLst
+                    .Where(x => x.Item != null && x.DisplayOnly != "")
+                    .ToList(),
+                OnItemClickAsync = OnTextOnlyClickAsync
+            },
+
+            // Mismatched Orders (slightly more complex)
+            BuildMismatchedOrdersGroup(menuName),
+
+            // Placeholders
+            new ProblemGroup
+            {
+                Label = "Placeholders Not Replaced",
+                Style = ButtonStyle.Warning,
+                Items = addLst
+                    .Where(x => x.DisplayOnly == "PLACEHOLDER")
+                    .ToList(),
+                OnItemClickAsync = OnPlaceholderOrMismatchClickAsync,
+                ItemText = x => $"{x.DisplayText} ({x.AdditionalDetails})"
+            },
+
+            // Custom Display Text
+            new ProblemGroup
+            {
+                Label = "Order Dialog with Menu Display Text",
+                Style = ButtonStyle.Warning,
+                Items = addLst
+                    .Where(x => x?.Item?.Id != null &&
+                                !string.IsNullOrWhiteSpace(x?.DisplayText))
+                    .ToList(),
+                OnItemClickAsync = OnDisplayTextClickAsync,
+                ItemText = x => $"Menu Display: {x.DisplayText}; Item Display: {x.Item.DisplayText ?? "[empty]"}"
+            }
+        };
+        StateHasChanged();
+    }
+
+    private async Task<int?> OverwriteMenu()
+    {
+        AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<MenuSelectExisting>(
+            "Order Dialog",
+            options: new DialogOptions { Width = "75%", Resizable = true });
+        if (selectedMenu is null) return null;
+        currentMenu.ExistingMenu = selectedMenu.Id;
+        await DbFactory.UpdateItemAsync(currentMenu);
+        await GetLists();
+        return selectedMenu.Id;
     }
 
     private async Task RunMenuUpdate()
     {
+        var menuId = currentMenu.ExistingMenu;
         await Layout.GoToMenu("Menu Items Edit");
-
-        var menuId = currentMenu?.ExistingMenuNavigation.Id;
-        if (menuId==null)
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Must be linked to existing RPMS menu");
-            return;
-        }
         await Layout.RPMS.SendAsync($"`{menuId}");
         Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
         List<string> optionlst = await Layout.RPMS.GetOptions();
@@ -218,87 +294,175 @@
             Layout.RPMS.CheckPromptAndThrow("MNEMONIC:");
             await Layout.RPMS.SendAsync(mnem);
         }
-    }
-
-    private void GetRPMSScript()
-    {
-        List<string> lst = new List<string>();
-        string rowNum = "";
-        string colNum = "";
-        string itemid = "";
-        string dispTxt = "";
-        string dispOnly = "";
-        string headerTxt = "";
-        string mnem = "";
-        foreach (var a in addLst)
-        {
-            lst.Add("ADD");
-            rowNum = a.RowNum.ToString();
-            colNum = a.ColNum.ToString();
-            itemid = a.ItemId.HasValue ? $"`{a.ItemId}" : "";
-            dispTxt = !string.IsNullOrWhiteSpace(a.DisplayText) ? a.DisplayText : "";
-            dispOnly = !string.IsNullOrWhiteSpace(a.DisplayOnly) ? a.DisplayOnly : "";
-            if (dispOnly=="PLACEHOLDER")
-            {
-                dispTxt = $"***{dispTxt}";
-            }
-            headerTxt = dispOnly switch
-            {
-                "YES" => "NO",
-                "YES-HEADER" => "YES",
-                "PLACEHOLDER" => "NO",
-                _ => ""
-            };
-            mnem = !string.IsNullOrWhiteSpace(a.Mnemonic) ? a.Mnemonic : "";
-            if (dispOnly != "")
-            {
-                lst.Add("Text or Header");
-                lst.Add(dispTxt);
-                lst.Add(rowNum);
-                lst.Add(colNum);
-                lst.Add(headerTxt);
-            }
-            else
-            {
-                lst.Add("Menu Items");
-                lst.Add(itemid);
-                lst.Add(rowNum);
-                lst.Add(colNum);
-                lst.Add(dispTxt);
-                lst.Add(mnem);
-            }
-            lst.Add("^");
-        }
-        RPMSScript = string.Join("\r\n", lst)+"\r\n";
-    }
-
-    private async Task CopyRPMSScript()
-    {
-        await JS.CopyText(RPMSScript);
-        bool? markComplete = await DialogService.Confirm("Successfully copied contents to clipboard. Mark as completed?", "Changes Made");
-        if (markComplete==true)
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-            await db.SetMenuBuildMetaStatusAsync(Id, "DONE");
-        }
-    }
-
-    private async Task CopyDeleteScript()
-    {
-        var deleteTxt = "REMOVE\nROW\n1\nYES\nYES\n";
-        await JS.CopyText(deleteTxt);
-        NotificationService.Notify(detail: "Copied delete script to clipboard");
+        await Layout.RPMS.SendAsync("^");
+        await Layout.RPMS.SendAsync("^");
     }
 
     private async Task ShowDialogAndRun()
     {
-        if (currentMenu.ExistingMenu == null || currentMenu.ExistingMenu == 0)
+        var menuId = currentMenu?.ExistingMenuNavigation?.Id;
+        if (menuId == null)
         {
-            NotificationService.Notify(NotificationSeverity.Error, "Menu request must be linked to existing menu to run RPMS script. Go back to Menu editor and click edit attributes to link");
-            return;
+            NotificationService.Notify(NotificationSeverity.Info, "Link an existing menu to proceed");
+            menuId = await OverwriteMenu();
+            if (menuId == null)
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Must be linked to existing RPMS menu");
+                return;
+            }
+            currentMenu.ExistingMenu = menuId;
+            await DbFactory.UpdateItemAsync(currentMenu);
+            await GetLists();
+        }
+        if (problemGroups.Any(x => x.Style == ButtonStyle.Danger && x.Items.Any()))
+        {
+            var continueAnyway = await DialogService.ProceedAnyway("There are still severe problems, are you sure you wish to continue?");
+            if (!continueAnyway) return;
         }
         await JS.DialogShow();
         await RPMSRef.RunWhenSignedIn(RunMenuUpdate);
+    }
+
+    public class ProblemGroup
+    {
+        public string Label { get; set; }
+        public ButtonStyle Style { get; set; } = ButtonStyle.Danger;
+        public List<MenuBuild> Items { get; set; } = new();
+        // When a child split button item is clicked
+        // Passes the MenuBuild.Id (int)
+        public Func<int, ProblemGroup, Task> OnItemClickAsync { get; set; } =
+            (_, __) => Task.CompletedTask;
+        public Func<MenuBuild, string> ItemText { get; set; } = x => $"{x.Item.DisplayText} ({x.Item.Name})";
+    }
+
+    private ProblemGroup BuildMismatchedOrdersGroup(string menuName)
+    {
+        var group = new ProblemGroup
+        {
+            Label = "Mismatched Orders",
+            Style = ButtonStyle.Danger,
+            OnItemClickAsync = OnPlaceholderOrMismatchClickAsync
+        };
+
+        if (string.IsNullOrWhiteSpace(menuName))
+            return group;
+
+        if (menuName.StartsWith("PSO"))
+        {
+            group.Label = "This outpatient menu contains inpatient med orders";
+            group.Items = addLst
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(x?.Item?.DisplayGroup) &&
+                    x.Item.DisplayGroup.Contains("MEDICATIONS", StringComparison.OrdinalIgnoreCase) &&
+                    !x.Item.DisplayGroup.Contains("OUTPATIENT", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        else if (menuName.StartsWith("PS"))
+        {
+            group.Label = "This inpatient menu contains outpatient med orders";
+            group.Items = addLst
+                .Where(x =>
+                    !string.IsNullOrWhiteSpace(x?.Item?.DisplayGroup) &&
+                    x.Item.DisplayGroup.Contains("MEDICATIONS", StringComparison.OrdinalIgnoreCase) &&
+                    x.Item.DisplayGroup.Contains("OUTPATIENT", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        return group;
+    }
+
+    private async Task OnTextOnlyClickAsync(int id, ProblemGroup group)
+    {
+        FormattableString qry;
+        if (id == 0)
+        {
+            qry = $@"Update MenuBuild Set DisplayOnly=''
+            Where Menu_Id = {currentMenu.Id} and IsNull(Item_Id, 0) != 0";
+        }
+        else
+        {
+            qry = $@"Update MenuBuild Set DisplayOnly=''
+            Where id = {id}";
+        }
+        await DbFactory.ExecuteSqlAsync(qry);
+        NotificationService.Success("Successfully repaired");
+        return;
+    }
+    private async Task OnPlaceholderOrMismatchClickAsync(int id, ProblemGroup group)
+    {
+        if (id == 0)
+        {
+            foreach(var g in group.Items)
+            {
+                await OrderDialogEdit(g);
+            }
+        }
+        else
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var item = await db.MenuBuilds
+                        .Where(x => x.Id == id)
+                        .Include(x => x.Item)
+                        .FirstOrDefaultAsync();
+            await OrderDialogEdit(item);
+        }
+    }
+    private async Task OnDisplayTextClickAsync(int id, ProblemGroup group)
+    {
+        FormattableString qry = $"";
+        if (id == 0)
+        {
+            qry = $@"Update MenuBuild Set DisplayText=''
+            Where Menu_Id = {currentMenu.Id} and IsNull(Item_Id, 0) != 0";
+        }
+        else
+        {
+            qry = $@"Update MenuBuild Set DisplayText=''
+            Where id = {id}";
+        }
+        await DbFactory.ExecuteSqlAsync(qry);
+        NotificationService.Success("Successfully repaired");
+        return;
+    }
+
+    private async Task OrderDialogEdit(MenuBuild item)
+    {
+        PlaceholderField placeholderField = new PlaceholderField
+        {
+            MaxLength = MaxTxtLength - 3
+        };
+        if (item.Item != null && item.Item.Id != 0)
+        {
+            var itmDisp = string.IsNullOrWhiteSpace(item.DisplayText) ? item.Item.DisplayText : item.DisplayText;
+            placeholderField.MenuTxt = itmDisp;
+            placeholderField.ExtendedTxt = $"{itmDisp} {item.Item.Name}";
+        }
+        else if (!string.IsNullOrWhiteSpace(item.DisplayOnly))
+        {
+            placeholderField.MenuTxt = item.DisplayText;
+            placeholderField.ExtendedTxt = string.IsNullOrWhiteSpace(item.AdditionalDetails) ? item.DisplayText : item.AdditionalDetails;
+        }
+        var result = await DialogService.OpenAsync<OrderDialogSelect>(
+            item.DisplayText,
+            new Dictionary<string, object> { { "SearchText", placeholderField.ExtendedTxt }, { "placeholderField", placeholderField } },
+            new DialogOptions { Width = "75%", Resizable = true }
+        );
+        if (result == null) return;
+        item.Item = null;
+        if (result is PlaceholderField newText)
+        {
+            item.DisplayText = newText.MenuTxt;
+            item.AdditionalDetails = newText.ExtendedTxt;
+            item.ItemId = null;
+            item.DisplayOnly = "PLACEHOLDER";
+        }
+        else if (result is OrderDialog selectedDialog)
+        {
+            item.DisplayText = null;
+            item.ItemId = selectedDialog.Id;
+            item.DisplayOnly = null;
+        }
+        await DbFactory.UpdateItemAsync(item);
     }
 
 }

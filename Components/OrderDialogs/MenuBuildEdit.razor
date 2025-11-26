@@ -583,13 +583,6 @@
         }
     }
 
-    public class PlaceholderField
-    {
-        public string MenuTxt { get; set; }
-        public string ExtendedTxt { get; set; }
-        public int MaxLength { get; set; }
-    }
-
     private async Task OverwriteMenu()
     {
         AutoCAC.Models.OrderDialog selectedMenu = await DialogService.OpenAsync<MenuSelectExisting>(

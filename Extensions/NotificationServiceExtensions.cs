@@ -4,7 +4,7 @@ namespace AutoCAC.Extensions
 {
     public static class NotificationServiceExtensions
     {
-        public static void Success(this NotificationService notificationService, string message, string title = "Success")
+        public static void Success(this NotificationService notificationService, string message = "Success", string title = "Success")
         {
             notificationService.Notify(new NotificationMessage
             {
