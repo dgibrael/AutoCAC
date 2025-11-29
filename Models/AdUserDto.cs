@@ -6,4 +6,7 @@ public sealed record AdUserDto(
     string DisplayName,
     bool Enabled,
     string Email = null
-);
+)
+{
+    public string d1Username => $"d1_{SamAccountName}";
+}

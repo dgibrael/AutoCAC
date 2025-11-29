@@ -32,10 +32,18 @@
     <p><strong>LastName: </strong>@UserContext.AdLastName</p>
     <p><strong>FirstName: </strong>@UserContext.AdFirstName</p>
     <p><strong>Email: </strong>@UserContext.AdEmail</p>
-    <ul><strong>Groups: </strong>
-        @foreach(var group in UserContext.Groups)
+    <strong>Groups: </strong>
+    <ul>
+        @foreach(var group in UserContext.DbGroups)
         {
             <li>@group.Name</li>
+        }
+    </ul>
+    <strong>Active Directory Groups: </strong>
+    <ul>
+        @foreach(var g in UserContext.AdGroups)
+        {
+            <li>@g</li>
         }
     </ul>
 }

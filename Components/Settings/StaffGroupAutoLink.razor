@@ -1,0 +1,100 @@
+﻿@page "/settings/admin/autogroup"
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.DataGrids
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject UserContextService User
+@inject IDbContextFactory<mainContext> DbFactory
+@inject IServiceProvider Services
+<PageTitle>Auto Link Staff to Groups</PageTitle>
+
+<DataGridEditable TItem="AutoCAC.Models.GroupAutoMatch" QueryFactory="@Qry()">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.GroupAutoMatch" Property="AdGroup" Title="Active Directory Group">
+        <EditTemplate Context="r">
+            <RadzenTextBox @bind-Value="r.AdGroup" Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+    <RadzenDataGridColumn TItem="AutoCAC.Models.GroupAutoMatch" Property="AuthGroup.Name" Title="DB Group">
+        <EditTemplate Context="r">
+            <RadzenDropDown @bind-Value="r.AuthGroupId" Data="DbGroupList" ValueProperty="Id" TextProperty="Name" 
+            Style="width:100%" />
+        </EditTemplate>
+    </RadzenDataGridColumn>
+</DataGridEditable>
+<RadzenButton Text="Run Auto Link" Click="RunAutoLink" />
+@code{
+    private List<AuthGroup> DbGroupList { get; set; } = new();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            DbGroupList = await db.AuthGroups
+                            .ToListAsync();
+        }
+    }
+
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.GroupAutoMatch>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.GroupAutoMatches
+            .Include(x => x.AuthGroup)
+            .AsNoTracking();
+    }
+
+    private async Task RunAutoLink()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            StateHasChanged();
+            return;
+        }
+        var ad = Services.GetService<IAdSearch>();
+        if (ad is null)
+        {
+            StateHasChanged();
+            return;
+        }
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var allUsers = await db.AuthUsers.ToListAsync();
+        var groupMatchList = await db.GroupAutoMatches
+                        .Include(x => x.AuthGroup)
+                            .ThenInclude(x => x.AuthUserGroups)
+                                .ThenInclude(ug => ug.User)
+                        .ToListAsync();
+        foreach(var g in groupMatchList)
+        {
+            UsersQuery q = default;
+            List<AdUserDto> results = new();
+            q = ad.Users();
+            q = q.InGroupEquals(g.AdGroup, true);
+            q = q.SelectBasic();
+            q = q.PageSize(10000).SizeLimit(10000);
+            results = await q.ToListAsync();
+            if (!results.Any()) continue;
+            var existingUsernames = new HashSet<string>(
+                g.AuthGroup.AuthUserGroups
+                    .Where(ug => ug.User != null && !string.IsNullOrEmpty(ug.User.Username))
+                    .Select(ug => ug.User.Username.ToLowerInvariant())
+            );
+            var addUsersHash = new HashSet<string>(
+                results
+                    .Where(x => !string.IsNullOrEmpty(x.d1Username))
+                    .Where(x => !existingUsernames.Contains(x.d1Username.ToLowerInvariant()))
+                    .Select(x => x.d1Username)
+            );
+            if (addUsersHash.Count == 0)
+                continue;
+            var addUsersList = allUsers
+                                .Where(x => addUsersHash.Contains(x.Username, StringComparer.OrdinalIgnoreCase))
+                                .Select(x => new AuthUserGroup { GroupId = g.AuthGroupId, UserId = x.Id })
+                                .ToList();
+            if (addUsersList.Count > 0)
+            {
+                await db.Set<AuthUserGroup>().AddRangeAsync(addUsersList);
+            }
+        }
+        await db.SaveChangesAsync();
+    }
+}

@@ -65,6 +65,7 @@
     public async Task OnAddClick()
     {
         await basegrid.SetQuickFilter();
+
         TItem newItem;
 
         if (AddAction is not null)
@@ -78,12 +79,40 @@
         }
 
         _newItems.Add(newItem);
-        await basegrid.Grid.InsertRow(newItem);
-        if ((ExpandContentEdit != null || ExpandContentBoth != null) && !basegrid.Grid.IsRowExpanded(newItem))
+
+        // 🔍 Special case: grid is logically empty
+        var isEmpty =
+            (basegrid.Helper.Count == 0) ||
+            (basegrid.Helper.Data == null || !basegrid.Helper.Data.Any());
+
+        if (isEmpty)
+        {
+            // Build a new data source with just the new item
+            var list = new List<TItem> { newItem };
+
+            basegrid.Helper.Data = list;
+            basegrid.Helper.Count = 1;
+
+            // Ensure we're on the first page and render that single-row page
+            // (GoToPage(0) if you have it, otherwise just Reload)
+            await basegrid.Grid.FirstPage();  // if available in your wrapper
+
+            // Put the newly added row into edit mode
+            await basegrid.Grid.EditRow(newItem);
+        }
+        else
+        {
+            // Normal path: existing rows, let Radzen handle insertion
+            await basegrid.Grid.InsertRow(newItem);
+        }
+
+        if ((ExpandContentEdit != null || ExpandContentBoth != null) &&
+            !basegrid.Grid.IsRowExpanded(newItem))
         {
             await basegrid.Grid.ExpandRow(newItem);
         }
     }
+
 
     public async Task EditRow(TItem item)
     {

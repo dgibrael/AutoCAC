@@ -32,8 +32,8 @@ public sealed class DataGridHelper<T> where T : class
     public Func<AutoCAC.Models.mainContext, IQueryable<T>> LastBuilder { get; private set; }
 
     // output
-    public IEnumerable<T> Data { get; private set; }
-    public int Count { get; private set; }
+    public IEnumerable<T> Data { get; set; }
+    public int Count { get; set; }
 
     // grid UI state
     public DataGridSettings Settings { get; set; }

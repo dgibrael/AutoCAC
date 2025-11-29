@@ -12,4 +12,6 @@ public partial class AuthGroup
     public string Name { get; set; } = null!;
 
     public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
+
+    public virtual ICollection<GroupAutoMatch> GroupAutoMatches { get; set; } = new List<GroupAutoMatch>();
 }

@@ -296,6 +296,8 @@
         }
         await Layout.RPMS.SendAsync("^");
         await Layout.RPMS.SendAsync("^");
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.SetMenuBuildMetaStatusAsync(Id, "DONE");
     }
 
     private async Task ShowDialogAndRun()

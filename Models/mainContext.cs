@@ -25,6 +25,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Drug> Drugs { get; set; }
 
+    public virtual DbSet<GroupAutoMatch> GroupAutoMatches { get; set; }
+
     public virtual DbSet<InpatientMedOrder> InpatientMedOrders { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
@@ -218,6 +220,21 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Synonym).IsUnicode(false);
             entity.Property(e => e.Unit).IsUnicode(false);
             entity.Property(e => e.VaPrintName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<GroupAutoMatch>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__GroupAut__3213E83F3D06E5A8");
+
+            entity.ToTable("GroupAutoMatch");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AdGroup).HasMaxLength(150);
+            entity.Property(e => e.AuthGroupId).HasColumnName("auth_group_id");
+
+            entity.HasOne(d => d.AuthGroup).WithMany(p => p.GroupAutoMatches)
+                .HasForeignKey(d => d.AuthGroupId)
+                .HasConstraintName("FK_GroupAutoMatch_auth_group");
         });
 
         modelBuilder.Entity<InpatientMedOrder>(entity =>

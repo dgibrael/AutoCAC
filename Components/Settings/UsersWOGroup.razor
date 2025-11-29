@@ -1,0 +1,20 @@
+﻿@page "/settings/admin/userswogroup"
+@using AutoCAC.Components.Templates.DataGrids
+@using AutoCAC.Models
+
+<PageTitle>Users not matched to a group</PageTitle>
+
+<DataGridVanilla TItem="AuthUser"
+	IncludeColumns="@(new[] { "Username", "FirstName", "LastName" })"
+	SearchColumns="@(new[] { "Username", "FirstName", "LastName" })"
+	QueryFactory="@Qry()">
+</DataGridVanilla>
+@code{
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.AuthUser>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.AuthUsers
+            .Where(u => !u.AuthUserGroups.Any())
+            .AsNoTracking();
+    }
+}

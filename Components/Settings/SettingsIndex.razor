@@ -6,14 +6,10 @@
 <RadzenAppearanceToggle><RadzenIcon Icon="dark_mode" /><span style="text-transform: none;">Toggle Light and Dark Mode</span></RadzenAppearanceToggle>
 <RadzenPanelMenu>
 	<RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />
-	@if (User.CanAccess("settings/stafflink"))
-	{
-		<RadzenPanelMenuItem Text="Link RPMS Staff to User" Path="settings/stafflink" />
-	}
+	<CanAccessVanilla RelativeUrl="/settings/admin/">
+		<RadzenPanelMenuItem Text="Admin">
+			<RadzenPanelMenuItem Text="Link RPMS Staff to User" Path="/settings/admin/stafflink" />
+			<RadzenPanelMenuItem Text="Link Active Directory Group to Database Group" Path="/settings/admin/autogroup" />
+		</RadzenPanelMenuItem>
+	</CanAccessVanilla>
 </RadzenPanelMenu>
-@code{
-	protected override async Task OnInitializedAsync()
-	{
-		await User.EnsureInitializedAsync();
-	}
-}

@@ -43,6 +43,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[GroupAutoMatch]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[MenuBuild]",
          "ObjectType": 0
       },

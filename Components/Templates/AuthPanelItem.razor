@@ -4,9 +4,12 @@
 @inject UserContextService UserCtx
 @if (_canAccess)
 {
-    <RadzenPanelMenuItem Text="@Text" Path="@RelativeUrl" Icon="@Icon" />
+    <RadzenPanelMenuItem Text="@Text" Path="@RelativeUrl" Icon="@Icon">
+        @ChildContent
+    </RadzenPanelMenuItem>
 }
 @code {
+    [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public string RelativeUrl { get; set; }
     [Parameter] public string Text { get; set; }
     [Parameter] public string Icon { get; set; } = "";
@@ -14,7 +17,6 @@
     protected override async Task OnParametersSetAsync()
     {
         await UserCtx.EnsureInitializedAsync();
-        var rel = "/" + RelativeUrl;
-        _canAccess = UserCtx.CanAccess(rel);
+        _canAccess = UserCtx.CanAccess(RelativeUrl);
     }
 }

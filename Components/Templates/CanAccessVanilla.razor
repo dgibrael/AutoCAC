@@ -13,7 +13,6 @@
     protected override async Task OnParametersSetAsync()
     {
         await UserCtx.EnsureInitializedAsync();
-        var rel = "/" + RelativeUrl;
-        _canAccess = UserCtx.CanAccess(rel);
+        _canAccess = UserCtx.CanAccess(RelativeUrl);
     }
 }

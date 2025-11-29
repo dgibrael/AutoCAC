@@ -16,12 +16,14 @@ namespace AutoCAC.Services
 
         public AuthUser UserProfile { get; private set; }
         public ClaimsPrincipal CurrentUser { get; private set; }
+        public HashSet<string> AdGroups { get; private set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public string Username => CurrentUser?.Identity?.Name?.Replace("\\", "_").ToLower();
 
         public string DisplayName => $"{UserProfile?.FirstName} {UserProfile?.LastName}".Trim();
 
-        public IEnumerable<AuthGroup> Groups =>
+        public IEnumerable<AuthGroup> DbGroups =>
             UserProfile?.AuthUserGroups?.Select(ug => ug.Group) ?? Enumerable.Empty<AuthGroup>();
 
         public bool UserLoaded { get; private set; }
@@ -35,7 +37,7 @@ namespace AutoCAC.Services
             if (groupNames == null || groupNames.Length == 0)
                 return true; // Only check for active status
 
-            return Groups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
+            return DbGroups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
         }
 
         public bool IsInGroupOrSuperuser(params string[] groupNames)
@@ -48,7 +50,7 @@ namespace AutoCAC.Services
             if (groupNames == null || groupNames.Length == 0)
                 return false; // Only check for active status
 
-            return Groups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
+            return DbGroups.Any(g => groupNames.Contains(g.Name, StringComparer.OrdinalIgnoreCase));
         }
 
         public bool IsClinical() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PublicHealth", "Nurse", "Provider"
@@ -154,7 +156,35 @@ namespace AutoCAC.Services
                         await db.SaveChangesAsync();
                     }
                 }
+                if (AdGroups.Count > 0)
+                {
+                    // current groups the user already has
+                    var userGroupIds = new HashSet<int>(
+                        DbGroups.Select(g => g.Id)
+                    );
 
+                    var autoMatchGroups = await db.GroupAutoMatches
+                        .Include(x => x.AuthGroup)
+                        .Where(x => AdGroups.Contains(x.AdGroup))           // AD group match
+                        .Where(x => !userGroupIds.Contains(x.AuthGroupId))  // not already in DB
+                        .Select(x => new AuthUserGroup
+                        {
+                            GroupId = x.AuthGroupId,
+                            UserId = UserProfile.Id
+                        })
+                        .ToListAsync();
+
+                    if (autoMatchGroups.Count > 0)
+                    {
+                        await db.Set<AuthUserGroup>().AddRangeAsync(autoMatchGroups);
+                        await db.SaveChangesAsync();
+
+                        // Optional: refresh UserProfile so DbGroups includes new groups
+                        UserProfile = await db.AuthUsers
+                            .Include(u => u.AuthUserGroups).ThenInclude(ug => ug.Group)
+                            .FirstOrDefaultAsync(u => u.Id == UserProfile.Id);
+                    }
+                }
                 UserLoaded = true;
             }
             finally
@@ -165,17 +195,51 @@ namespace AutoCAC.Services
 
         private void GetPersonInfoFromClaimsOrAd()
         {
+            // Clear previous values just in case this is ever called more than once per service instance
+            AdFirstName = null;
+            AdLastName = null;
+            AdEmail = null;
+            AdGroups.Clear();
+
             if (OperatingSystem.IsWindows() && !string.IsNullOrWhiteSpace(Username))
             {
                 try
                 {
                     using var ctx = new PrincipalContext(ContextType.Domain);
-                    using var up = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, Username.GetAfterLastDelimiter("_"));
+                    var samAccountName = Username.GetAfterLastDelimiter("_");
+
+                    using var up = UserPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, samAccountName);
                     if (up != null)
                     {
+                        // Basic person info
                         AdFirstName = string.IsNullOrWhiteSpace(up.GivenName) ? null : up.GivenName;
                         AdLastName = string.IsNullOrWhiteSpace(up.Surname) ? null : up.Surname;
                         AdEmail = string.IsNullOrWhiteSpace(up.EmailAddress) ? null : up.EmailAddress;
+
+                        // AD groups
+                        try
+                        {
+                            // Get nested security group memberships
+                            var authGroups = up.GetAuthorizationGroups();
+
+                            foreach (var principal in authGroups)
+                            {
+                                if (principal is GroupPrincipal group)
+                                {
+                                    var groupName = group.Name;
+
+                                    if (!string.IsNullOrWhiteSpace(groupName))
+                                    {
+                                        AdGroups.Add(groupName);   // HashSet ensures uniqueness
+                                    }
+                                }
+                            }
+                        }
+                        catch (PrincipalOperationException)
+                        {
+                            // Some groups may not be resolvable; ignore group loading failures
+                        }
+
                         return;
                     }
                 }
@@ -184,6 +248,12 @@ namespace AutoCAC.Services
                     // Ignore AD lookup failures (not domain-joined, permissions, etc.)
                 }
             }
+        }
+
+        public async Task AutoMatchGroups()
+        {
+            if (DbGroups.Any()) return;
+            return;
         }
 
         public bool CanAccess(string relativeUrl)
@@ -203,6 +273,8 @@ namespace AutoCAC.Services
                     => IsInGroupOrSuperuser("PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier"),
                 _ when path.StartsWith("/supervisor/inpatient/", StringComparison.OrdinalIgnoreCase)
                     => IsInGroupOrSuperuser("PharmacistSupervisor"),
+                _ when path.StartsWith("/settings/admin/", StringComparison.OrdinalIgnoreCase)
+                    => IsInGroupOrSuperuser("PharmacistSupervisor"),
                 _ => true // default: open to all active users
             };
         }
@@ -216,7 +288,5 @@ namespace AutoCAC.Services
 
             return u.ToLowerInvariant();
         }
-
-
     }
 }
