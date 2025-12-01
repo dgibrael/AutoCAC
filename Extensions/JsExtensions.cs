@@ -65,6 +65,10 @@ namespace AutoCAC.Extensions
         {
             await js.InvokeVoidAsync("navigator.clipboard.writeText", txt);
         }
+        public static async Task<int> GetWindowHeight(this IJSRuntime js)
+        {
+            return await js.InvokeAsync<int>("getWindowHeight");
+        }
 
     }
 }

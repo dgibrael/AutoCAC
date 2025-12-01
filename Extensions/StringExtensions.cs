@@ -171,5 +171,15 @@ namespace AutoCAC.Extensions
             }
             return value;
         }
+
+        public static string NormalizeUrl(this string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return "/";
+            var u = url.Split('?', '#')[0];
+            if (!u.StartsWith("/")) u = "/" + u;
+            if (!u.EndsWith("/")) u = u + "/";
+
+            return u.ToLowerInvariant();
+        }
     }
 }

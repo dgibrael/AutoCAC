@@ -170,3 +170,5 @@ window.downloadFileFromStream = async function (fileName, contentStreamReference
 
     URL.revokeObjectURL(url);
 };
+
+window.getWindowHeight = () => window.innerHeight;

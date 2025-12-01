@@ -1,7 +1,8 @@
 ﻿@inject NotificationService NotificationService
 @inject DialogService DialogService
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
-
+@using System.Reflection
+@using System.Linq.Expressions
 @typeparam TItem where TItem : class, new()
 
 <DataGridVanilla TItem="TItem"
@@ -14,6 +15,7 @@
                  ActionColumnDefault="false">
     <ChildContent>
         @ChildContent
+
         <RadzenDataGridColumn TItem="TItem" Width="180px" Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
             <HeaderTemplate>
                 <RadzenIcon Icon="settings" />
@@ -56,6 +58,7 @@
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
     [Parameter] public EventCallback<TItem> EditButtonClick { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
+    [Parameter] public string[] NavigationColumns { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }

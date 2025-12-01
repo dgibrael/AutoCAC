@@ -91,6 +91,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[RestrictedPage]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[RestrictedPageGroup]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[TIU]",
          "ObjectType": 0
       },
@@ -108,6 +116,10 @@
       },
       {
          "Name": "[dbo].[vw_UserNameMismatch]",
+         "ObjectType": 3
+      },
+      {
+         "Name": "[dbo].[vw_VancomycinAuc]",
          "ObjectType": 3
       }
    ],

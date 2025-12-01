@@ -1,0 +1,47 @@
+﻿@page "/settings/admin/restrictpages/new"
+@using AutoCAC.Models
+@using AutoCAC.Components.Templates.Forms
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+@inject NotificationService NotificationService
+@using Microsoft.Data.SqlClient
+<RadzenTemplateForm TItem="RestrictedPage" Data="@restrictedPage" Submit="@OnSubmit">
+	<TextFieldWithValidator Name="RelativeUrl"
+							Label="Relative URL"
+							@bind-Value="@(restrictedPage.RelativeUrl)"
+							ValidatorMsg="This URL already exists"
+							ValidateFunc="ValidateUrl" />
+	<VanillaFormField Label="Apply To All Child Urls">
+		<RadzenCheckBox @bind-Value="@(restrictedPage.ApplyToChildUrls)" />
+	</VanillaFormField>
+	<VanillaFormField Label="Always allow superusers to view">
+		<RadzenCheckBox @bind-Value="@(restrictedPage.AlwaysAllowSuperusers)" />
+	</VanillaFormField>
+	<StandardButtons />
+</RadzenTemplateForm>
+
+@code {
+	private RestrictedPage restrictedPage { get; set; } = new()
+	{
+		RelativeUrl = "",
+		ApplyToChildUrls = true,
+		AlwaysAllowSuperusers = true
+	};
+
+	private async Task OnSubmit()
+	{
+		restrictedPage.RelativeUrl = restrictedPage.RelativeUrl.NormalizeUrl();
+		await DbFactory.AddItemAsync(restrictedPage);
+		Nav.NavigateToRelative(restrictedPage.Id.ToString(), fromParent: true);
+	}
+
+	private bool ValidateUrl(string url)
+	{
+		if (string.IsNullOrWhiteSpace(url))
+			return true;
+		url = url.NormalizeUrl();
+		using var db = DbFactory.CreateDbContext();
+		return !db.RestrictedPages
+					.Any(x => x.RelativeUrl == url);
+	}
+}

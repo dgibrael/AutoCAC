@@ -34,18 +34,16 @@
         <RadzenRow class="rz-mx-auto content-container">
             <RadzenColumn Size="12">
                 <CascadingValue Value="this" Name="MainLayout">
-                    @if(_canAccess is null)
-                    {
-                        <p>Loading....</p>
-                    }
-                    else if(_canAccess == true)
-                    {
-                        @Body
-                    }
-                    else
-                    {
-                        <p>Access Denied</p>
-                    }
+                    <LoadingContent IsLoading="@(_canAccess is null)">
+                        @if(_canAccess == true)
+                        {
+                            @Body
+                        }
+                        else
+                        {
+                            <p>Access Denied</p>
+                        }
+                    </LoadingContent>
                 </CascadingValue>
             </RadzenColumn>
         </RadzenRow>
@@ -56,41 +54,36 @@
             <RadzenText Text="AutoCAC" TextStyle="Radzen.Blazor.TextStyle.Subtitle1" class="rz-mb-0" style="color: var(--rz-sidebar-color);" />
         </RadzenStack>
         <RadzenPanelMenu>
-            <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
             @if (UserContext.UserProfile != null)
             {
+                <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
                     <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
-                        @if (UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
-                        {
-                            <RadzenPanelMenuItem Text="Drug Enter Edit" Path="drugenteredit"  />
-                            <RadzenPanelMenuItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
-                        }
+                        <AuthPanelItem Text="Drug Enter Edit" Path="drugenteredit" />
+                        <AuthPanelItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
                         <RadzenPanelMenuItem Text="Drug Table" Path="drugs" />
-                    </RadzenPanelMenuItem>
-                if (UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
-                {
-                    <RadzenPanelMenuItem Text="Supervisors" Icon="supervisor_account">
-                        <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
-                        <RadzenPanelMenuItem Text="Nurse Compound Training" Path="supervisor/inpatient/NurseCompoundTraining" />
-                    </RadzenPanelMenuItem>
-                }
-                if (UserContext.IsClinical())
-                {
-                    <RadzenPanelMenuItem Text="Inpatient" Icon="inpatient">
-                        <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder" />
-                        <RadzenPanelMenuItem Text="ADT" Path="inpatient/adt" />
-                        @if (UserContext.IsPharmacy())
-                        {
-                            <RadzenPanelMenuItem Text="Precise PK Lookup" Path="inpatient/precisepk" />
-                        }
-                    </RadzenPanelMenuItem>
-                    <RadzenPanelMenuItem Text="Notes" Path="notes" Icon="notes" />
-                    <RadzenPanelMenuItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
-                }
-                <AuthPanelItem RelativeUrl="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
+                </RadzenPanelMenuItem>
+                <AuthPanelItem Text="Supervisors" Icon="supervisor_account" Path="supervisor">
+                    <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
+                    <RadzenPanelMenuItem Text="Nurse Compound Training" Path="supervisor/inpatient/NurseCompoundTraining" />
+                </AuthPanelItem>
+                <AuthPanelItem Text="Inpatient" Icon="inpatient" Path="inpatient">
+                    <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder" />
+                    <RadzenPanelMenuItem Text="ADT" Path="inpatient/adt" />
+                    <AuthPanelItem Text="Precise PK Lookup" Path="inpatient/precisepk" />
+                </AuthPanelItem>
+                <AuthPanelItem Text="Notes" Path="notes" Icon="notes" />
+                <AuthPanelItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
+                <AuthPanelItem Path="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
                 <RadzenPanelMenuItem Text="Settings" Icon="settings" >
                     <RadzenPanelMenuItem Text="Search Templates" Path="settings/searchtemplates" />
+                    <AuthPanelItem Text="admin" Path="settings/admin" NavigateOnClick="false">
+                        <RadzenPanelMenuItem Text="Restricted Pages" Path="settings/admin/restrictpages" />
+                    </AuthPanelItem>
                 </RadzenPanelMenuItem>
+            }
+            else
+            {
+                <span>Loading...</span>
             }
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
@@ -113,11 +106,11 @@
     @code {
     bool sidebarExpanded = true;    
     private bool? _canAccess;
+    private bool initialLoad = true;
     protected override async Task OnParametersSetAsync()
     {
-        _canAccess = null;
-        await UserContext.EnsureInitializedAsync();
-        _canAccess = UserContext.CanAccess(NavigationManager.GetRelativeUrl());
+        if (initialLoad) return;
+        await RunOnNav();
     }
 
     void SidebarToggleClick()
@@ -138,17 +131,27 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await UserContext.EnsureInitializedAsync();
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            await RunOnNav();
             TerminalInterop.RPMS = RPMS;
+            StateHasChanged();
         }
+        else
+        {
+            initialLoad = false;
+        }
+    }
+
+    private async Task RunOnNav()
+    {
+        Console.WriteLine("run on nav");
+        _canAccess = null;
+        await UserContext.EnsureInitializedAsync();
+        await UserContext.LoadAllowedPages();
+        _canAccess = UserContext.CanAccess(NavigationManager.GetRelativeUrl());
     }
 
     public void HandleError(Exception ex, bool reThrow = false)

@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading.Tasks;
 namespace AutoCAC.Extensions
 {
@@ -519,6 +520,139 @@ namespace AutoCAC.Extensions
             if (pk is null) return;
             nav.NavigateTo(nav.GetPathWith(pk.ToString()));
         }
+
+        public static async Task SaveNavigationItemsAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity item,
+            string[] navigationProperties,
+            CancellationToken ct = default)
+            where TEntity : class, new()
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+
+            var entityType = db.Model.FindEntityType(typeof(TEntity))
+                ?? throw new InvalidOperationException($"Entity {typeof(TEntity).Name} not found in DbContext.");
+
+            // Build query with Includes
+            IQueryable<TEntity> query = db.Set<TEntity>();
+            foreach (var propName in navigationProperties)
+            {
+                query = query.Include(propName);
+            }
+
+            // Get primary key
+            var keyProp = entityType.FindPrimaryKey().Properties.Single();
+            var keyClrProp = typeof(TEntity).GetProperty(keyProp.Name)
+                ?? throw new InvalidOperationException($"Key property {keyProp.Name} not found.");
+
+            var keyValue = keyClrProp.GetValue(item)
+                ?? throw new InvalidOperationException("Primary key value is null.");
+
+            // Load original tracked entity
+            var original = await query.FirstOrDefaultAsync(
+                e => EF.Property<object>(e, keyProp.Name).Equals(keyValue), ct);
+
+            if (original == null)
+                throw new InvalidOperationException("Entity no longer exists.");
+
+            // Update scalar values
+            db.Entry(original).CurrentValues.SetValues(item);
+
+            // Replace navigation collections
+            foreach (var propName in navigationProperties)
+            {
+                var prop = typeof(TEntity).GetProperty(propName)
+                    ?? throw new InvalidOperationException($"Navigation property '{propName}' not found.");
+
+                var newCollection = prop.GetValue(item) as IEnumerable;
+                var originalCollection = prop.GetValue(original) as IList;
+
+                if (originalCollection == null)
+                    throw new InvalidOperationException(
+                        $"Navigation property '{propName}' must be assignable to IList.");
+
+                originalCollection.Clear();
+
+                foreach (var element in newCollection)
+                    originalCollection.Add(element);
+            }
+
+            await db.SaveChangesAsync(ct);
+        }
+
+        public static async Task SaveNavigationItemsAsync<TEntity>(
+            this IDbContextFactory<mainContext> factory,
+            TEntity item,
+            Expression<Func<TEntity, object>>[] navigationProperties,
+            CancellationToken ct = default)
+            where TEntity : class, new()
+        {
+            await using var db = await factory.CreateDbContextAsync(ct);
+
+            var entityType = db.Model.FindEntityType(typeof(TEntity))
+                ?? throw new InvalidOperationException($"Entity {typeof(TEntity).Name} not found.");
+
+            // Build query with typed includes
+            IQueryable<TEntity> query = db.Set<TEntity>();
+            foreach (var nav in navigationProperties)
+            {
+                query = query.Include(nav);
+            }
+
+            // Load key
+            var keyProp = entityType.FindPrimaryKey().Properties.Single();
+            var keyClrProp = typeof(TEntity).GetProperty(keyProp.Name)
+                ?? throw new InvalidOperationException($"Key property {keyProp.Name} not found.");
+
+            var keyValue = keyClrProp.GetValue(item)
+                ?? throw new InvalidOperationException("Primary key value is null.");
+
+            // Load existing entity with navigations
+            var original = await query.FirstOrDefaultAsync(
+                e => EF.Property<object>(e, keyProp.Name).Equals(keyValue),
+                ct);
+
+            if (original == null)
+                throw new InvalidOperationException("Entity no longer exists.");
+
+            // Update scalar properties
+            db.Entry(original).CurrentValues.SetValues(item);
+
+            // Replace navigation collections
+            foreach (var navExp in navigationProperties)
+            {
+                var prop = GetPropertyInfo(navExp);
+
+                var newCollection = prop.GetValue(item) as IEnumerable;
+                var originalCollection = prop.GetValue(original) as IList;
+
+                if (originalCollection == null)
+                    throw new InvalidOperationException(
+                        $"Navigation property '{prop.Name}' must be assignable to IList.");
+
+                originalCollection.Clear();
+
+                foreach (var element in newCollection)
+                    originalCollection.Add(element);
+            }
+
+            await db.SaveChangesAsync(ct);
+        }
+
+        // Helper to extract PropertyInfo from expression
+        private static PropertyInfo GetPropertyInfo<TEntity>(
+            Expression<Func<TEntity, object>> expression)
+        {
+            MemberExpression memberExp = expression.Body switch
+            {
+                MemberExpression m => m,
+                UnaryExpression u when u.Operand is MemberExpression m => m,
+                _ => throw new InvalidOperationException("Invalid navigation expression.")
+            };
+
+            return (PropertyInfo)memberExp.Member;
+        }
+
     }
 }
 

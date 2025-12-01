@@ -20,7 +20,17 @@ namespace AutoCAC.Extensions
             {
                 Severity = NotificationSeverity.Error,
                 Summary = ex.GetType().Name,
-                Detail = customMsg ?? ex.Message,
+                Detail = customMsg ?? $"Something went wrong (error code: {ex.HResult})",
+                Duration = 5000
+            });
+        }
+        public static void Error(this NotificationService notificationService, string msg = "Something went wrong")
+        {
+            notificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Error,
+                Summary = "Error",
+                Detail = msg,
                 Duration = 5000
             });
         }
@@ -31,7 +41,9 @@ namespace AutoCAC.Extensions
             Func<Task> action,
             string successMessage = "Success",
             string successTitle = "Success",
-            bool rethrow = false)
+            bool rethrow = false,
+            string customErrorMsg = null
+            )
         {
             try
             {
@@ -46,7 +58,14 @@ namespace AutoCAC.Extensions
             }
             catch (Exception ex)
             {
-                notificationService.Error(ex);
+                if (customErrorMsg is not null)
+                {
+                    notificationService.Error(customErrorMsg);
+                }
+                else
+                {
+                    notificationService.Error(ex);
+                }
                 if (rethrow) throw;
                 return false;
             }

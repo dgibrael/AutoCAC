@@ -1,0 +1,34 @@
+﻿@page "/settings/admin/restrictpages"
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.DataGrids
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject UserContextService User
+@inject IDbContextFactory<mainContext> DbFactory
+<PageTitle>Restricted Page Settings</PageTitle>
+
+<DataGridVanilla TItem="RestrictedPage" QueryFactory="@Qry()" AddButtonDefault="true">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="RelativeUrl" Title="RelativeUrl" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="ApplyToChildUrls" Title="ApplyToChildUrls" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="AlwaysAllowSuperusers" Title="AlwaysAllowSuperusers" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Title="Restricted to Groups" >
+        <Template Context="row">
+            @foreach(var g in row.RestrictedPageGroups)
+            {
+                <li>@g.AuthGroup.Name</li>
+            }
+        </Template>
+    </RadzenDataGridColumn>
+    <ActionDefaultColumn TItem="RestrictedPage"/>
+</DataGridVanilla>
+@code{
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.RestrictedPage>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.RestrictedPages
+            .Include(x => x.RestrictedPageGroups)
+                .ThenInclude(x => x.AuthGroup)
+            .AsNoTracking();
+    }
+}

@@ -5,6 +5,7 @@ using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.DirectoryServices.AccountManagement;
+using System.Linq;
 using System.Security.Claims;
 
 namespace AutoCAC.Services
@@ -25,9 +26,29 @@ namespace AutoCAC.Services
 
         public IEnumerable<AuthGroup> DbGroups =>
             UserProfile?.AuthUserGroups?.Select(ug => ug.Group) ?? Enumerable.Empty<AuthGroup>();
-
+        public List<RestrictedPage> AllowedRestrictedPages { get; private set; } = new();
+        public List<RestrictedPage> AllRestrictedPages { get; private set; } = new();
         public bool UserLoaded { get; private set; }
         private readonly SemaphoreSlim _initLock = new(1, 1);
+
+        public async Task LoadAllowedPages()
+        {
+            if (!UserLoaded) return;
+
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            AllRestrictedPages = await db.RestrictedPages
+                                    .Include(x => x.RestrictedPageGroups)
+                                        .ThenInclude(x => x.AuthGroup)
+                                    .ToListAsync();
+            var userGroupIds = new HashSet<int>(
+                DbGroups.Select(g => g.Id)
+            );
+            AllowedRestrictedPages = AllRestrictedPages
+                                    .Where(x => (UserProfile.IsSuperuser && x.AlwaysAllowSuperusers) 
+                                        || x.RestrictedPageGroups.Any(y => userGroupIds.Contains(y.AuthGroupId))
+                                    )
+                                    .ToList();
+        }
 
         public bool IsInGroup(params string[] groupNames)
         {
@@ -185,6 +206,7 @@ namespace AutoCAC.Services
                             .FirstOrDefaultAsync(u => u.Id == UserProfile.Id);
                     }
                 }
+                await LoadAllowedPages();
                 UserLoaded = true;
             }
             finally
@@ -258,35 +280,44 @@ namespace AutoCAC.Services
 
         public bool CanAccess(string relativeUrl)
         {
-            var path = NormalizeUrl(relativeUrl);
+            var path = relativeUrl.NormalizeUrl();
 
-            return path switch
+            if (!UserLoaded)
+                return false;
+
+            // 1. Get all rules (parent + child)
+            var rules = AllRestrictedPages
+                .Where(r =>
+                    r.RelativeUrl.Equals(path, StringComparison.OrdinalIgnoreCase) ||
+                    (r.ApplyToChildUrls && path.StartsWith(r.RelativeUrl, StringComparison.OrdinalIgnoreCase))
+                )
+                .ToList();
+
+            if (!rules.Any())
+                return true; // unrestricted
+            var userGroupIds = DbGroups.Select(g => g.Id)
+                .ToHashSet();
+
+            bool isSuper = UserProfile.IsSuperuser;
+
+            foreach (var rule in rules)
             {
-                "/settings/stafflink/" => IsInGroupOrSuperuser("PharmacistSupervisor"),
-                "/drugenteredit/" => IsInGroupOrSuperuser("PharmacistSupervisor"),
-                "/benchmarkprice/" => IsInGroupOrSuperuser("PharmacistSupervisor"),
-                "/inpatient/precisepk/" => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin"),
-                "/inpatient/adt/" => IsClinical(),
-                "/inpatient/medorder/" => IsClinical(),
-                "/notes/" => IsClinical(),
-                _ when path.StartsWith("/piverify/", StringComparison.OrdinalIgnoreCase)
-                    => IsInGroupOrSuperuser("PharmacyTech", "Pharmacist", "PharamcytechSupervisor", "PharmacistSupervisor", "InsuranceVerifier"),
-                _ when path.StartsWith("/supervisor/inpatient/", StringComparison.OrdinalIgnoreCase)
-                    => IsInGroupOrSuperuser("PharmacistSupervisor"),
-                _ when path.StartsWith("/settings/admin/", StringComparison.OrdinalIgnoreCase)
-                    => IsInGroupOrSuperuser("PharmacistSupervisor"),
-                _ => true // default: open to all active users
-            };
+                // ✔ Superuser short-circuit: if this rule explicitly allows them, skip it entirely.
+                if (isSuper && rule.AlwaysAllowSuperusers)
+                    continue;
+                var pageGroups = rule.RestrictedPageGroups.ToList();
+                if (!pageGroups.Any()) return false;
+                // 2. Evaluate group membership
+                bool userHasGroup =
+                    pageGroups.Any(g => userGroupIds.Contains(g.AuthGroupId));
+
+                // 3. If the user (super or not) doesn't meet group requirements → deny
+                if (!userHasGroup)
+                    return false;
+            }
+
+            return true;
         }
 
-        private static string NormalizeUrl(string url)
-        {
-            if (string.IsNullOrWhiteSpace(url)) return "/";
-            var u = url.Split('?', '#')[0];
-            if (!u.StartsWith("/")) u = "/" + u;
-            if (!u.EndsWith("/")) u = u + "/";
-
-            return u.ToLowerInvariant();
-        }
     }
 }

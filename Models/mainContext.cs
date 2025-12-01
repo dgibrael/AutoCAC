@@ -53,11 +53,17 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<PiVerificationComment> PiVerificationComments { get; set; }
 
+    public virtual DbSet<RestrictedPage> RestrictedPages { get; set; }
+
+    public virtual DbSet<RestrictedPageGroup> RestrictedPageGroups { get; set; }
+
     public virtual DbSet<Tiu> Tius { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     public virtual DbSet<VwUserNameMismatch> VwUserNameMismatches { get; set; }
+
+    public virtual DbSet<VwVancomycinAuc> VwVancomycinAucs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -546,6 +552,38 @@ public partial class mainContext : DbContext
                 .HasConstraintName("FK_PI_VerificationComment_PI_Verification");
         });
 
+        modelBuilder.Entity<RestrictedPage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Restrict__3214EC077DAF73BB");
+
+            entity.ToTable("RestrictedPage");
+
+            entity.HasIndex(e => e.RelativeUrl, "UQ_RestrictedPage_RelativeUrl").IsUnique();
+
+            entity.Property(e => e.AlwaysAllowSuperusers).HasDefaultValue(true);
+            entity.Property(e => e.RelativeUrl)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<RestrictedPageGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Restrict__3214EC075D0D9584");
+
+            entity.ToTable("RestrictedPageGroup");
+
+            entity.Property(e => e.AuthGroupId).HasColumnName("auth_group_id");
+            entity.Property(e => e.RestrictedPageId).HasColumnName("RestrictedPage_id");
+
+            entity.HasOne(d => d.AuthGroup).WithMany(p => p.RestrictedPageGroups)
+                .HasForeignKey(d => d.AuthGroupId)
+                .HasConstraintName("FK_RestrictedPageGroup_auth_group");
+
+            entity.HasOne(d => d.RestrictedPage).WithMany(p => p.RestrictedPageGroups)
+                .HasForeignKey(d => d.RestrictedPageId)
+                .HasConstraintName("FK_RestrictedPageGroup_RestrictedPage");
+        });
+
         modelBuilder.Entity<Tiu>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__TIU__3213E83F134EACEB");
@@ -618,6 +656,25 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Username)
                 .HasMaxLength(150)
                 .HasColumnName("username");
+        });
+
+        modelBuilder.Entity<VwVancomycinAuc>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_VancomycinAuc");
+
+            entity.Property(e => e.Auc).HasColumnName("AUC");
+            entity.Property(e => e.DispenseDrug).IsUnicode(false);
+            entity.Property(e => e.GivenAt).HasColumnType("datetime");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Peak).HasColumnType("decimal(6, 1)");
+            entity.Property(e => e.T1).HasColumnType("decimal(9, 1)");
+            entity.Property(e => e.T2).HasColumnType("decimal(9, 1)");
+            entity.Property(e => e.Tinf).HasColumnType("decimal(9, 1)");
+            entity.Property(e => e.Trough).HasColumnType("decimal(6, 1)");
+            entity.Property(e => e.TruePeak).HasColumnType("decimal(9, 1)");
+            entity.Property(e => e.TrueTrough).HasColumnType("decimal(9, 1)");
         });
 
         OnModelCreatingPartial(modelBuilder);

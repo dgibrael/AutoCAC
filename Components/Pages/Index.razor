@@ -6,16 +6,15 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.PatientSearch
 @using AutoCAC.Extensions
 @using static RPMSService
 @using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
-@using AutoCAC.Components.Templates.PatientSearch
 @using System.Security.Claims
 <PageTitle>Home</PageTitle>
-@if(UserContext.UserProfile != null)
-{
+<LoadingContent IsLoading="!UserContext.UserLoaded">
     <h4>User Info</h4>
 
     <p><strong>Username: </strong>@UserContext.UserProfile.Username</p>
@@ -46,16 +45,7 @@
             <li>@g</li>
         }
     </ul>
-}
-else
-{
-    <i>Loading...</i>
-}
-
+</LoadingContent>
 @code {
-    protected override async Task OnInitializedAsync()
-    {
-        await UserContext.EnsureInitializedAsync();
-    }
 }
 

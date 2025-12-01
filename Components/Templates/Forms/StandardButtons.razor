@@ -1,4 +1,6 @@
-﻿<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Visible="@Visible" class="rz-my-2">
+﻿@using AutoCAC.Extensions
+@inject NavigationManager Nav
+<RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Visible="@Visible" class="rz-my-2">
     <RadzenButton Click="@CancelClick" ButtonType="ButtonType.Button" Text="Cancel" Size="ButtonSize.Medium"
                   ButtonStyle="ButtonStyle.Base" />
     <RadzenButton ButtonType="ButtonType.Submit" Text="@SubmitText" ButtonStyle="ButtonStyle.Primary" />
@@ -6,6 +8,14 @@
 
 @code{
     [Parameter] public bool Visible { get; set; } = true;
-    [Parameter, EditorRequired] public EventCallback CancelClick { get; set; }
+    [Parameter] public EventCallback CancelClick { get; set; }
     [Parameter] public string SubmitText { get; set; } = "Save";
+
+    protected override void OnInitialized()
+    {
+        if (!CancelClick.HasDelegate)
+        {
+            CancelClick = EventCallback.Factory.Create(this, () => Nav.NavigateToRelative(fromParent: true));
+        }
+    }
 }

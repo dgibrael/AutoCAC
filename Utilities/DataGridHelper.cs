@@ -45,13 +45,16 @@ public sealed class DataGridHelper<T> where T : class
 
     public DataGridTemplate LoadedTemplate { get; set; }
     public string UserName { get; set; }
+    public bool UseClientSideData { get; set; } = false;
+    private List<T> _cache;
     public DataGridHelper(
         IDbContextFactory<AutoCAC.Models.mainContext> db,
         string username,
         Func<AutoCAC.Models.mainContext, IQueryable<T>> source = null,
         string[] searchColumns = null,
         string dataGridName = null,
-        bool ignoreFilter = false)
+        bool ignoreFilter = false,
+        bool useClientSideData = false)
     {
         _db = db;
         UserName = username;
@@ -61,6 +64,7 @@ public sealed class DataGridHelper<T> where T : class
         Data = null;
         ShouldCount = true;
         _dataGridName = dataGridName;
+        UseClientSideData = useClientSideData;
     }
 
     public void SetQuickFilter(string text)
@@ -71,9 +75,14 @@ public sealed class DataGridHelper<T> where T : class
 
     public async Task LoadAsync(LoadDataArgs args, CancellationToken ct = default)
     {
+        if (UseClientSideData)
+        {
+            await LoadClientSideAsync(args, ct);
+            return;
+        }
         await using var ctx = await _db.CreateDbContextAsync(ct);
         IQueryable<T> query = Source(ctx).AsNoTracking();
-        if (!string.IsNullOrEmpty(args.Filter) && !args.Filter.Trim().Equals("0=1", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(args.Filter) && !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
             query = query.Where(args.Filter);
 
         if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
@@ -160,5 +169,58 @@ public sealed class DataGridHelper<T> where T : class
         Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
             ? null
             : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+    }
+
+    private async Task LoadClientSideAsync(LoadDataArgs args, CancellationToken ct)
+    {
+        // Load full data set if we don't have it yet
+        if (_cache == null)
+        {
+            await using var ctx = await _db.CreateDbContextAsync(ct);
+            _cache = await Source(ctx).AsNoTracking().ToListAsync(ct);
+        }
+
+        IEnumerable<T> query = _cache;
+
+        // Apply search
+        if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns.Length > 0)
+        {
+            query = query.AsQueryable().QuickSearch(SearchText, SearchColumns);
+        }
+
+        // Apply dynamic filter expression
+        if (!string.IsNullOrEmpty(args.Filter) &&
+            !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.AsQueryable().Where(args.Filter);
+        }
+
+        // Count after filtering
+        Count = query.Count();
+
+        // Sorting
+        if (!string.IsNullOrEmpty(args.OrderBy))
+            query = query.AsQueryable().OrderBy(_config, args.OrderBy);
+
+        // Paging (in memory)
+        if (args.Skip.HasValue) query = query.Skip(args.Skip.Value);
+        if (args.Top.HasValue) query = query.Take(args.Top.Value);
+
+        Data = query.ToList();
+
+        LastBuilder = c =>
+        {
+            IQueryable<T> q = _cache.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns.Length > 0)
+                q = q.QuickSearch(SearchText, SearchColumns);
+
+            if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
+                q = q.Where(args.Filter);
+
+            return q;
+        };
+
+        ShouldCount = null;
     }
 }

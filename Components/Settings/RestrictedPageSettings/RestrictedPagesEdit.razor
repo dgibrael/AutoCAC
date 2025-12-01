@@ -1,0 +1,95 @@
+﻿@page "/settings/admin/restrictpages/{Id:int}"
+@using AutoCAC.Models
+@using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.Forms
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+@inject NotificationService NotificationService
+
+<LoadingContent IsLoading="@(!pageLoaded)">
+	<RadzenTemplateForm TItem="RestrictedPage" Data="@restrictedPage" Submit="@OnSubmit">
+		<TextFieldWithValidator Name="RelativeUrl"
+								Label="Relative URL"
+								@bind-Value="@(restrictedPage.RelativeUrl)"
+								ValidatorMsg="This URL already exists"
+								ValidateFunc="ValidateUrl" />
+		<VanillaFormField Label="Apply To All Child Urls">
+			<RadzenCheckBox @bind-Value="@(restrictedPage.ApplyToChildUrls)" />
+		</VanillaFormField>
+		<VanillaFormField Label="Always Allow Superusers To View">
+			<RadzenCheckBox @bind-Value="@(restrictedPage.AlwaysAllowSuperusers)" />
+		</VanillaFormField>
+		<VanillaFormField Label="Restricted To Groups">
+			<RadzenPickList @bind-Source="@(unSelectedGroups)" @bind-Target="@(selectedGroups)" TextProperty="Name"
+			Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true">
+				<SourceHeader>Available:</SourceHeader>
+				<TargetHeader>Selected:</TargetHeader>
+			</RadzenPickList>
+		</VanillaFormField>
+		<StandardButtons />
+	</RadzenTemplateForm>
+</LoadingContent>
+
+@code {
+	[Parameter] public int Id { get; set; }
+	private bool pageLoaded = false;
+	private RestrictedPage restrictedPage;
+	private IEnumerable<AuthGroup> allGroups { get; set; }
+	private IEnumerable<AuthGroup> selectedGroups { get; set; }
+	private IEnumerable<AuthGroup> unSelectedGroups { get; set; }
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		restrictedPage = await db.RestrictedPages
+							.Include(x => x.RestrictedPageGroups)
+							.ThenInclude(x => x.AuthGroup)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+		allGroups = await db.AuthGroups.ToListAsync();
+		selectedGroups = restrictedPage.RestrictedPageGroups.Select(x => x.AuthGroup);
+		unSelectedGroups = allGroups.Where(g => !selectedGroups.Any(s => s.Id == g.Id)).ToList();
+		pageLoaded = true;
+		StateHasChanged();
+	}
+	private async Task OnSubmit()
+	{		
+		await using var db = await DbFactory.CreateDbContextAsync();
+		// Refresh the entity
+		var page = await db.RestrictedPages
+			.Include(r => r.RestrictedPageGroups)
+			.FirstAsync(r => r.Id == restrictedPage.Id);
+
+		page.RelativeUrl = restrictedPage.RelativeUrl.NormalizeUrl();
+		page.ApplyToChildUrls = restrictedPage.ApplyToChildUrls;
+		page.AlwaysAllowSuperusers = restrictedPage.AlwaysAllowSuperusers;
+
+		// Clear existing join entities
+		page.RestrictedPageGroups.Clear();
+
+		// Rebuild join table entries
+		foreach (var g in selectedGroups)
+		{
+			page.RestrictedPageGroups.Add(new RestrictedPageGroup
+			{
+				RestrictedPageId = page.Id,
+				AuthGroupId = g.Id
+			});
+		}
+		var success = await NotificationService.TryNotify(async () =>
+		{
+			await db.SaveChangesAsync();
+		}, customErrorMsg: "Error when trying to save changes");
+		if (success) Nav.NavigateToRelative(fromParent: true);
+	}
+
+	private bool ValidateUrl(string url)
+	{
+		return true;
+		if (string.IsNullOrWhiteSpace(url))
+			return true;
+		url = url.NormalizeUrl();
+		using var db = DbFactory.CreateDbContext();
+		return !db.RestrictedPages
+					.Any(x => x.Id != Id && x.RelativeUrl == url);
+	}
+}

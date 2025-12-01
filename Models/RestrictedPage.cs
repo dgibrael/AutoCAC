@@ -5,15 +5,15 @@ using System.Collections.Generic;
 
 namespace AutoCAC.Models;
 
-public partial class AuthGroup
+public partial class RestrictedPage
 {
     public int Id { get; set; }
 
-    public string Name { get; set; } = null!;
+    public string RelativeUrl { get; set; } = null!;
 
-    public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
+    public bool ApplyToChildUrls { get; set; }
 
-    public virtual ICollection<GroupAutoMatch> GroupAutoMatches { get; set; } = new List<GroupAutoMatch>();
+    public bool AlwaysAllowSuperusers { get; set; }
 
     public virtual ICollection<RestrictedPageGroup> RestrictedPageGroups { get; set; } = new List<RestrictedPageGroup>();
 }
