@@ -13,9 +13,6 @@
 								@bind-Value="@(restrictedPage.RelativeUrl)"
 								ValidatorMsg="This URL already exists"
 								ValidateFunc="ValidateUrl" />
-		<VanillaFormField Label="Apply To All Child Urls">
-			<RadzenCheckBox @bind-Value="@(restrictedPage.ApplyToChildUrls)" />
-		</VanillaFormField>
 		<VanillaFormField Label="Always Allow Superusers To View">
 			<RadzenCheckBox @bind-Value="@(restrictedPage.AlwaysAllowSuperusers)" />
 		</VanillaFormField>
@@ -60,20 +57,21 @@
 			.FirstAsync(r => r.Id == restrictedPage.Id);
 
 		page.RelativeUrl = restrictedPage.RelativeUrl.NormalizeUrl();
-		page.ApplyToChildUrls = restrictedPage.ApplyToChildUrls;
 		page.AlwaysAllowSuperusers = restrictedPage.AlwaysAllowSuperusers;
 
 		// Clear existing join entities
 		page.RestrictedPageGroups.Clear();
 
-		// Rebuild join table entries
-		foreach (var g in selectedGroups)
-		{
-			page.RestrictedPageGroups.Add(new RestrictedPageGroup
+		if (selectedGroups is not null && selectedGroups.Any())
+		{			
+			foreach (var g in selectedGroups)
 			{
-				RestrictedPageId = page.Id,
-				AuthGroupId = g.Id
-			});
+				page.RestrictedPageGroups.Add(new RestrictedPageGroup
+				{
+					RestrictedPageId = page.Id,
+					AuthGroupId = g.Id
+				});
+			}
 		}
 		var success = await NotificationService.TryNotify(async () =>
 		{

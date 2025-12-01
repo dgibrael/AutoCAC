@@ -10,13 +10,13 @@
 
 <DataGridVanilla TItem="RestrictedPage" QueryFactory="@Qry()" AddButtonDefault="true">
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="RelativeUrl" Title="RelativeUrl" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="ApplyToChildUrls" Title="ApplyToChildUrls" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="AlwaysAllowSuperusers" Title="AlwaysAllowSuperusers" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Title="Restricted to Groups" >
         <Template Context="row">
-            @foreach(var g in row.RestrictedPageGroups)
+            @if (row?.RestrictedPageGroups==null || row.RestrictedPageGroups.Any())
             {
-                <li>@g.AuthGroup.Name</li>
+                var g = string.Join(", ", row.RestrictedPageGroups.Select(x => x.AuthGroup.Name));
+                <span class="rz-cell-data rz-text-truncate" title="@g">@g</span>
             }
         </Template>
     </RadzenDataGridColumn>

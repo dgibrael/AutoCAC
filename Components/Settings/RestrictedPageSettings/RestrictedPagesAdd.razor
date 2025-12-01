@@ -11,9 +11,6 @@
 							@bind-Value="@(restrictedPage.RelativeUrl)"
 							ValidatorMsg="This URL already exists"
 							ValidateFunc="ValidateUrl" />
-	<VanillaFormField Label="Apply To All Child Urls">
-		<RadzenCheckBox @bind-Value="@(restrictedPage.ApplyToChildUrls)" />
-	</VanillaFormField>
 	<VanillaFormField Label="Always allow superusers to view">
 		<RadzenCheckBox @bind-Value="@(restrictedPage.AlwaysAllowSuperusers)" />
 	</VanillaFormField>
@@ -24,7 +21,6 @@
 	private RestrictedPage restrictedPage { get; set; } = new()
 	{
 		RelativeUrl = "",
-		ApplyToChildUrls = true,
 		AlwaysAllowSuperusers = true
 	};
 

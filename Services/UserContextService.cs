@@ -288,8 +288,7 @@ namespace AutoCAC.Services
             // 1. Get all rules (parent + child)
             var rules = AllRestrictedPages
                 .Where(r =>
-                    r.RelativeUrl.Equals(path, StringComparison.OrdinalIgnoreCase) ||
-                    (r.ApplyToChildUrls && path.StartsWith(r.RelativeUrl, StringComparison.OrdinalIgnoreCase))
+                    path.StartsWith(r.RelativeUrl, StringComparison.OrdinalIgnoreCase)
                 )
                 .ToList();
 

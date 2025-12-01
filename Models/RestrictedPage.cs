@@ -11,8 +11,6 @@ public partial class RestrictedPage
 
     public string RelativeUrl { get; set; } = null!;
 
-    public bool ApplyToChildUrls { get; set; }
-
     public bool AlwaysAllowSuperusers { get; set; }
 
     public virtual ICollection<RestrictedPageGroup> RestrictedPageGroups { get; set; } = new List<RestrictedPageGroup>();
