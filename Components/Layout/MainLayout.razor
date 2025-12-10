@@ -54,7 +54,7 @@
             <RadzenText Text="AutoCAC" TextStyle="Radzen.Blazor.TextStyle.Subtitle1" class="rz-mb-0" style="color: var(--rz-sidebar-color);" />
         </RadzenStack>
         <RadzenPanelMenu>
-            @if (UserContext.UserProfile != null)
+            @if (UserContext.UserLoaded)
             {
                 <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
                 <RadzenPanelMenuItem Text="Drug Files" Icon="pill">

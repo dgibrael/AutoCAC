@@ -8,6 +8,7 @@
 @using AutoCAC.Components.Templates.Buttons
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject NotificationService NotificationService
+
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <DataGridVanilla TItem="PiVerification" @ref="grid" QueryFactory="@Qry()"
@@ -113,12 +114,12 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                await grid.Grid.Reload();
+                Nav.NavigateTo(Nav.Uri);
             }
         },
         new SplitButtonItem
         {
-            Text = "Move to Next Step",
+            Text = "Submit",
             Value = "Forward",
             Icon = "done_all",
             IconColor = Colors.Success,
@@ -130,7 +131,7 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                await grid.Grid.Reload();
+                Nav.NavigateTo(Nav.Uri);
             }
         },
         new SplitButtonItem
