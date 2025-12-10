@@ -122,10 +122,8 @@
     private MenuBuildMetum currentMenu;
     private List<AutoCAC.Models.MenuBuild> addLst;
     private List<ProblemGroup> problemGroups = new();
-    private string mismatchedTxt = "";
     private int maxRow = 1;
     private int maxCol = 1;
-    private string RPMSScript = "";
     private bool hasIssues => problemGroups.Any(x => x.Items.Any());
     private bool notLinked => currentMenu?.ExistingMenuNavigation == null;
     protected override async Task OnInitializedAsync()

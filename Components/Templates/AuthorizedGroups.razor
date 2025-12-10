@@ -36,7 +36,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await UserContext.EnsureInitializedAsync();
         if (IsAuthorized != null)
         {
             isAuthorized = IsAuthorized;

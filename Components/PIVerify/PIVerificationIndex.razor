@@ -15,13 +15,15 @@
     AddButtonDefault="false">
         <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
         <ChildContent>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
+                <Template Context="x" ><RadzenButton title="@x.Patient.Name" Variant="Variant.Text" Text="@x.Patient.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #" Width="100px"/>
             <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
             <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="150px"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="100px"/>
             <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID"/>
+            <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID" Width="150px" />
             <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
             <ActionColumn TItem="PiVerification" Context="row">
                 <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
@@ -31,6 +33,7 @@
 </div>
 
 @code {
+    [Parameter][SupplyParameterFromQuery(Name = "dataGridTemplateId")] public int? TemplateId { get; set; }
     private DataGridVanilla<PiVerification> grid;
     private string currentUsername;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
@@ -41,11 +44,19 @@
                 .Include(x => x.PiVerificationComments)
                 .AsNoTracking();
     }
+
+    protected override void OnInitialized()
+    {
+        if (TemplateId == null)
+        {
+            if (UserContext.IsInGroupOrSuperuser("PharmacyTech")) Nav.PushGridTemplateToUrl(37);
+            else Nav.PushGridTemplateToUrl(33);
+        }
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await UserContext.EnsureInitializedAsync();
             currentUsername = UserContext.Username;
             await InvokeAsync(StateHasChanged);
         }
@@ -59,7 +70,7 @@
             var continueAnyway = await DialogService.YesNoDialog("Patient already exists. Click yes to create a new record anyway. Click no to view existing record.", "Duplicate");
             if (continueAnyway != true)
             {
-                Nav.NavigateTo(Nav.GetPathWith(existingRecord.Id.ToString()));
+                Nav.NavigateTo(Nav.GetPath(existingRecord.Id.ToString()));
                 return;
             }
         }
@@ -72,7 +83,7 @@
             CurrentStatus = "New"
         };
         var dbRecord = await DbFactory.AddItemAsync(piVerification);
-        Nav.NavigateTo(Nav.GetPathWith(dbRecord.Id.ToString()));
+        Nav.NavigateTo(Nav.GetPath(dbRecord.Id.ToString()));
     }
 
     IEnumerable<SplitButtonItem> BuildButtons(PiVerification row) => new[]
@@ -85,7 +96,7 @@
             IconColor = Colors.Primary,
             Action = async () =>
             {
-                Nav.NavigateTo(Nav.GetPathWith(row.Id.ToString()));
+                Nav.NavigateTo(Nav.GetPath(row.Id.ToString()));
             }
         },
         new SplitButtonItem
@@ -128,6 +139,7 @@
             Value = "Delete",
             Icon = "delete",
             IconColor = Colors.Danger,
+            Disabled = () => !UserContext.IsInGroupOrSuperuser("PharmacyTech"),
             Action = async () =>
             {
                 var confirm = await DialogService.DeleteConfirm("Insurance Verification Record");

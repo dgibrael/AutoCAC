@@ -518,7 +518,7 @@ namespace AutoCAC.Extensions
         {
             var pk = factory.GetPrimaryKeyValue(entity);
             if (pk is null) return;
-            nav.NavigateTo(nav.GetPathWith(pk.ToString()));
+            nav.NavigateTo(nav.GetPath(pk.ToString()));
         }
 
         public static async Task SaveNavigationItemsAsync<TEntity>(

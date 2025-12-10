@@ -42,7 +42,7 @@
                 <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
             </RadzenSplitButton>
             <SearchTemplateDropown DataGridName="@Helper.PageName" @ref="templateDropdown"
-                                   SelectedTemplateChanged="OnTemplatePicked"
+                                   SelectedTemplateChanged="OnTemplatePicked" InitialValue="InitialTemplate"
                                    Placeholder="Load Saved Template..." />
         </RadzenStack>
 
@@ -125,12 +125,13 @@
     [Parameter] public string AddButtonUrl { get; set; }
     [Parameter] public bool AddButtonDefault { get; set; } = false;
     [Parameter] public bool ActionColumnDefault { get; set; } = false;
-    [Parameter] public List<string> ExcludeColumns { get; set; } = new();
+    [Parameter] public IEnumerable<string> ExcludeColumns { get; set; } = new List<string>();
     [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public bool UseClientSideData { get; set; } = false;
     [Parameter] public bool IgnoreFilter { get; set; } = false;
+    [Parameter] public DataGridTemplate InitialTemplate { get; set; }
     int PageSize;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
@@ -140,9 +141,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        await UserContext.EnsureInitializedAsync();
         if (AddButtonDefault && string.IsNullOrEmpty(AddButtonUrl) && !AddButtonClick.HasDelegate)
-            AddButtonUrl = NavigationManager.GetPathWith("new");
+            AddButtonUrl = NavigationManager.GetPath("new");
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -176,9 +176,7 @@ namespace AutoCAC.Extensions
         {
             if (string.IsNullOrWhiteSpace(url)) return "/";
             var u = url.Split('?', '#')[0];
-            if (!u.StartsWith("/")) u = "/" + u;
-            if (!u.EndsWith("/")) u = u + "/";
-
+            u = "/" + u.Trim('/') + "/";
             return u.ToLowerInvariant();
         }
     }

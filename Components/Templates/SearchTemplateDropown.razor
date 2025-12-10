@@ -7,6 +7,7 @@
 @inject DialogService Dialog
 @inject NotificationService Notification
 @inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
 @rendermode InteractiveServer
 
 <RadzenDropDown TValue="DataGridTemplate"
@@ -35,12 +36,17 @@ Disabled="@(!string.Equals(selectedTemplate?.CreatedBy, UserContext?.Username, S
     [Parameter] public EventCallback<DataGridTemplate> SelectedTemplateChanged { get; set; }
     private List<DataGridTemplate> templates = [];
     private DataGridTemplate selectedTemplate;
+    [Parameter][SupplyParameterFromQuery(Name = "dataGridTemplateId")] public int? TemplateId { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         await LoadTemplates();
 
-        // Apply initial value if supplied and valid
+        if (TemplateId != null)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            InitialValue = await db.DataGridTemplates.FirstOrDefaultAsync(x => x.Id == TemplateId);
+        }
         if (InitialValue is not null)
         {
             selectedTemplate = templates.FirstOrDefault(t => t.Id == InitialValue.Id);
@@ -62,6 +68,7 @@ Disabled="@(!string.Equals(selectedTemplate?.CreatedBy, UserContext?.Username, S
         if (initialSelection != null)
         {
             selectedTemplate = templates.FirstOrDefault(t => t.Id == initialSelection.Id);
+            Nav.PushGridTemplateToUrl(selectedTemplate.Id);
             await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
         }
         else if (selectedTemplate?.Id is { } id && !templates.Any(t => t.Id == id))
@@ -76,6 +83,7 @@ Disabled="@(!string.Equals(selectedTemplate?.CreatedBy, UserContext?.Username, S
     private async Task OnTemplateChanged(object value)
     {
         selectedTemplate = value as DataGridTemplate;
+        Nav.PushGridTemplateToUrl((TemplateId != null && selectedTemplate?.Id == null) ? 0 : selectedTemplate?.Id);
         await SelectedTemplateChanged.InvokeAsync(selectedTemplate);
     }
 
@@ -89,6 +97,7 @@ Disabled="@(!string.Equals(selectedTemplate?.CreatedBy, UserContext?.Username, S
             {
                 selectedTemplate = null;
                 await LoadTemplates();
+                await OnTemplateChanged(null);
             }
         }
     }

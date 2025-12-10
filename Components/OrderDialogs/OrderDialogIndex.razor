@@ -1,0 +1,10 @@
+﻿@page "/orderdialogs"
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Components.Templates.DataGrids
+
+<PageTitle>Order Dialogs</PageTitle>
+
+<DataGridVanilla TItem="Models.OrderDialog" 
+	IncludeColumns="@(new[] { "Name", "DisplayText", "Type", "DisplayGroup", "Package" })"
+	SearchColumns="@(new[] { "Name", "DisplayText" })" />

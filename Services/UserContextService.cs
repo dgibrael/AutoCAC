@@ -20,7 +20,7 @@ namespace AutoCAC.Services
         public HashSet<string> AdGroups { get; private set; } =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public string Username => CurrentUser?.Identity?.Name?.Replace("\\", "_").ToLower();
+        public string Username { get; private set; }
 
         public string DisplayName => $"{UserProfile?.FirstName} {UserProfile?.LastName}".Trim();
 
@@ -106,7 +106,7 @@ namespace AutoCAC.Services
                     UserLoaded = true;
                     return;
                 }
-
+                Username = CurrentUser?.Identity?.Name?.Replace("\\", "_")?.ToLower();
                 await using var db = await _dbFactory.CreateDbContextAsync();
 
                 // Try to find existing profile
@@ -206,7 +206,6 @@ namespace AutoCAC.Services
                             .FirstOrDefaultAsync(u => u.Id == UserProfile.Id);
                     }
                 }
-                await LoadAllowedPages();
                 UserLoaded = true;
             }
             finally

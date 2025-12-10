@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
-
+using Microsoft.AspNetCore.WebUtilities;
+using System.Web;
 namespace AutoCAC.Extensions
 {
     public static class NavigationExtensions
@@ -20,48 +21,115 @@ namespace AutoCAC.Extensions
             return path.Length == 0 ? "/" : path;
         }
 
-        public static string GetPath(this NavigationManager navigationManager)
+        private static string GetPathRelative(this NavigationManager navigationManager)
         {
             var uri = new Uri(navigationManager.Uri);
-            var path = uri.AbsolutePath.TrimEnd('/');
-            return path == string.Empty ? "/" : path + "/";
+            return uri.AbsolutePath.TrimEnd('/');
         }
 
-        public static string GetPathWith(this NavigationManager navigationManager, string suffix)
+        public static string GetQueryString(this NavigationManager navigationManager)
         {
-            var current = navigationManager.GetPath(); // already normalized
+            var qry = navigationManager.ToAbsoluteUri(navigationManager.Uri).Query.TrimStart('?');
+            return !string.IsNullOrWhiteSpace(qry) ? qry : "";
+        }
+
+        public static Dictionary<string, string> GetQueryDictionary(this NavigationManager navigationManager)
+        {
+            var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
+            var parsed = QueryHelpers.ParseQuery(uri.Query);
+
+            // Convert QueryHelpers' StringValues → string
+            return parsed.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.ToString(),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static string GetPath(this NavigationManager navigationManager, string suffix = "", bool includeExistingQry = true
+            , bool fromParent = false
+            , Dictionary<string, string> query = null)
+        {
+            var current = fromParent ? navigationManager.GetParent() : navigationManager.GetPathRelative();
             suffix = suffix?.Trim('/') ?? string.Empty;
 
-            if (string.IsNullOrEmpty(suffix))
-                return current;
+            var url = string.IsNullOrEmpty(suffix)
+                ? current.TrimEnd('/')
+                : $"{current.TrimEnd('/')}/{suffix}";
 
-            return current + suffix + "/";
+            // Merge existing query params if requested
+            Dictionary<string, string> merged = null;
+
+            if (includeExistingQry)
+            {
+                var existing = navigationManager.GetQueryDictionary();
+                merged = new Dictionary<string, string>(existing, StringComparer.OrdinalIgnoreCase);
+
+                if (query != null)
+                {
+                    foreach (var kvp in query)
+                        merged[kvp.Key] = kvp.Value;
+                }
+            }
+            else
+            {
+                merged = query;
+            }
+
+            // No query at all?
+            if (merged == null || merged.Count == 0)
+                return url;
+
+            // Build query string
+            var qs = string.Join("&",
+                merged.Select(kvp =>
+                    $"{HttpUtility.UrlEncode(kvp.Key)}={HttpUtility.UrlEncode(kvp.Value)}"
+                )
+            );
+
+            return $"{url}?{qs}";
         }
 
         public static string GetParent(this NavigationManager navigationManager)
         {
-            var uri = new Uri(navigationManager.Uri);
-            var path = uri.AbsolutePath.TrimEnd('/');
+            var path = navigationManager.GetPathRelative();
 
             if (string.IsNullOrEmpty(path) || path == "/")
-                return "/";
+                return "";
 
             var index = path.LastIndexOf('/');
-            return index > 0 ? path[..index] : "/";
-        }
-        public static string GetParentWith(this NavigationManager navigationManager, string suffix)
-        {
-            if (string.IsNullOrWhiteSpace(suffix))
-                return navigationManager.GetParent();
-
-            var parent = navigationManager.GetParent();
-            return parent.TrimEnd('/') + "/" + suffix.TrimStart('/');
+            return index > 0 ? path[..index] : "";
         }
 
-        public static void NavigateToRelative(this NavigationManager navigationManager, string suffix = null, bool fromParent = false)
+        public static void NavigateToRelative(this NavigationManager navigationManager, string suffix = null, bool includeExistingQry = true
+            , bool fromParent = false, Dictionary<string, string> query = null)
         {
-            var newUrl = fromParent ? navigationManager.GetParentWith(suffix) : navigationManager.GetPathWith(suffix);
+            var newUrl = navigationManager.GetPath(suffix, includeExistingQry, fromParent, query);
             navigationManager.NavigateTo(newUrl);
+        }
+        public static void ClearQryFromUrl(this NavigationManager navigationManager)
+        {
+            navigationManager.NavigateToRelative(null, false, false, null);
+        }
+        public static void RemoveQryParamFromUrl(this NavigationManager navigationManager, string key)
+        {
+            var qry = navigationManager.GetQueryDictionary();
+            qry.Remove(key);
+            navigationManager.NavigateToRelative(null, false, false, qry);
+        }
+        public static void PushGridTemplateToUrl(this NavigationManager navigationManager, int? templateId)
+        {
+            string keyName = "dataGridTemplateId";
+            var qryDict = navigationManager.GetQueryDictionary();
+            qryDict.TryGetValue(keyName, out var existingValue);
+            string newValue = templateId?.ToString();
+            if (existingValue == newValue) return;
+            if (newValue == null)
+            {
+                navigationManager.RemoveQryParamFromUrl(keyName);
+                return;
+            }
+            var query = new Dictionary<string, string> { [keyName] = templateId.ToString() };
+            navigationManager.NavigateToRelative(null, false, false, query);
         }
     }
 }

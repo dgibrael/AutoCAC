@@ -1,2 +1,2 @@
 ﻿@inject NavigationManager Nav
-<RadzenLink Path="@(Nav.GetParent())" Icon="arrow_back" Text="Back" />
+<RadzenLink Path="@(Nav.GetPath(fromParent: true))" Icon="arrow_back" Text="Back" />

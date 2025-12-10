@@ -29,7 +29,6 @@ else
 		{
 			try
 			{
-				await User.EnsureInitializedAsync();
 				await DbFactory.ExecuteSqlAsync($@"UPDATE u
 					SET
 						u.first_name = a.RPMSFirstName,

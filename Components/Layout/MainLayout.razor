@@ -57,10 +57,10 @@
             @if (UserContext.UserProfile != null)
             {
                 <RadzenPanelMenuItem Text="Home" Path="" Icon="home" />
-                    <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
-                        <AuthPanelItem Text="Drug Enter Edit" Path="drugenteredit" />
-                        <AuthPanelItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
-                        <RadzenPanelMenuItem Text="Drug Table" Path="drugs" />
+                <RadzenPanelMenuItem Text="Drug Files" Icon="pill">
+                    <AuthPanelItem Text="Drug Enter Edit" Path="drugenteredit" />
+                    <AuthPanelItem Text="Benchmark Price Post Install" Path="benchmarkprice" />
+                    <RadzenPanelMenuItem Text="Drug Table" Path="drugs" />
                 </RadzenPanelMenuItem>
                 <AuthPanelItem Text="Supervisors" Icon="supervisor_account" Path="supervisor" NavigateOnClick="false">
                     <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
@@ -72,6 +72,7 @@
                     <AuthPanelItem Text="Precise PK Lookup" Path="inpatient/precisepk" />
                 </AuthPanelItem>
                 <AuthPanelItem Text="Notes" Path="notes" Icon="notes" />
+                <RadzenPanelMenuItem Text="Order Dialogs" Path="/orderdialogs" Icon="action_key" />
                 <AuthPanelItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 <AuthPanelItem Path="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
                 <RadzenPanelMenuItem Text="Settings" Icon="settings" >
@@ -147,7 +148,6 @@
 
     private async Task RunOnNav()
     {
-        Console.WriteLine("run on nav");
         _canAccess = null;
         await UserContext.EnsureInitializedAsync();
         await UserContext.LoadAllowedPages();

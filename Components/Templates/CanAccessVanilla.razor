@@ -12,7 +12,6 @@
     private bool _canAccess;
     protected override async Task OnParametersSetAsync()
     {
-        await UserCtx.EnsureInitializedAsync();
         _canAccess = UserCtx.CanAccess(RelativeUrl);
     }
 }

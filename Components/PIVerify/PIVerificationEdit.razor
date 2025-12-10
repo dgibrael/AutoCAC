@@ -27,7 +27,7 @@ else
             <RadzenStack Orientation="Orientation.Horizontal" Gap="5px">
                 <RadzenText TextStyle="TextStyle.DisplayH4" Text="Insurance Information:" Style="margin-bottom: 1px; margin-top: 0px" />
                 <RadzenButton Click="@(() => ToggleInsuranceEdit(true))" ButtonType="ButtonType.Button" Icon="edit" Text="Edit Insurance Info" Size="ButtonSize.Medium" 
-                    Visible="@(!_insuranceEditMode)"/>
+                              Visible="@(!_insuranceEditMode && UserContext.IsInGroupOrSuperuser("PharmacyTech"))" />
             </RadzenStack>
             <RadzenStack Orientation="Orientation.Horizontal">
                 <RadzenCard>
@@ -60,7 +60,7 @@ else
                     GetTimestamp="@(c => c.CreatedAt)"
                     CreateMessage="@CreateComment"
                     />
-    <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Actions"/>
+    <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Submit (click dropdown arrow for more actions)" DefaultButtonValue="Forward" />
 }
 
 @code {
@@ -70,7 +70,6 @@ else
     private bool notFound { get; set; } = false;
     protected override async Task OnInitializedAsync()
     {
-        await UserContext.EnsureInitializedAsync();
         await LoadPiVerification();
     }
 
@@ -144,7 +143,7 @@ else
         },
         new SplitButtonItem
         {
-            Text = "Move to Next Step",
+            Text = "Submit",
             Value = "Forward",
             Icon = "done_all",
             IconColor = Colors.Success,
@@ -157,7 +156,7 @@ else
                 await Db.UpdateItemAsync(_piVerification);
                 await LoadPiVerification();
                 NotificationService.Success($"Status updated to {newStatus}");
-                StateHasChanged();
+                Nav.NavigateToRelative(fromParent: true);
             }
         },
         new SplitButtonItem
@@ -166,6 +165,7 @@ else
             Value = "Delete",
             Icon = "delete",
             IconColor = Colors.Danger,
+            Disabled = () => !UserContext.IsInGroupOrSuperuser("PharmacyTech"),
             Action = async () =>
             {
                 var confirm = await DialogService.DeleteConfirm("Insurance Verification Record");
