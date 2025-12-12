@@ -131,5 +131,10 @@ namespace AutoCAC.Extensions
             var query = new Dictionary<string, string> { [keyName] = templateId.ToString() };
             navigationManager.NavigateToRelative(null, false, false, query);
         }
+
+        public static void RefreshPage(this NavigationManager navigationManager)
+        {
+            navigationManager.NavigateTo(navigationManager.Uri);
+        }
     }
 }

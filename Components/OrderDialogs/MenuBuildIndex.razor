@@ -11,88 +11,49 @@
 @using AutoCAC.Extensions
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
+@using AutoCAC.Components.Templates.DataGrids
+<DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" AddButtonClick="@AddButtonClick" QueryFactory="@Qry()" SearchColumns="@(new[] { "DisplayText" })">
+    <HeaderContent>
+        <RadzenButton Text="@(showAll ? "Show Mine" : "Show All")" Click="@ToggleShowAll" Icon="visibility" ButtonStyle="ButtonStyle.Base" />
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name"/>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="RequestStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="CreatedBy" Title="Created By" FilterMode="FilterMode.CheckBoxList" />
+        <ActionColumn TItem="AutoCAC.Models.MenuBuildMetum" Context="data">
+            <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
+                            Click="@(async args => await EditRow(data))" />
+            @if (UserContext?.Username == data.CreatedBy || UserContext?.IsInGroupOrSuperuser()==true)
+            {
+                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
+                                Click="@(async args => await DeleteRow(data))" />
+            }
 
-<RadzenStack>
-    <RadzenRow AlignItems="AlignItems.Center">
-        <RadzenColumn Size="12" SizeMD="6">
-            <RadzenText Text="Menu Builder" TextStyle="TextStyle.H3" TagName="TagName.H1" style="margin: 0" />
-        </RadzenColumn>
-        <RadzenColumn Size="12" SizeMD="6">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
-                <RadzenButton Icon="add_circle_outline" Text="Add" Click="@AddButtonClick" Variant="Variant.Flat" />
-                <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" ButtonStyle="ButtonStyle.Base"/>
-                <RadzenButton Text="@(showAll ? "Show Mine" : "Show All")" Click="@ToggleShowAll" Icon="visibility" ButtonStyle="ButtonStyle.Base" />
-            </RadzenStack>
-        </RadzenColumn>
-    </RadzenRow>
-    <RadzenRow>
-        <RadzenDataGrid @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" Data="@data" Count="@count" LoadData="@LoadData"
-        AllowPaging="true" ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30, 50}) ColumnWidth="200px"
-        FilterMode="FilterMode.CheckBoxList" AllowFiltering="true" AllowSorting="true" LoadColumnFilterData="@LoadColumnFilterData">
-            <Columns>
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="DisplayText" Title="Display Name" FilterMode="FilterMode.Simple"
-                FilterPlaceholder="Search by Name..." />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="RequestStatus" Title="Status" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Property="CreatedBy" Title="Created By" />
-                <RadzenDataGridColumn TItem="AutoCAC.Models.MenuBuildMetum" Title="Actions" Sortable="false" Filterable="false">
-                    <Template Context="data">
-                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small"
-                                        Click="@(async args => await EditRow(data))" />
-                        @if (UserContext?.Username == data.CreatedBy || UserContext?.IsInGroupOrSuperuser()==true)
-                        {
-                            <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.Small"
-                                          Click="@(async args => await DeleteRow(data))" />
-                        }
-                    </Template>
-                </RadzenDataGridColumn>
-            </Columns>
-        </RadzenDataGrid>
-    </RadzenRow>
-</RadzenStack>
-
+        </ActionColumn>
+    </ChildContent>
+</DataGridVanilla>
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
-    protected IEnumerable<AutoCAC.Models.MenuBuildMetum> data;
-    protected int count = 0;
-    protected RadzenDataGrid<AutoCAC.Models.MenuBuildMetum> grid0;
-    private Func<AutoCAC.Models.mainContext, IQueryable<MenuBuildMetum>> _lastBuilder;
-    private LoadDataArgs lastArgs;
-    private bool showAll = false;
-    protected async Task LoadData(LoadDataArgs args)
+    protected DataGridVanilla<AutoCAC.Models.MenuBuildMetum> grid0;
+    private bool showAll { get; set; }
+    protected override void OnInitialized()
     {
-        await Layout.SetLoading(true);
-        await using var db = await DbFactory.CreateDbContextAsync();
-        _lastBuilder = ctx =>
+        showAll = UserContext.UserProfile.IsSuperuser;
+    }
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.MenuBuildMetum>> Qry()
+    {
+        return ctx =>
         {
-            var q = ctx.MenuBuildMeta.AsNoTracking();
+            var q = ctx.MenuBuildMeta.AsQueryable();
             if (!showAll)
                 q = q.Where(x => x.CreatedBy == UserContext.Username);
             return q;
         };
-        lastArgs = args;
-        var query = _lastBuilder(db);
-        var result = await LoadDataGridService.ApplyLoadData(query, args, true);
-        data = result.Data;
-        count = result.Count;
-        await Layout.SetLoading(false);
     }
 
     private async Task ToggleShowAll()
     {
         showAll = !showAll;
-        await grid0.FirstPage(true);
-    }
-
-    private ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum> _filterChoices;
-    
-    private async Task LoadColumnFilterData(DataGridLoadColumnFilterDataEventArgs<AutoCAC.Models.MenuBuildMetum> args)
-    {
-        args.Top = null;
-        args.Skip = null;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var qry = db.MenuBuildMeta.AsQueryable().AsNoTracking();
-        _filterChoices ??= new ColumnFilterChoices<AutoCAC.Models.MenuBuildMetum>();
-        await _filterChoices.GetColumnFilterDataAsync(args, qry);
+        await grid0.ForceReload();
     }
 
     protected async Task EditRow(AutoCAC.Models.MenuBuildMetum args)
@@ -100,17 +61,9 @@
         NavigationManager.NavigateTo($"menubuild/{args.Id}");
     }
 
-    protected async Task AddButtonClick(MouseEventArgs args)
+    protected async Task AddButtonClick()
     {
         NavigationManager.NavigateTo("menubuild/new");
-    }
-
-    private async Task DownloadTbl()
-    {
-        var args = lastArgs ?? new LoadDataArgs();
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var query = (_lastBuilder ?? (ctx => ctx.MenuBuildMeta.AsNoTracking()))(db);
-        await query.DownloadAsCsvAsync(args, JSRuntime);
     }
 
     private async Task DeleteRow(AutoCAC.Models.MenuBuildMetum item)
@@ -120,6 +73,6 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuildMeta.Remove(item);
         await db.SaveChangesAsync();
-        await grid0.FirstPage(true);
+        await grid0.Grid.FirstPage(true);
     }
 }

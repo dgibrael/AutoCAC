@@ -12,10 +12,12 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Extensions
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject RPMSService RPMS
+@inject TerminalInterop TerminalInterop
 
-<CascadingValue Value="this" Name="MainLayout">
-    <RadzenComponents />
-</CascadingValue>
+<RadzenComponents />
 
 <RadzenLayout style="grid-template-areas: 'rz-sidebar rz-header' 'rz-sidebar rz-body';">
     <RadzenHeader>
@@ -33,18 +35,16 @@
     <RadzenBody Expanded="@sidebarExpanded" id="mainContent">
         <RadzenRow class="rz-mx-auto content-container">
             <RadzenColumn Size="12">
-                <CascadingValue Value="this" Name="MainLayout">
-                    <LoadingContent IsLoading="@(_canAccess is null)">
-                        @if(_canAccess == true)
-                        {
-                            @Body
-                        }
-                        else
-                        {
-                            <p>Access Denied</p>
-                        }
-                    </LoadingContent>
-                </CascadingValue>
+                <LoadingContent IsLoading="@(_canAccess is null)">
+                    @if(_canAccess == true)
+                    {
+                        @Body
+                    }
+                    else
+                    {
+                        <p>Access Denied</p>
+                    }
+                </LoadingContent>
             </RadzenColumn>
         </RadzenRow>
     </RadzenBody>
@@ -84,7 +84,7 @@
             }
             else
             {
-                <span>Loading...</span>
+                <div style="text-align: center;"><span>Loading...</span></div>
             }
         </RadzenPanelMenu>
         <RadzenStack AlignItems="Radzen.AlignItems.Center" Gap="0" class="rz-py-4 rz-py-lg-6" Style="padding: var(--rz-panel-menu-item-padding);">
@@ -92,17 +92,6 @@
             <RadzenText Text="Copyright Ⓒ 2025" TextStyle="Radzen.Blazor.TextStyle.Caption" class="rz-mb-0" TagName="Radzen.Blazor.TagName.P" TextAlign="Radzen.TextAlign.Center" />
         </RadzenStack>
     </RadzenSidebar>
-    @if (isLoading)
-    {
-        <div class="rz-dialog-wrapper" style="pointer-events: none;">
-            <RadzenCard class="rz-dialog" style="min-height: 0; pointer-events: auto;">
-                <RadzenRow>
-                    <RadzenProgressBarCircular ProgressBarStyle="ProgressBarStyle.Primary" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-                    <RadzenText Text="Loading..." TextStyle="TextStyle.DisplayH5"/>
-                </RadzenRow>
-            </RadzenCard>
-        </div>
-    }
 </RadzenLayout>
     @code {
     bool sidebarExpanded = true;    
@@ -119,25 +108,18 @@
         sidebarExpanded = !sidebarExpanded;
     }
 
-    [Inject] public RPMSService RPMS { get; set; }
-
-    public bool isLoading { get; private set; }
-
-    public async Task SetLoading(bool value)
-    {
-        if (isLoading == value)
-            return;
-        isLoading = value;
-        await Task.Yield();
-        await InvokeAsync(StateHasChanged);
-    }
-
+    private DotNetObjectReference<TerminalInterop> _terminalRef;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             await RunOnNav();
-            TerminalInterop.RPMS = RPMS;
+            // create a .NET object reference for THIS circuit's TerminalInterop
+            _terminalRef = DotNetObjectReference.Create(TerminalInterop);
+
+            // hand it to JS
+            await JS.InvokeVoidAsync("setRPMSDotNetRef", _terminalRef);
+            await JS.InvokeVoidAsync("reinitRPMSXterm");
             StateHasChanged();
         }
         else
@@ -154,125 +136,4 @@
         _canAccess = UserContext.CanAccess(NavigationManager.GetRelativeUrl());
     }
 
-    public void HandleError(Exception ex, bool reThrow = false)
-    {
-        if (ex == null) return;
-
-        NotificationService.Notify(new NotificationMessage
-        {
-            Severity = NotificationSeverity.Error,
-            Summary = ex.GetType().Name, // "Exception"
-            Detail = ex.Message,         // "Could not connect to RPMS."
-            Duration = 4000
-        });
-        _ = InvokeAsync(StateHasChanged);
-        if (reThrow)
-        {
-            throw ex;
-        }
-    }
-
-    public async Task GoToMenu(string menu = null, int attempts = 30)
-    {
-        try
-        {
-            await RPMS.GoToMenu(menu, attempts);
-        }
-        catch (Exception ex)
-        {
-            HandleError(ex);
-        }
-    }
-
-    public async Task ScrollTo(string elementId = "bottom")
-    {
-        await InvokeAsync(StateHasChanged); // request a UI render
-        await Task.Yield();
-        if (elementId == "bottom")
-        {
-            await JS.InvokeVoidAsync("scrollToBottom");
-        }
-        else if (elementId == "top")
-        {
-            await JS.InvokeVoidAsync("scrollToTop");
-        }
-        else
-        {
-            await JS.InvokeVoidAsync("scrollToElement", elementId);
-        }
-    }
-
-    public async Task DownloadText(string content, string fileName = "data.txt", string mimeType = "text/plain")
-    {
-        await JS.InvokeVoidAsync("downloadTextFile", content, fileName, mimeType);
-    }
-
-
-    /// <summary>
-    /// Runs a block of RPMS or app commands with loading UI and error handling.
-    /// </summary>
-    public async Task RunCommands(Func<Task> action)
-    {
-        await SetLoading(true);
-
-        try
-        {
-            await action();
-        }
-        catch (Exception ex)
-        {
-            HandleError(ex);
-        }
-        finally
-        {
-            await SetLoading(false);
-        }
-    }
-
-    /// <summary>
-    /// Runs a block of RPMS or app commands with loading UI and error handling.
-    /// </summary>
-    public async Task<T> RunCommands<T>(Func<Task<T>> action)
-    {
-        await SetLoading(true);
-
-        try
-        {
-            return await action();
-        }
-        catch (Exception ex)
-        {
-            HandleError(ex);
-            return default!;
-        }
-        finally
-        {
-            await SetLoading(false);
-        }
-    }
-
-    public async Task HandlePrompt(
-        List<(string Prompt, Func<Task> Action)> promptActions,
-        Func<Task> onNoMatch = null,
-        StringComparison comparison = StringComparison.Ordinal)
-    {
-        string prompt = RPMS.Output.Prompt();
-        foreach (var (expectedPrompt, action) in promptActions)
-        {
-            if (prompt.Contains(expectedPrompt, comparison))
-            {
-                await action();
-                return;
-            }
-        }
-
-        if (onNoMatch is not null)
-        {
-            await onNoMatch();
-        }
-        else
-        {
-            HandleError(new RPMSException());
-        }
-    }
 }

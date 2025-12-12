@@ -16,7 +16,6 @@
 @using System.Text.Json
 @using System.Reflection
 @using AutoCAC.Components.Templates
-
 <LoadingContent IsLoading="@(Helper is null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
             @if (Helper?.SearchColumns != null)
@@ -63,10 +62,10 @@
                         AllowCompositeDataCells="true"
                         AllowColumnPicking="true"
                         ShowPagingSummary="true"
-                        ColumnWidth="200px"
-                        PageSizeOptions="@(new int[]{5,10,20,30,50})"
+                        ColumnWidth="200px" AllGroupsExpanded="false" Group="OnGroup"
+                        PageSizeOptions="pageSizes"
                         ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
-                        Context="row"
+                        Context="row" EmptyTemplate="EmptyTemplate"
                         RowSelect="@RowSelect">
 
             <Columns>
@@ -113,6 +112,7 @@
 </LoadingContent>
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment EmptyTemplate { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
@@ -132,7 +132,9 @@
     [Parameter] public bool UseClientSideData { get; set; } = false;
     [Parameter] public bool IgnoreFilter { get; set; } = false;
     [Parameter] public DataGridTemplate InitialTemplate { get; set; }
+    private int[] pageSizes = { 5, 10, 20, 30, 50 };
     int PageSize;
+    int OriginalPageSize;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
     public DataGridHelper<TItem> Helper;
@@ -157,6 +159,7 @@
             PageSize = 10;     // medium
         else
             PageSize = 20;     // large
+        OriginalPageSize = PageSize;
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
                                             , SearchColumns, DataGridName, IgnoreFilter
                                             , UseClientSideData
@@ -254,5 +257,17 @@
         var savedas = isPublic ? "public" : "private";
         NotificationService.Success($"Settings successfully saved as {savedas} template");
         await templateDropdown.LoadTemplates(Helper.LoadedTemplate);
+    }
+    public void OnGroup(DataGridColumnGroupEventArgs<TItem> args)
+    {
+        if (args.GroupDescriptor == null)
+        {
+            PageSize = OriginalPageSize;
+            return;
+        }
+        var pageOptions = pageSizes.ToList();
+        var nextSize = pageOptions.Next(PageSize);
+        if (OriginalPageSize == pageOptions.Last() || nextSize > OriginalPageSize) return;
+        PageSize = nextSize;
     }
 }

@@ -7,6 +7,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject DialogService DialogService
 @using AutoCAC.Components.Templates
+@inject RPMSService RPMS
 @if(!string.IsNullOrWhiteSpace(ButtonLabel))
 {
     <button onclick="showDialog()" class="rz-button rz-button-md">@ButtonLabel</button>
@@ -20,7 +21,7 @@
         <div id="rpmsOutputTxtDiv" class="rz-w-100 rz-p-0"></div>
     </RadzenRow>
     <RadzenRow class="rz-mb-2">
-        <RadzenButton Text="Clear History" Click="@(() => Layout.RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
+        <RadzenButton Text="Clear History" Click="@(() => RPMS.ClearHistory())" ButtonStyle="ButtonStyle.Dark" />
         <RadzenButton Text="Download Terminal Contents" Click="DownloadReceived" />
     </RadzenRow>
     <RadzenRow>
@@ -29,7 +30,6 @@
 </dialog>
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public string ButtonLabel { get; set; } = "Open RPMS Output";
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -37,10 +37,10 @@
         if (firstRender)
         {
             await JS.ReinitXterm();
-            await JS.WriteToXtermAsync(Layout.RPMS.Output.Buffered);
-            if (Layout.RPMS.IsInMode(RPMSService.Modes.Disconnected))
+            await JS.WriteToXtermAsync(RPMS.Output.Buffered);
+            if (RPMS.IsInMode(RPMSService.Modes.Disconnected))
             {
-                Layout.RPMS.OpenConnection();
+                RPMS.OpenConnection();
             }
         }
     }
@@ -58,9 +58,9 @@
         _queuedAction = action;
 
         // Always unsubscribe first (defensive cleanup)
-        Layout.RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
+        RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
 
-        if (Layout.RPMS.CurrentMode.SignedIn)
+        if (RPMS.CurrentMode.SignedIn)
         {
 
             await _queuedAction();
@@ -68,7 +68,7 @@
         }
         else
         {
-            Layout.RPMS.SubscribeToModeChanged(HandleRunWhenSignedIn);
+            RPMS.SubscribeToModeChanged(HandleRunWhenSignedIn);
         }
     }
 
@@ -87,10 +87,10 @@
                 menu = "Order Dialog Update App";
                 break;
         }
-        await Layout.GoToMenu(menu);
-        await Layout.RPMS.SendAsync();
+        await RPMS.GoToMenu(menu);
+        await RPMS.SendAsync();
         await JS.DialogHide();
-        var _outputLst = Layout.RPMS.Output.Buffered.Split("\r\n").ToList();
+        var _outputLst = RPMS.Output.Buffered.Split("\r\n").ToList();
         var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));
         if (taskLine != null && int.TryParse(taskLine.Split(":").Last().Trim(), out int taskNumber))
         {
@@ -168,7 +168,7 @@
 
     private async void HandleRunWhenSignedIn()
     {
-        if (_queuedAction is not null && Layout.RPMS.JustSignedIn)
+        if (_queuedAction is not null && RPMS.JustSignedIn)
         {
             try
             {
@@ -176,7 +176,7 @@
             }
             finally
             {
-                Layout.RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
+                RPMS.UnSubscribeToModeChanged(HandleRunWhenSignedIn);
                 _queuedAction = null;
             }
         }
@@ -184,7 +184,7 @@
 
     public void Dispose()
     {
-        Layout.RPMS.ClearAllModeChangedSubscriptions();
+        RPMS.ClearAllModeChangedSubscriptions();
         _queuedAction = null;
         watcher?.Dispose();
         watcher = null;

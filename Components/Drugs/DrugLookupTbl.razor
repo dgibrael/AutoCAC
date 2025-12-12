@@ -22,93 +22,58 @@
         <RadzenRow>
             <RadzenLabel Text="Show only active" Style="margin-left: 0.5rem;" />
             <RadzenCheckBox TValue="bool" @bind-Value="showOnlyActive" Change="OnShowOnlyActiveChanged" />
-            <RadzenDataGrid @ref="grid0" ColumnWidth="200px" AllowPaging="true" 
-            ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10, 20, 30})
-            Data="@(data)" TItem="AutoCAC.Models.Drug" LoadData="@LoadData"
-            Count="count" RowSelect="OnRowSelect"
-            >
-                <Columns>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="IEN" Width="100px">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Name">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DosageForm" Title="Dosage Form">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnit" Title="Dispense Unit">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnitsPerOrderUnit" Title="Qty Units Per Order">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="ApplicationPackage" Title="Application Package">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Message" Title="Message">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Strength" Title="Strength">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Unit" Title="Unit">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Ndc" Title="Ndc">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PharmacyOrderableItem" Title="Pharmacy Orderable Item">
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Title="Active" Sortable="false" Filterable="false">
-                        <Template Context="drug">
-                            @if(drug.InactiveDate == null)
-                            {
-                                <span>Active</span>
-                            }
-                            else
-                            {
-                                <span>Inactive</span>
-                            }
-                        </Template>
-                    </RadzenDataGridColumn>
-                    <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Nf" Title="Nf">
-                    </RadzenDataGridColumn>
-                </Columns>
-            </RadzenDataGrid>
-        </RadzenRow>
-        <RadzenRow AlignItems="AlignItems.Center">
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End" Gap="0.5rem">
-                <RadzenButton Icon="add_circle_outline" Text="New Drug" Click="@AddButtonClick" Variant="Variant.Flat" />
-            </RadzenStack>
+            <DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.Drug" RowSelect="OnRowSelect" AddButtonClick="AddButtonClick" QueryFactory="@Qry()">
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="IEN" Width="100px"/>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Name" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Ndc" Title="Current Ndc" Width="100px" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="ApplicationPackage" Title="Application Package" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DosageForm" Title="Dosage Form" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnit" Title="Dispense Unit" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="DispenseUnitsPerOrderUnit" Title="Qty Units Per Order" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Message" Title="Message" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Strength" Title="Strength" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Unit" Title="Unit" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="PharmacyOrderableItem" Title="Pharmacy Orderable Item" />
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Title="Active" Sortable="false" Filterable="false">
+                    <Template Context="drug">
+                        @if(drug.InactiveDate == null)
+                        {
+                            <span>Active</span>
+                        }
+                        else
+                        {
+                            <span>Inactive</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Nf" Title="Nf">
+                </RadzenDataGridColumn>
+            </DataGridVanilla>
         </RadzenRow>
     }
 </RadzenStack>
-@code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
+    @code {
     [Parameter] public EventCallback<AutoCAC.Models.Drug> SelectionChanged { get; set; }
-    protected IEnumerable<AutoCAC.Models.Drug> data;
-    protected RadzenDataGrid<AutoCAC.Models.Drug> grid0;
-    protected int count;
-    private mainContext context = default!;
-    bool? shouldCount = true;
+    protected DataGridVanilla<AutoCAC.Models.Drug> grid0;
     private Drug selectedRow;
     bool showOnlyActive = true;
     [Parameter] public Ndf SelectedNdf { get; set; }
 
-    void OnShowOnlyActiveChanged(bool _)
+    async Task OnShowOnlyActiveChanged(bool _)
     {
-        shouldCount = true;
-        grid0.FirstPage(true); // This triggers LoadData to re-run with updated filter
+        await grid0.ForceReload(); // This triggers LoadData to re-run with updated filter
     }
 
-    protected async Task LoadData(LoadDataArgs args)
-    {
-        await Layout.SetLoading(true);
-        context = DbFactory.CreateDbContext();
-        var query = context.Drugs
-        .Where(d => d.VaPrintName == SelectedNdf.PrintName)
-        .AsNoTracking();
-        if (showOnlyActive)
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
+    {        
+        return ctx =>
         {
-            query = query.Where(d => d.InactiveDate == null);
-        }
+            var q = ctx.Drugs.AsQueryable().Where(d => d.VaPrintName == SelectedNdf.PrintName);
+            if (showOnlyActive)
+                q = q.Where(d => d.InactiveDate == null);
 
-        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
-        data = result.Data;
-        count = result.Count;
-        shouldCount = null;
-        await Layout.SetLoading(false);
+            return q;
+        };
     }
 
     private async Task OnRowSelect(Drug selected)
@@ -118,7 +83,7 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    protected async Task AddButtonClick(MouseEventArgs args)
+    protected async Task AddButtonClick()
     {
         var parameters = new Dictionary<string, object>
         {
@@ -126,7 +91,6 @@
         };
 
         selectedRow = await DialogService.OpenAsync<DrugForm>("New Drug", parameters);
-
         await SelectionChanged.InvokeAsync(selectedRow);
         await InvokeAsync(StateHasChanged);
     }

@@ -48,6 +48,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
 builder.Services.AddScoped<RPMSService>();
+builder.Services.AddScoped<TerminalInterop>();
 builder.Services.AddScoped<FtpUploadService>();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -117,3 +118,9 @@ app.Lifetime.ApplicationStopping.Register(() =>
 
 
 app.Run();
+
+public static class BuildInfo
+{
+    public static readonly int AppStartVersion =
+        (int)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+}

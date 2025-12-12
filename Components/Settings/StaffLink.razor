@@ -57,7 +57,6 @@ else
 		//make sure to add QueryFactory="@Qry()" to datagrid params
 		return db => db.VwUserNameMismatches
 			.OrderBy(x => x.PossibleMatches)
-				.ThenBy(x => x.Username)
-			.AsNoTracking();
+				.ThenBy(x => x.Username);
 	}
 }

@@ -10,8 +10,10 @@
 @using AutoCAC.Components.OrderDialogs
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject IJSRuntime JS
+@inject RPMSService RPMS
 @using System.Text
-@using System.Text.RegularExpressions;
+@inject RPMSService RPMS
+@using System.Text.RegularExpressions
 @{
     var title = $"Review and Commit changes to RPMS for {currentMenu?.DisplayText} ";
     if (notLinked)
@@ -117,7 +119,6 @@
 <RPMSOutput @ref="RPMSRef" />
 @code {
     [Parameter] public int Id { get; set; }
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private RPMSOutput RPMSRef;
     private MenuBuildMetum currentMenu;
     private List<AutoCAC.Models.MenuBuild> addLst;
@@ -222,10 +223,10 @@
     private async Task RunMenuUpdate()
     {
         var menuId = currentMenu.ExistingMenu;
-        await Layout.GoToMenu("Menu Items Edit");
-        await Layout.RPMS.SendAsync($"`{menuId}");
-        Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
-        List<string> optionlst = await Layout.RPMS.GetOptions();
+        await RPMS.GoToMenu("Menu Items Edit");
+        await RPMS.SendAsync($"`{menuId}");
+        RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+        List<string> optionlst = await RPMS.GetOptions();
         optionlst.TrimBetween("Choose from:", "You may enter a new ITEMS", StringComparison.Ordinal, StringComparison.Ordinal);
         optionlst = optionlst
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -240,12 +241,12 @@
             .ToList();
         foreach(var opt in optionlst)
         {
-            Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
-            await Layout.RPMS.SendAsync(opt);
-            Layout.RPMS.CheckPromptAndThrow("SEQUENCE:");
-            await Layout.RPMS.SendAsync("@");
-            Layout.RPMS.CheckPromptAndThrow("SEQUENCE?");
-            await Layout.RPMS.SendAsync("YES");
+            RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+            await RPMS.SendAsync(opt);
+            RPMS.CheckPromptAndThrow("SEQUENCE:");
+            await RPMS.SendAsync("@");
+            RPMS.CheckPromptAndThrow("SEQUENCE?");
+            await RPMS.SendAsync("YES");
         }
         string seq = "";
         string itemid = "";
@@ -281,19 +282,19 @@
                 }
                 mnem = "";
             }
-            Layout.RPMS.CheckPromptAndThrow("Select SEQUENCE:");
-            await Layout.RPMS.SendAsync(seq);
-            Layout.RPMS.CheckPromptAndThrow("ITEM:");
-            await Layout.RPMS.SendAsync(itemid);
-            Layout.RPMS.CheckPromptAndThrow("DISPLAY TEXT:");
-            await Layout.RPMS.SendAsync(dispTxt);
-            Layout.RPMS.CheckPromptAndThrow("DISPLAY ONLY");
-            await Layout.RPMS.SendAsync(dispOnly);
-            Layout.RPMS.CheckPromptAndThrow("MNEMONIC:");
-            await Layout.RPMS.SendAsync(mnem);
+            RPMS.CheckPromptAndThrow("Select SEQUENCE:");
+            await RPMS.SendAsync(seq);
+            RPMS.CheckPromptAndThrow("ITEM:");
+            await RPMS.SendAsync(itemid);
+            RPMS.CheckPromptAndThrow("DISPLAY TEXT:");
+            await RPMS.SendAsync(dispTxt);
+            RPMS.CheckPromptAndThrow("DISPLAY ONLY");
+            await RPMS.SendAsync(dispOnly);
+            RPMS.CheckPromptAndThrow("MNEMONIC:");
+            await RPMS.SendAsync(mnem);
         }
-        await Layout.RPMS.SendAsync("^");
-        await Layout.RPMS.SendAsync("^");
+        await RPMS.SendAsync("^");
+        await RPMS.SendAsync("^");
         await using var db = await DbFactory.CreateDbContextAsync();
         await db.SetMenuBuildMetaStatusAsync(Id, "DONE");
     }

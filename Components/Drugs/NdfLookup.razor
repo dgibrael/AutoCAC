@@ -11,92 +11,48 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 
 <RadzenStack>
-    <RadzenRow>
-        @if (selectedRow != null)
-        {
-            <RadzenButton Click="ClearSelection" ButtonStyle="ButtonStyle.Base" Variant="Variant.Text" Text="@GetSelectedLabel()"
-                          Style="text-transform: none" />
-        }
-        else
-        {
-            <RadzenDataGrid @ref="grid0" AllowFiltering="true" FilterMode="FilterMode.Simple" AllowPaging="true" AllowSorting="false" 
-            ShowPagingSummary="true" PageSizeOptions=@(new int[]{5, 10}) PageSize="5"
-            Data="@(data)" TItem="AutoCAC.Models.Ndf" LoadData="@LoadData" Count="count"
-            RowSelect="OnRowSelect"
-            >
-                <EmptyTemplate>
-                    <p>No matching drugs found in the national drug file. Double-check the NDC.</p>
-                    <p>Tip: if there is no matching NDC, use the drug name that most closely matches your product, then manually change the NDC in RPMS</p>
-                </EmptyTemplate>
-                <Columns>
-                    <RadzenDataGridColumn>
-                        <HeaderTemplate>
-                            <span style="word-wrap: normal !important">Type NDC or NDF Drug name below.</span><br />
-                            <span style="word-wrap: normal !important">Recommended: Search by NDC for more accuracy</span><br />
-                            <span style="word-wrap: normal !important">Then presss enter to filter restults</span><br />
-                            <span style="word-wrap: normal !important">Then click an option to select</span>
-                        </HeaderTemplate>
-                        <Template Context="ndf">
-                            <div>
-                                <div><strong>@ndf.Ndc</strong></div>
-                                <div>@(string.IsNullOrWhiteSpace(ndf.PrintName) ? ndf.ProductName : ndf.PrintName)</div>
-                            </div>
-                        </Template>
-                        <FilterTemplate>
-                            <RadzenTextBox @bind-Value="combinedSearchTerm" Style="width:100%" Name="combinedSearchBox" 
-                            Placeholder="Type NDC or name then press Enter to search" Change="OnFilterChange"
-                            />
-                        </FilterTemplate>
-                    </RadzenDataGridColumn>
-                </Columns>
-            </RadzenDataGrid>
-        }
-    </RadzenRow>
+    @if (selectedRow != null)
+    {
+        <RadzenButton Click="ClearSelection" ButtonStyle="ButtonStyle.Base" Variant="Variant.Text" Text="@GetSelectedLabel()"
+                        Style="text-transform: none" />
+    }
+    else
+    {
+        <pre>Type NDC or NDF Drug name below. (Recommended: Search by NDC for more accuracy)<br />Then presss enter to filter restults<br />Then click an option to select</pre>
+        <DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.Ndf"
+                            RowSelect="OnRowSelect" QueryFactory="@Qry()" SearchColumns="@(new[] { "Ndc", "ProductName", "PrintName" })">
+            <EmptyTemplate>
+                <p>No matching drugs found in the national drug file. Double-check the NDC.</p>
+                <p>Tip: if there is no matching NDC, use the drug name that most closely matches your product, then manually change the NDC in RPMS</p>
+            </EmptyTemplate>
+            <ChildContent>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Ndf" Property="PrintName" Title="Print Name"/>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Ndf" Property="ProductName" Title="Product Name"/>
+                <RadzenDataGridColumn TItem="AutoCAC.Models.Ndf" Property="Ndc" Title="Ndc"/>
+            </ChildContent>
+        </DataGridVanilla>
+    }
 </RadzenStack>
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     [Parameter] public EventCallback<Ndf> SelectionChanged { get; set; }
     protected IEnumerable<AutoCAC.Models.Ndf> data;
     protected int count = 0;
-    private mainContext context = default!;
-    protected RadzenDataGrid<AutoCAC.Models.Ndf> grid0;
-    private string combinedSearchTerm = string.Empty;
+    protected DataGridVanilla<AutoCAC.Models.Ndf> grid0;
     private Ndf selectedRow;
-    bool? shouldCount = true;
     private async Task OnRowSelect(Ndf selected)
     {
         selectedRow = selected;
         await SelectionChanged.InvokeAsync(selected);
         await InvokeAsync(StateHasChanged);
     }
-    protected async Task LoadData(LoadDataArgs args)
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Ndf>> Qry()
     {
-        await Layout.SetLoading(true);
-        context = DbFactory.CreateDbContext();
-        var query = context.Ndfs
-        .AsNoTracking()
-        .Where(x => x.InactiveDate == null)
-        ;
-        if (!string.IsNullOrWhiteSpace(combinedSearchTerm))
-        {
-            var filter = combinedSearchTerm.ToLower();
-            query = query.Where(n =>
-                n.Ndc.ToLower().Contains(filter) ||
-                n.ProductName.ToLower().Contains(filter) ||
-                n.PrintName.ToLower().Contains(filter));            
-        }
-        var result = await LoadDataGridService.ApplyLoadData(query, args, shouldCount);
-        data = result.Data;
-        count = result.Count;
-        shouldCount = null;
-        await Layout.SetLoading(false);
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.Ndfs
+            .Where(x => x.InactiveDate == null);
     }
-    private async Task OnFilterChange(object value)
-    {
-        shouldCount = true;
-        await grid0!.FirstPage(true);
-    }
+
     private async Task ClearSelection()
     {
         selectedRow = null;

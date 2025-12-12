@@ -189,6 +189,20 @@ namespace AutoCAC.Extensions
                 parameters: parameters,
                 options: options);
         }
+
+        public static void ShowLoadingSpinner(this DialogService dialogService)
+        {
+            var options = new DialogOptions
+            {
+                ShowClose = false,
+                CloseDialogOnOverlayClick = false,
+                Draggable = false,
+                Resizable = false
+            };
+
+            // Fire-and-forget intentionally; suppress CS4014 correctly
+            _ = dialogService.OpenAsync<LoadingDialog>("", options: options);
+        }
     }
 }
 

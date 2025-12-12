@@ -31,7 +31,6 @@
 	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PatientLink>> Qry()
 	{
 		return db => db.PatientLinks
-			.Include(x => x.Patient)
-			.AsNoTracking();
+			.Include(x => x.Patient);
 	}
 }

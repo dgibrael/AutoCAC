@@ -5,7 +5,6 @@
     private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.OrderDialog>> Qry()
     {
         return db => db.OrderDialogs
-            .Where(x => x.Type == "menu")
-            .AsNoTracking();
+            .Where(x => x.Type == "menu");
     }
 }

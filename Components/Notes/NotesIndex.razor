@@ -9,7 +9,6 @@
     private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Tiu>> Qry()
     {
         return db => db.Tius
-            .Include(x => x.Patient)
-            .AsNoTracking();
+            .Include(x => x.Patient);
     }
 }

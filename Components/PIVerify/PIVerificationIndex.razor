@@ -17,7 +17,7 @@
         <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
         <ChildContent>
             <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
-                <Template Context="x" ><RadzenButton title="@x.Patient.Name" Variant="Variant.Text" Text="@x.Patient.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>
+                <Template Context="x" ><RadzenButton title="@x?.Patient?.Name" Variant="Variant.Text" Text="@x?.Patient?.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #" Width="100px"/>
             <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
@@ -114,7 +114,7 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                Nav.NavigateTo(Nav.Uri);
+                await grid.ForceReload();
             }
         },
         new SplitButtonItem
@@ -131,7 +131,7 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                Nav.NavigateTo(Nav.Uri);
+                await grid.ForceReload();
             }
         },
         new SplitButtonItem

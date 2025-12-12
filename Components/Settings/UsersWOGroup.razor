@@ -14,7 +14,6 @@
     {
         //make sure to add QueryFactory="@Qry()" to datagrid params
         return db => db.AuthUsers
-            .Where(u => !u.AuthUserGroups.Any())
-            .AsNoTracking();
+            .Where(u => !u.AuthUserGroups.Any());
     }
 }

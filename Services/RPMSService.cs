@@ -7,6 +7,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Client;
 using Microsoft.JSInterop;
+using Radzen;
 using Renci.SshNet;
 using Renci.SshNet.Common;
 using System;
@@ -424,10 +425,10 @@ public class RPMSService : IDisposable
     /// <example>
     /// await Layout.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
     /// {
-    ///     ["Yes or No"] = async () => { await Layout.RPMS.SendAsync("YES"); return true; },
-    ///     ["Is this a match "] = async () => { await Layout.RPMS.SendAsync("YES"); return true; },
-    ///     ["Press Return"] = async () => { await Layout.RPMS.SendAsync(); return false; },
-    ///     ["Enter RETURN to continue"] = async () => { await Layout.RPMS.SendAsync(); return false; },
+    ///     ["Yes or No"] = async () => { await RPMS.SendAsync("YES"); return true; },
+    ///     ["Is this a match "] = async () => { await RPMS.SendAsync("YES"); return true; },
+    ///     ["Press Return"] = async () => { await RPMS.SendAsync(); return false; },
+    ///     ["Enter RETURN to continue"] = async () => { await RPMS.SendAsync(); return false; },
     ///     [" edit "] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; },
     ///     ["osages"] = async () => { await Layout.EnterUntil("Enter your choice(s) separated by commas"); return false; }
     /// }, 20);
@@ -541,6 +542,31 @@ public class RPMSService : IDisposable
             return taskNumber;
         }
         throw new RPMSException("Could not retreive task number");
+    }
+
+    public async Task HandlePrompt(
+        List<(string Prompt, Func<Task> Action)> promptActions,
+        Func<Task> onNoMatch = null,
+        StringComparison comparison = StringComparison.Ordinal)
+    {
+        string prompt = Output.Prompt();
+        foreach (var (expectedPrompt, action) in promptActions)
+        {
+            if (prompt.Contains(expectedPrompt, comparison))
+            {
+                await action();
+                return;
+            }
+        }
+
+        if (onNoMatch is not null)
+        {
+            await onNoMatch();
+        }
+        else
+        {
+            throw new RPMSException();
+        }
     }
 
     public void Close()

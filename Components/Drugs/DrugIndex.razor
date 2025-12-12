@@ -40,7 +40,6 @@
 	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
 	{
 		return db => db.Drugs
-			.Where(x => !string.IsNullOrWhiteSpace(x.DosageForm))
-			.AsNoTracking();
+			.Where(x => !string.IsNullOrWhiteSpace(x.DosageForm));
 	}
 }

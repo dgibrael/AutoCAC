@@ -28,7 +28,6 @@
         //make sure to add QueryFactory="@Qry()" to datagrid params
         return db => db.RestrictedPages
             .Include(x => x.RestrictedPageGroups)
-                .ThenInclude(x => x.AuthGroup)
-            .AsNoTracking();
+                .ThenInclude(x => x.AuthGroup);
     }
 }

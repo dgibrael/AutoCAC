@@ -1,41 +1,50 @@
 ﻿using Microsoft.JSInterop;
 
-public static class TerminalInterop
+public class TerminalInterop
 {
-    public static RPMSService RPMS { get; set; }
+    private readonly RPMSService _rpms;
+
+    public TerminalInterop(RPMSService rpms)
+    {
+        _rpms = rpms;
+    }
 
     [JSInvokable]
-    public static Task UserInput(string input)
+    public Task UserInput(string input)
     {
-        if (RPMS.IsInMode(RPMSService.Modes.Disconnected))
+        if (_rpms.IsInMode(RPMSService.Modes.Disconnected))
         {
-            RPMS.OpenConnection();
+            _rpms.OpenConnection();
             return Task.CompletedTask;
         }
-        else if (RPMS.IsInMode(RPMSService.Modes.Report) || RPMS.IsInMode(RPMSService.Modes.ReportPrompt))
+        else if (_rpms.IsInMode(RPMSService.Modes.Report) ||
+                 _rpms.IsInMode(RPMSService.Modes.ReportPrompt))
         {
-            RPMS.Output.BufferFrozen = false;
-            RPMS.SetMode(RPMSService.Modes.DefaultInput);
+            _rpms.Output.BufferFrozen = false;
+            _rpms.SetMode(RPMSService.Modes.DefaultInput);
         }
-        bool finishedWriting = RPMS.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
+
+        bool finishedWriting = _rpms.IsInMode(RPMSService.Modes.DefaultInput) && input.EndsWith("\r");
+
         try
         {
             if (finishedWriting)
             {
-                RPMS.SendRaw(input);
-                RPMS.SetMode(RPMSService.Modes.DefaultReceive);
-                RPMS.SendRaw(RPMS.EndOfFeedStr);
+                _rpms.SendRaw(input);
+                _rpms.SetMode(RPMSService.Modes.DefaultReceive);
+                _rpms.SendRaw(_rpms.EndOfFeedStr);
             }
             else
             {
-                RPMS.SendRaw(input);
+                _rpms.SendRaw(input);
             }
         }
         catch (ObjectDisposedException)
         {
-            RPMS.SetMode(RPMSService.Modes.Disconnected);
-            RPMS.OpenConnection();
+            _rpms.SetMode(RPMSService.Modes.Disconnected);
+            _rpms.OpenConnection();
         }
+
         return Task.CompletedTask;
     }
 }

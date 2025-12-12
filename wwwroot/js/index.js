@@ -1,6 +1,12 @@
 ﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200 });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
+let rpmsDotNetRef = null;
+
+window.setRPMSDotNetRef = function (dotNetRef) {
+    rpmsDotNetRef = dotNetRef;
+};
+
 window.writeRPMSXterm = function (text) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
@@ -32,7 +38,11 @@ window.reinitRPMSXterm = function () {
     rpmsTerm.open(container);
 
     rpmsTerm.onData(function (input) {
-        runCSharp("UserInput", input);
+        if (!rpmsDotNetRef) {
+            console.warn("RPMS .NET reference not set.");
+            return;
+        }
+        rpmsDotNetRef.invokeMethodAsync("UserInput", input);
     });
 };
 

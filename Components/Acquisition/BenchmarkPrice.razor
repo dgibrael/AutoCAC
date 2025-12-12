@@ -1,7 +1,10 @@
 ﻿@page "/benchmarkprice"
-@inject FtpUploadService FtpService
 @using AutoCAC.Components.Templates
-@using static RPMSService
+@using AutoCAC.Extensions
+@inject FtpUploadService FtpService
+@inject DialogService DialogService
+@inject RPMSService RPMS
+@inject NotificationService NotificationService
 @implements IDisposable
 
 <h4>Step 1: Download Cost Change Report from McKesson</h4>
@@ -64,7 +67,6 @@ else
 }
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private EditContext _editContext = new(new object());
     public string UsernameInput { get; set; }
     private char[] passwordChars;
@@ -88,36 +90,25 @@ else
 
     private async Task HandleLogin()
     {
-        try
-        {
             await FtpService.ConnectAsync(UsernameInput, passwordChars);
             Array.Clear(passwordChars, 0, passwordChars.Length);
             passwordChars = null;
             connected = true;
-        }
-        catch (Exception ex)
-        {
-            Layout.HandleError(ex);
-        }
     }
 
     private async Task HandleFileUpload(InputFileChangeEventArgs e)
     {
         var file = e.File;
+        DialogService.ShowLoadingSpinner();
         try
         {
-            await Layout.SetLoading(true);
             await using var stream = file.OpenReadStream(50 * 1024 * 1024);
             await FtpService.UploadFileAsync(stream, aixDirectory+fileName);
             await SetFileUploaded();
         }
-        catch (Exception ex)
-        {
-            Layout.HandleError(ex);
-        }
         finally
         {
-            await Layout.SetLoading(false);
+            DialogService.Close();
         }
     }
 
@@ -129,13 +120,13 @@ else
     private async Task SetFileUploaded()
     {
         fileUploaded = true;
-        if (Layout.RPMS.CurrentMode.SignedIn)
+        if (RPMS.CurrentMode.SignedIn)
         {
             await RunRPMSCommands();
         }
         else
         {
-            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
+            RPMS.SubscribeToModeChanged(HandleModeChanged);
         }
         StateHasChanged();
     }
@@ -144,29 +135,29 @@ else
     {
         try
         {
-            await Layout.GoToMenu("AAC");
-            Layout.RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
-            await Layout.RPMS.SendAsync("YES");
-            await Layout.HandlePrompt(new()
+            await RPMS.GoToMenu("AAC");
+            RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
+            await RPMS.SendAsync("YES");
+            await RPMS.HandlePrompt(new()
             {
-                ("Replace", async () => { await Layout.RPMS.SendAsync("...", aixDirectory, ""); }),
-                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await Layout.RPMS.SendAsync(aixDirectory); })
+                ("Replace", async () => { await RPMS.SendAsync("...", aixDirectory, ""); }),
+                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(aixDirectory); })
             });
-            await Layout.HandlePrompt(new()
+            await RPMS.HandlePrompt(new()
             {
-                ("Replace", async () => { await Layout.RPMS.SendAsync("...", fileName, ""); }),
-                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await Layout.RPMS.SendAsync(fileName); })
+                ("Replace", async () => { await RPMS.SendAsync("...", fileName, ""); }),
+                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(fileName); })
             });
-            await Layout.RPMS.SendAsync();
+            await RPMS.SendAsync();
         }
         finally
         {
-            Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+            RPMS.UnSubscribeToModeChanged(HandleModeChanged);
         }
     }
     private async void HandleModeChanged()
     {
-        if (Layout.RPMS.JustSignedIn)
+        if (RPMS.JustSignedIn)
         {
             await RunRPMSCommands();   
         }
@@ -174,6 +165,6 @@ else
 
     public void Dispose()
     {
-        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+        RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }

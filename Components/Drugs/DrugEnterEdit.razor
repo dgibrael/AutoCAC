@@ -11,6 +11,7 @@
 @using AutoCAC.Extensions
 @using Microsoft.EntityFrameworkCore
 @inject AutoCAC.Services.UserContextService UserContext
+@inject RPMSService RPMS
 @implements IDisposable
 
 <PageTitle>Drug Enter Edit</PageTitle>
@@ -29,7 +30,6 @@ else
 <RPMSOutput />
 
 @code {
-    [CascadingParameter(Name = "MainLayout")] public MainLayout Layout { get; set; }
     private string ndcInput = string.Empty;
     private DrugLookupTbl DrugsTblRef;
     private Ndf selectedNdf;
@@ -44,14 +44,15 @@ else
     private async Task OnDrugSelected(Drug selected)
     {
         selectedDrug = selected;
+        if (selectedDrug == null) return;
         await JS.DialogShow();
-        if (Layout.RPMS.CurrentMode.SignedIn)
+        if (RPMS.CurrentMode.SignedIn)
         {
             await RunRPMSCommands();
         }
         else
         {
-            Layout.RPMS.SubscribeToModeChanged(HandleModeChanged);
+            RPMS.SubscribeToModeChanged(HandleModeChanged);
         }
         return;
     }
@@ -70,31 +71,31 @@ else
                 else
                 {
                     await NdcChange();
-                    await Layout.RPMS.SendAsync(selectedNdf.Ndc);
-                    Layout.RPMS.WriteToXterm($"(Dispense unit: {selectedDrug.DispenseUnit}): ");
+                    await RPMS.SendAsync(selectedNdf.Ndc);
+                    RPMS.WriteToXterm($"(Dispense unit: {selectedDrug.DispenseUnit}): ");
                 }
             }
             finally
             {
-                Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+                RPMS.UnSubscribeToModeChanged(HandleModeChanged);
             }
         }
     }
 
     private async Task NewDrug()
     {
-        await Layout.GoToMenu("DRUG");
-        await Layout.RPMS.SendAsync(selectedDrug.Name);
+        await RPMS.GoToMenu("DRUG");
+        await RPMS.SendAsync(selectedDrug.Name);
         for (int i = 0; i < 20; i++)
         {
-            string prompt = Layout.RPMS.CheckPrompt( "Yes//", "No//", "CHOOSE");
+            string prompt = RPMS.CheckPrompt( "Yes//", "No//", "CHOOSE");
             switch(prompt)
             {
                 case "No//":
                     await CreateNewDrug();
                     return;
                 case "Yes//":
-                    string lastStr = Layout.RPMS.Output.Buffered;
+                    string lastStr = RPMS.Output.Buffered;
                     if(lastStr.Contains("Lookup: GENERIC NAME"))
                     {
                         var parameters = new Dictionary<string, object>
@@ -110,16 +111,16 @@ else
                             await InvokeAsync(StateHasChanged);
                             return;
                         }
-                        await Layout.GoToMenu("DRUG");
-                        await Layout.RPMS.SendAsync(selectedDrug.Name);
+                        await RPMS.GoToMenu("DRUG");
+                        await RPMS.SendAsync(selectedDrug.Name);
                     }
                     else
                     {
-                        await Layout.RPMS.SendAsync("NO");
+                        await RPMS.SendAsync("NO");
                     }
                     break;
                 case "CHOOSE":
-                    await Layout.RPMS.SendAsync("^");
+                    await RPMS.SendAsync("^");
                     break;
                 default:
                     throw new RPMSException();
@@ -132,29 +133,29 @@ else
     {
         try
         {
-            await Layout.RPMS.SendAsync("YES");
-            await Layout.RPMS.EnterUntil("DRUG MESSAGE");
-            await Layout.RPMS.SendAsync(selectedDrug.Message);
-            await Layout.RPMS.EnterUntil("DEA, SPECIAL HDLG:");
-            await Layout.RPMS.SendAsync(selectedDrug.DeaSpcl);
-            Layout.RPMS.CheckPromptAndThrow("DAW CODE:");
-            await Layout.RPMS.SendAsync("^ORDER UNIT", selectedDrug.OrderUnit, selectedDrug.DispenseUnit, selectedDrug.DispenseUnitsPerOrderUnit?.ToString(), selectedDrug.NcpdpDispenseUnit, selectedNdf.Ndc);
-            Layout.RPMS.CheckPromptAndThrow("PRICE PER ORDER UNIT:");
-            await Layout.RPMS.SendAsync(selectedDrug.PricePerOrderUnit?.ToString());
-            await Layout.RPMS.EnterUntil("NATIONAL DRUG file?");
-            await Layout.RPMS.SendAsync("YES");
-            await Layout.RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
+            await RPMS.SendAsync("YES");
+            await RPMS.EnterUntil("DRUG MESSAGE");
+            await RPMS.SendAsync(selectedDrug.Message);
+            await RPMS.EnterUntil("DEA, SPECIAL HDLG:");
+            await RPMS.SendAsync(selectedDrug.DeaSpcl);
+            RPMS.CheckPromptAndThrow("DAW CODE:");
+            await RPMS.SendAsync("^ORDER UNIT", selectedDrug.OrderUnit, selectedDrug.DispenseUnit, selectedDrug.DispenseUnitsPerOrderUnit?.ToString(), selectedDrug.NcpdpDispenseUnit, selectedNdf.Ndc);
+            RPMS.CheckPromptAndThrow("PRICE PER ORDER UNIT:");
+            await RPMS.SendAsync(selectedDrug.PricePerOrderUnit?.ToString());
+            await RPMS.EnterUntil("NATIONAL DRUG file?");
+            await RPMS.SendAsync("YES");
+            await RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
             {
-                ["Yes or No"] = async () => { await Layout.RPMS.SendAsync("YES"); return false; },
-                ["Is this a match "] = async () => { await Layout.RPMS.SendAsync("YES"); return false; },
-                ["Press Return"] = async () => { await Layout.RPMS.SendAsync(); return false; },
-                ["Enter RETURN to continue"] = async () => { await Layout.RPMS.SendAsync(); return false; },
+                ["Yes or No"] = async () => { await RPMS.SendAsync("YES"); return false; },
+                ["Is this a match "] = async () => { await RPMS.SendAsync("YES"); return false; },
+                ["Press Return"] = async () => { await RPMS.SendAsync(); return false; },
+                ["Enter RETURN to continue"] = async () => { await RPMS.SendAsync(); return false; },
                 [" edit "] = async () => { return true; },
                 ["osages"] = async () => { return true; }
             }, 20);
-            await Layout.RPMS.EnterUntil("Enter your choice(s) separated by commas");
-            await Layout.RPMS.SendAsync(selectedDrug.ApplicationPackage);
-            await Layout.RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
+            await RPMS.EnterUntil("Enter your choice(s) separated by commas");
+            await RPMS.SendAsync(selectedDrug.ApplicationPackage);
+            await RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
                 {
                     ["AN Outpatient Pharmacy ITEM"] = OutpatientPackage,
                     ["AN Unit Dose ITEM"] = UDPackage,
@@ -165,55 +166,51 @@ else
         }
         catch (Exception ex)
         {
-            Layout.HandleError(ex);
-        }
-        finally
-        {
-            await Layout.SetLoading(false);
+            NotificationService.Error(ex);
         }
     }
 
     private async Task<bool> OutpatientPackage()
     {
-        await Layout.RPMS.SendAsync("YES");
-        await Layout.RPMS.EnterUntil("Enter Yes or No");
-        await Layout.RPMS.SendAsync("NO");
-        await Layout.RPMS.SendAsync("NO");
+        await RPMS.SendAsync("YES");
+        await RPMS.EnterUntil("Enter Yes or No");
+        await RPMS.SendAsync("NO");
+        await RPMS.SendAsync("NO");
         return false;
     }    
     
     private async Task<bool> UDPackage()
     {
-        await Layout.RPMS.SendAsync("YES", "^", "^");
+        await RPMS.SendAsync("YES", "^", "^");
         return false;
     }    
     
     private async Task<bool> YesAndUphat()
     {
-        await Layout.RPMS.SendAsync("YES", "^");
+        await RPMS.SendAsync("YES", "^");
         return false;
     }
 
     private async Task<bool> YesOnly()
     {
-        await Layout.RPMS.SendAsync("YES");
+        await RPMS.SendAsync("YES");
         return false;
     }
 
     private async Task NdcChange()
     {
-        await Layout.GoToMenu("NDC");
+        await RPMS.GoToMenu("NDC");
         for (int i = 0; i < 3; i++)
         {
-            await Layout.RPMS.SendAsync(selectedDrug.Id.ToString());
-            string prompt = Layout.RPMS.CheckPrompt("NDC:", "Select DRUG GENERIC NAME");
+            await RPMS.SendAsync(selectedDrug.Id.ToString());
+            string prompt = RPMS.CheckPrompt("NDC:", "Select DRUG GENERIC NAME");
             switch(prompt)
             {
                 case "NDC:":
                     return;
                 case "Select DRUG GENERIC NAME":
                     await Task.Delay(500);
-                    await Layout.GoToMenu("NDC");
+                    await RPMS.GoToMenu("NDC");
                     break;
                 default:
                     throw new Exception("Unknown Menu location");
@@ -224,7 +221,7 @@ else
     
     private async void HandleModeChanged()
     {
-        if (Layout.RPMS.JustSignedIn)
+        if (RPMS.JustSignedIn)
         {
             await RunRPMSCommands();   
         }
@@ -232,6 +229,6 @@ else
 
     public void Dispose()
     {
-        Layout.RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+        RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }
