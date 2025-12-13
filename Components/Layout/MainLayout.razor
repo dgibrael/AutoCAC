@@ -118,8 +118,18 @@
             _terminalRef = DotNetObjectReference.Create(TerminalInterop);
 
             // hand it to JS
-            await JS.InvokeVoidAsync("setRPMSDotNetRef", _terminalRef);
-            await JS.InvokeVoidAsync("reinitRPMSXterm");
+            try
+            {
+                _terminalRef = DotNetObjectReference.Create(TerminalInterop);
+
+                await JS.InvokeVoidAsync("setRPMSDotNetRef", _terminalRef);
+                await JS.InvokeVoidAsync("reinitRPMSXterm");
+            }
+            catch (JSDisconnectedException)
+            {
+                // Happens during prerender OR if user navigated away
+                // Let hydration re-run firstRender and try again
+            }
             StateHasChanged();
         }
         else

@@ -6,6 +6,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using Radzen;
+using Radzen.Blazor;
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
 namespace AutoCAC;
@@ -37,6 +38,7 @@ public sealed class DataGridHelper<T> where T : class
 
     // grid UI state
     public DataGridSettings Settings { get; set; }
+    public PivotGridSettings PivotSettings { get; set;  }
     private string _dataGridName;
     public string PageName =>
         !string.IsNullOrWhiteSpace(_dataGridName)
@@ -47,6 +49,7 @@ public sealed class DataGridHelper<T> where T : class
     public string UserName { get; set; }
     public bool UseClientSideData { get; set; } = false;
     private List<T> _cache;
+    private bool IsPivotTable { get; set; }
     public DataGridHelper(
         IDbContextFactory<AutoCAC.Models.mainContext> db,
         string username,
@@ -54,7 +57,10 @@ public sealed class DataGridHelper<T> where T : class
         string[] searchColumns = null,
         string dataGridName = null,
         bool ignoreFilter = false,
-        bool useClientSideData = false)
+        bool useClientSideData = false,
+        string initialSearchText = "",
+        bool pivotTable = false
+        )
     {
         _db = db;
         UserName = username;
@@ -65,6 +71,8 @@ public sealed class DataGridHelper<T> where T : class
         ShouldCount = true;
         _dataGridName = dataGridName;
         UseClientSideData = useClientSideData;
+        SearchText = initialSearchText;
+        IsPivotTable = pivotTable;
     }
 
     public void SetQuickFilter(string text)
@@ -135,8 +143,8 @@ public sealed class DataGridHelper<T> where T : class
 
         await using var ctx = await _db.CreateDbContextAsync(ct);
         var query = (LastBuilder ?? Source)(ctx);
-
-        var visibleProps = Settings != null
+        
+        var visibleProps = Settings != null && !IsPivotTable
             ? Settings.Columns
                 .Where(c => c.Visible)
                 .Select(c => c.Property)
@@ -157,18 +165,58 @@ public sealed class DataGridHelper<T> where T : class
                     .ToListAsync();
     }
 
-    public async Task SaveTemplate(string templateName, bool isPublic)
+    public async Task SaveTemplate(string templateName, bool isPublic, RadzenPivotDataGrid<T> pivot = null)
     {
         await using var db = await _db.CreateDbContextAsync();
-        LoadedTemplate = await db.UpsertDataGridTemplate(templateName, PageName, UserName, Settings, isPublic);
+        string json;
+
+        if (IsPivotTable)
+        {
+            if (pivot is null)
+            {
+                LoadedTemplate = null;
+                return;
+            }
+
+            // Auto-build PivotSettings
+            PivotSettings = new PivotGridSettings
+            {
+                RowFields = pivot.RowsCollection.Select(x => x.Property).ToList(),
+                ColumnFields = pivot.ColumnsCollection.Select(x => x.Property).ToList(),
+                Aggregates = pivot.AggregatesCollection.Select(a => new PivotAggregateSetting
+                {
+                    Property = a.Property,
+                    Title = a.Title,
+                    FormatString = a.FormatString,
+                    Aggregate = a.Aggregate.ToString()
+                }).ToList()
+            };
+
+            json = JsonSerializer.Serialize(PivotSettings);
+        }
+        else
+        {
+            json = JsonSerializer.Serialize(Settings);
+        }
+        LoadedTemplate = await db.UpsertDataGridTemplate(templateName, PageName, UserName, json, isPublic);
     }
 
     public void SetSettingsFromTemplate(DataGridTemplate tmpl)
     {
         LoadedTemplate = tmpl;
-        Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
-            ? null
-            : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+
+        var json = tmpl?.DataGridSettings;
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            PivotSettings = null;
+            Settings = null;
+            return;
+        }
+
+        if (IsPivotTable)
+            PivotSettings = JsonSerializer.Deserialize<PivotGridSettings>(json);
+        else
+            Settings = JsonSerializer.Deserialize<DataGridSettings>(json);
     }
 
     private async Task LoadClientSideAsync(LoadDataArgs args, CancellationToken ct)

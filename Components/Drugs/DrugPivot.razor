@@ -1,0 +1,19 @@
+﻿@page "/drugpivot"
+@using AutoCAC.Components.Templates.PivotGrids
+
+<PivotVanilla @ref=pivot TItem="AutoCAC.Models.Drug" QueryFactory="@Qry()"/>
+
+@code {
+    PivotVanilla<AutoCAC.Models.Drug> pivot;
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.Drugs
+                    .Where(x => !string.IsNullOrWhiteSpace(x.PharmacyOrderableItem))
+                    .OrderBy(x => x.PharmacyOrderableItem)
+                        .ThenBy(x => x.Name)
+                    ;
+            ;
+    }
+}
+

@@ -3,6 +3,21 @@
 
 <DataGridVanilla TItem="AutoCAC.Models.Drug" SearchColumns="@(new[] { "Name", "PharmacyOrderableItem", "VaPrintName" })">
 	<HeaderContent><h2>Drugs</h2></HeaderContent>
+	<GroupHeaderCustom Context="group">
+		@{
+			// Cast group.Data into your actual type
+			var items = group.Data.Items.Cast<AutoCAC.Models.Drug>();
+
+			// Calculate the sum
+			var totalPrice = items.Sum(x => x.PricePerOrderUnit ?? 0);
+
+			<div>
+				<strong>@group.Data.Key</strong>
+				— Count: @items.Count()
+				— Total PricePerOrderUnit: @totalPrice
+			</div>
+		}
+	</GroupHeaderCustom>
 	<ChildContent>
 		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="Id" />
 		<RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Name" />

@@ -62,12 +62,21 @@
                         AllowCompositeDataCells="true"
                         AllowColumnPicking="true"
                         ShowPagingSummary="true"
-                        ColumnWidth="200px" AllGroupsExpanded="false" Group="OnGroup"
-                        PageSizeOptions="pageSizes"
+                        ColumnWidth="200px" AllGroupsExpanded="false" 
+                        PageSizeOptions="pageSizes" Group="OnGroup"
                         ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
                         Context="row" EmptyTemplate="EmptyTemplate"
                         RowSelect="@RowSelect">
-
+            <GroupHeaderTemplate Context="group">
+                @if(GroupHeaderCustom is not null)
+                {
+                    @GroupHeaderCustom(group)
+                }
+                else
+                {
+                    @($"{group.Data.Key}: {group.Data.Count}");
+                }
+            </GroupHeaderTemplate>
             <Columns>
                 @LeadingColumns?.Invoke(row)
                 @if (ActionColumnDefault)
@@ -118,6 +127,7 @@
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
+    [Parameter] public RenderFragment<Group> GroupHeaderCustom { get; set; }
     [Parameter] public RenderFragment HeaderContent { get; set; }
     [Parameter] public string DataGridName { get; set; } = null;
     [Parameter] public EventCallback AddButtonClick { get; set; }
@@ -132,6 +142,7 @@
     [Parameter] public bool UseClientSideData { get; set; } = false;
     [Parameter] public bool IgnoreFilter { get; set; } = false;
     [Parameter] public DataGridTemplate InitialTemplate { get; set; }
+    [Parameter] public string InitialSearchText { get; set; } = "";
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
     int PageSize;
     int OriginalPageSize;
@@ -162,7 +173,7 @@
         OriginalPageSize = PageSize;
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
                                             , SearchColumns, DataGridName, IgnoreFilter
-                                            , UseClientSideData
+                                            , UseClientSideData, InitialSearchText
                                           );
         StateHasChanged();
     }
@@ -262,12 +273,13 @@
     {
         if (args.GroupDescriptor == null)
         {
-            PageSize = OriginalPageSize;
+            if (!Grid.Groups.Any()) PageSize = OriginalPageSize;
             return;
         }
+        Grid.OrderBy(args.Column.Property);
         var pageOptions = pageSizes.ToList();
+        if (OriginalPageSize == pageOptions.Last() || PageSize > OriginalPageSize) return;
         var nextSize = pageOptions.Next(PageSize);
-        if (OriginalPageSize == pageOptions.Last() || nextSize > OriginalPageSize) return;
         PageSize = nextSize;
     }
 }

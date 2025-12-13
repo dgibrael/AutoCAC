@@ -42,12 +42,10 @@ namespace AutoCAC.Extensions
             string templateName,
             string dataGridName,
             string createdBy,
-            DataGridSettings dataGridSettings,
+            string jsonSettings,
             bool isShared = false,
             CancellationToken ct = default)
         {
-            var json = JsonSerializer.Serialize(dataGridSettings);
-
             var entity = await db.DataGridTemplates
                 .FirstOrDefaultAsync(t =>
                     t.TemplateName == templateName &&
@@ -62,7 +60,7 @@ namespace AutoCAC.Extensions
                     CreatedBy = createdBy,
                     DataGridName = dataGridName,
                     IsShared = isShared,
-                    DataGridSettings = json
+                    DataGridSettings = jsonSettings
                 };
 
                 db.DataGridTemplates.Add(entity);
@@ -70,7 +68,7 @@ namespace AutoCAC.Extensions
             else
             {
                 entity.IsShared = isShared;
-                entity.DataGridSettings = json;
+                entity.DataGridSettings = jsonSettings;
                 // no need to call Update; tracked entity will be saved
             }
 
