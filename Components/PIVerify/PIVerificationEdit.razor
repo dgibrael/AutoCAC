@@ -60,7 +60,8 @@ else
                     GetTimestamp="@(c => c.CreatedAt)"
                     CreateMessage="@CreateComment"
                     />
-    <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Submit (click dropdown arrow for more actions)" DefaultButtonValue="Forward" />
+    <SplitButtonTemplate Buttons="BuildButtons" ButtonText="Submit (click dropdown arrow for more actions)" 
+                         DefaultButtonValue="@(_piVerification?.CurrentStatus=="Completed" ? null : "Forward")" />
 }
 
 @code {
