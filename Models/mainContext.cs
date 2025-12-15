@@ -730,7 +730,8 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.Location).WithMany(p => p.WardstockItems)
                 .HasForeignKey(d => d.LocationId)
-                .HasConstraintName("wardstock_item_wardstock_location_id");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_wardstock_item_Location_id");
         });
 
         modelBuilder.Entity<WardstockLocation>(entity =>
@@ -776,8 +777,7 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.Order).WithMany(p => p.WardstockOrderitems)
                 .HasForeignKey(d => d.OrderId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("wardstock_orderitem_Order_id_151c8c0d_fk_wardstock_order_id");
+                .HasConstraintName("FK_wardstock_orderitem_order_id");
         });
 
         modelBuilder.Entity<WardstockUserlocation>(entity =>

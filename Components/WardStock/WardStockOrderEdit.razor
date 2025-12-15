@@ -97,9 +97,16 @@
 			Nav.NavigateToRelative(fromParent: true);
 			return;
 		}
-
+		pageItem.WardstockOrderitems.Clear();
 		pageItem.WardstockOrderitems = selectedItems
-			.ToList();
+										.Select(x => new WardstockOrderitem
+											{
+												OrderId = Id,
+												ItemId = x.ItemId,
+												QtyOrdered = x.QtyOrdered
+											}
+										)
+										.ToList();
 
 		await DbFactory.SaveNavigationItemsAsync<WardstockOrder>(pageItem, x => x.WardstockOrderitems);
 
