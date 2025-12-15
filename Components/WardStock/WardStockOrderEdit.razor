@@ -1,0 +1,108 @@
+﻿@page "/wardstock/{Id:int}"
+@using AutoCAC.Models
+@using AutoCAC.Components.Templates.Forms
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<LoadingContent IsLoading="@(!pageLoaded)">
+	<RadzenTemplateForm TItem="WardstockOrder" Data="@pageItem" Submit="@OnSubmit">
+		<RadzenDropDown TValue="WardstockItem" Data="unSelectedItems" Change="OnSelectDrug" @bind-Value="selectedFromList">
+			<Template Context="item">@item.Drug.Name</Template>
+		</RadzenDropDown>
+		@foreach(var item in selectedItems)
+		{
+			<RadzenRow>
+				<RadzenLabel Text="@item.Item.Drug.Name" />
+				<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered" />
+			</RadzenRow>
+		}
+		<StandardButtons />
+	</RadzenTemplateForm>
+</LoadingContent>
+@code {
+	[Parameter] public int Id { get; set; }
+	private bool pageLoaded = false;
+	private WardstockOrder pageItem;
+	private List<AutoCAC.Models.WardstockItem> allItems { get; set; }
+	private List<AutoCAC.Models.WardstockOrderitem> selectedItems { get; set; }
+	private List<AutoCAC.Models.WardstockItem> unSelectedItems { get; set; }
+	private WardstockItem selectedFromList;
+	private HashSet<int> originalSelectedIds;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		pageItem = await db.WardstockOrders
+							.Include(x => x.WardstockOrderitems)
+								.ThenInclude(x => x.Item)
+									.ThenInclude(x => x.Drug)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+
+		allItems = await db.WardstockItems
+							.Where(x => x.LocationId == pageItem.LocationId)
+							.Include(x => x.Drug)
+							.ToListAsync();
+		selectedItems = pageItem.WardstockOrderitems.ToList();
+		originalSelectedIds = selectedItems == null || !selectedItems.Any() ?
+										new HashSet<int>() : selectedItems.Select(x => x.ItemId).ToHashSet();
+		unSelectedItems = allItems
+			.Where(g => !originalSelectedIds.Contains(g.Id))
+			.ToList();
+		pageLoaded = true;
+		StateHasChanged();
+	}
+	private async Task OnSelectDrug(object value)
+	{
+		if (value == null) return;
+		var selected = value as WardstockItem;
+		unSelectedItems.Remove(selected);
+		using var db = await DbFactory.CreateDbContextAsync();
+		var newItem = await db.WardstockItems
+						.Include(x => x.Drug)
+						.FirstOrDefaultAsync(x => x.Id == selected.Id);
+		selectedItems.Add(new WardstockOrderitem
+			{
+				OrderId = Id,
+				ItemId = selected.Id,
+				QtyOrdered = 0.0,
+				Item = newItem
+			}
+		);
+		selectedFromList = null;
+		StateHasChanged();
+	}
+
+	private async Task OnSubmit()
+	{
+		if (selectedItems == null || !selectedItems.Any())
+		{
+			if (!originalSelectedIds.Any())
+			{
+				await DbFactory.UpdateItemAsync(pageItem);
+				Nav.NavigateToRelative(fromParent: true);
+				return;
+			}
+			pageItem.WardstockOrderitems.Clear();
+			await DbFactory.SaveNavigationItemsAsync<WardstockOrder>(pageItem, x => x.WardstockOrderitems);
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		var newSelectedIds = selectedItems.Select(x => x.ItemId).ToHashSet();
+
+		bool changed = !originalSelectedIds.SetEquals(newSelectedIds);
+
+		if (!changed)
+		{
+			await DbFactory.UpdateItemAsync(pageItem);
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		pageItem.WardstockOrderitems = selectedItems
+			.ToList();
+
+		await DbFactory.SaveNavigationItemsAsync<WardstockOrder>(pageItem, x => x.WardstockOrderitems);
+
+		Nav.NavigateToRelative(fromParent: true);
+	}
+}

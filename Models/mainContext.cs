@@ -65,6 +65,18 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<VwVancomycinAuc> VwVancomycinAucs { get; set; }
 
+    public virtual DbSet<WardstockActivitylog> WardstockActivitylogs { get; set; }
+
+    public virtual DbSet<WardstockItem> WardstockItems { get; set; }
+
+    public virtual DbSet<WardstockLocation> WardstockLocations { get; set; }
+
+    public virtual DbSet<WardstockOrder> WardstockOrders { get; set; }
+
+    public virtual DbSet<WardstockOrderitem> WardstockOrderitems { get; set; }
+
+    public virtual DbSet<WardstockUserlocation> WardstockUserlocations { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Adt>(entity =>
@@ -675,6 +687,116 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Trough).HasColumnType("decimal(6, 1)");
             entity.Property(e => e.TruePeak).HasColumnType("decimal(9, 1)");
             entity.Property(e => e.TrueTrough).HasColumnType("decimal(9, 1)");
+        });
+
+        modelBuilder.Entity<WardstockActivitylog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__wardstoc__3213E83FE8FC59EF");
+
+            entity.ToTable("wardstock_activitylog");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ActivityAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.Remarks).HasMaxLength(255);
+            entity.Property(e => e.WardstockOrderId).HasColumnName("wardstock_order_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.WardstockActivitylogs)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_wardstock_activitylog_auth_user");
+
+            entity.HasOne(d => d.WardstockOrder).WithMany(p => p.WardstockActivitylogs)
+                .HasForeignKey(d => d.WardstockOrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_wardstock_activitylog_wardstock_order_id");
+        });
+
+        modelBuilder.Entity<WardstockItem>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("pk_wardstock_item");
+
+            entity.ToTable("wardstock_item");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DisplayName).HasMaxLength(255);
+            entity.Property(e => e.DrugId).HasColumnName("Drug_id");
+            entity.Property(e => e.LocationId).HasColumnName("Location_id");
+
+            entity.HasOne(d => d.Drug).WithMany(p => p.WardstockItems)
+                .HasForeignKey(d => d.DrugId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_wardstock_item_Drug_id");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.WardstockItems)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("wardstock_item_wardstock_location_id");
+        });
+
+        modelBuilder.Entity<WardstockLocation>(entity =>
+        {
+            entity.ToTable("wardstock_location");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.HasVfc).HasColumnName("HasVFC");
+            entity.Property(e => e.LocationName).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<WardstockOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__wardstoc__3213E83F71E2302B");
+
+            entity.ToTable("wardstock_order");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.LocationId).HasColumnName("Location_id");
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(d => d.Location).WithMany(p => p.WardstockOrders)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("wardstock_order_wardstock_location_id");
+        });
+
+        modelBuilder.Entity<WardstockOrderitem>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__wardstoc__3213E83F2CEEBC5D");
+
+            entity.ToTable("wardstock_orderitem");
+
+            entity.HasIndex(e => e.OrderId, "wardstock_orderitem_Order_id_151c8c0d");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ItemId).HasColumnName("Item_id");
+            entity.Property(e => e.Lot).HasMaxLength(255);
+            entity.Property(e => e.OrderId).HasColumnName("Order_id");
+
+            entity.HasOne(d => d.Item).WithMany(p => p.WardstockOrderitems)
+                .HasForeignKey(d => d.ItemId)
+                .HasConstraintName("FK_wardstock_orderitem_Item_id");
+
+            entity.HasOne(d => d.Order).WithMany(p => p.WardstockOrderitems)
+                .HasForeignKey(d => d.OrderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("wardstock_orderitem_Order_id_151c8c0d_fk_wardstock_order_id");
+        });
+
+        modelBuilder.Entity<WardstockUserlocation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__wardstoc__3213E83F303F25D9");
+
+            entity.ToTable("wardstock_userlocation");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.LocationId).HasColumnName("Location_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.WardstockUserlocations)
+                .HasForeignKey(d => d.AuthUserId)
+                .HasConstraintName("FK_wardstock_userlocation_auth_user_id");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.WardstockUserlocations)
+                .HasForeignKey(d => d.LocationId)
+                .HasConstraintName("wardstock_userlocation_wardstock_location_id");
         });
 
         OnModelCreatingPartial(modelBuilder);

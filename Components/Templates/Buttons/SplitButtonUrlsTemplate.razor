@@ -1,0 +1,42 @@
+﻿@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+
+<RadzenSplitButton AlwaysOpenPopup="@(string.IsNullOrWhiteSpace(DefaultButtonUrl))" ButtonStyle="ButtonStyle.Primary" Text="@ButtonText"
+                   IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="more_vert">
+    @foreach (var btn in UrlKeyLabelValue)
+    {
+        <RadzenSplitButtonItem Value="@btn.Key"
+                               Text="@btn.Value" />
+    }
+</RadzenSplitButton>
+
+@code {
+    bool _isBusy;
+    [Parameter] public string DefaultButtonUrl { get; set; }
+    [Parameter] public string ButtonText { get; set; } = "Options";
+    [Parameter] public Dictionary<string, string> UrlKeyLabelValue { get; set; }
+
+    private async Task OnClick(RadzenSplitButtonItem item)
+    {
+        if (_isBusy) return;
+        _isBusy = true;
+        try
+        {
+            if (item is null)
+            {
+                if (!string.IsNullOrWhiteSpace(DefaultButtonUrl))
+                    Nav.NavigateTo(DefaultButtonUrl);
+                return;
+            }
+            else
+            {
+                Nav.NavigateTo(item.Value);
+            }
+        }
+        finally { _isBusy = false; }
+    }
+}

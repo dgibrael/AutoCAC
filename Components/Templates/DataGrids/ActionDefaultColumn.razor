@@ -8,14 +8,10 @@
 @typeparam TItem where TItem : class
 
 <RadzenDataGridColumn TItem="TItem"
-                      Title="Actions"
                       Sortable="false"
                       Filterable="false" Reorderable="false"
                       Frozen="true" FrozenPosition="FrozenColumnPosition.Right"
                       Width="200px">
-    <HeaderTemplate>
-        <RadzenIcon Icon="settings" />
-    </HeaderTemplate>
     <Template Context="data">
         @if (ShowEdit)
         {

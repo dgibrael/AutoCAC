@@ -583,11 +583,10 @@ namespace AutoCAC.Extensions
         public static async Task SaveNavigationItemsAsync<TEntity>(
             this IDbContextFactory<mainContext> factory,
             TEntity item,
-            Expression<Func<TEntity, object>>[] navigationProperties,
-            CancellationToken ct = default)
+            params Expression<Func<TEntity, object>>[] navigationProperties)
             where TEntity : class, new()
         {
-            await using var db = await factory.CreateDbContextAsync(ct);
+            await using var db = await factory.CreateDbContextAsync();
 
             var entityType = db.Model.FindEntityType(typeof(TEntity))
                 ?? throw new InvalidOperationException($"Entity {typeof(TEntity).Name} not found.");
@@ -609,8 +608,7 @@ namespace AutoCAC.Extensions
 
             // Load existing entity with navigations
             var original = await query.FirstOrDefaultAsync(
-                e => EF.Property<object>(e, keyProp.Name).Equals(keyValue),
-                ct);
+                e => EF.Property<object>(e, keyProp.Name).Equals(keyValue));
 
             if (original == null)
                 throw new InvalidOperationException("Entity no longer exists.");
@@ -636,7 +634,7 @@ namespace AutoCAC.Extensions
                     originalCollection.Add(element);
             }
 
-            await db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync();
         }
 
         // Helper to extract PropertyInfo from expression

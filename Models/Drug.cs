@@ -66,4 +66,6 @@ public partial class Drug
     public string? RxCui { get; set; }
 
     public string? Nf { get; set; }
+
+    public virtual ICollection<WardstockItem> WardstockItems { get; set; } = new List<WardstockItem>();
 }

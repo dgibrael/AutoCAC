@@ -120,7 +120,6 @@ namespace AutoCAC.Extensions
                     Resizable = true,
                     Draggable = true
                 });
-
             return result as AutoCAC.Models.AdUserDto;
         }
         public static async Task<AutoCAC.Models.Patient> PatientSelectDialogAsync(

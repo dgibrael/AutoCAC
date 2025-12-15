@@ -1,0 +1,81 @@
+﻿@page "/wardstock/admin/users/{Id:int}"
+@using AutoCAC.Models
+@using AutoCAC.Components.Templates.Forms
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<LoadingContent IsLoading="@(!pageLoaded)">
+	<RadzenTemplateForm TItem="AuthUser" Data="@user" Submit="@OnSubmit">
+		<RadzenPickList @bind-Source="@(unSelectedLocations)" @bind-Target="@(selectedLocations)" TextProperty="LocationName"
+						Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true">
+			<SourceHeader>Available Locations:</SourceHeader>
+			<TargetHeader>Selected Locations:</TargetHeader>
+		</RadzenPickList>
+		<StandardButtons />
+	</RadzenTemplateForm>
+</LoadingContent>
+@code {
+	[Parameter] public int Id { get; set; }
+	private bool pageLoaded = false;
+	private AuthUser user;
+	private IEnumerable<WardstockLocation> allLocations { get; set; }
+	private IEnumerable<WardstockLocation> selectedLocations { get; set; }
+	private IEnumerable<WardstockLocation> unSelectedLocations { get; set; }
+	private HashSet<int> originalSelectedLocationIds;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		user = await db.AuthUsers
+							.Include(x => x.WardstockUserlocations)
+								.ThenInclude(x => x.Location)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+
+		allLocations = await db.WardstockLocations.ToListAsync();
+		selectedLocations = user.WardstockUserlocations.Select(x => x.Location);
+		originalSelectedLocationIds = selectedLocations == null || !selectedLocations.Any() ? 
+										new HashSet<int>() : selectedLocations.Select(x => x.Id).ToHashSet();
+		unSelectedLocations = allLocations
+			.Where(g => !originalSelectedLocationIds.Contains(g.Id))
+			.ToList();
+		pageLoaded = true;
+		StateHasChanged();
+	}
+	private async Task OnSubmit()
+	{
+		if (selectedLocations == null || !selectedLocations.Any())
+		{
+			if (!originalSelectedLocationIds.Any())
+			{
+				Nav.NavigateToRelative(fromParent: true);
+				return;
+			}
+			user.WardstockUserlocations.Clear();
+			await DbFactory.SaveNavigationItemsAsync<AuthUser>(user, x => x.WardstockUserlocations);
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		var newSelectedIds = selectedLocations.Select(x => x.Id).ToHashSet();
+
+		bool changed = !originalSelectedLocationIds.SetEquals(newSelectedIds);
+
+		if (!changed)
+		{
+			// No-op: nothing has changed → don't hit the DB
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		user.WardstockUserlocations = newSelectedIds
+			.Select(id => new WardstockUserlocation
+			{
+				LocationId = id,
+				AuthUserId = Id
+			})
+			.ToList();
+
+		await DbFactory.SaveNavigationItemsAsync<AuthUser>(user, x => x.WardstockUserlocations);
+
+		Nav.NavigateToRelative(fromParent: true);
+	}
+}

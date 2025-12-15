@@ -103,6 +103,30 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[wardstock_activitylog]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[wardstock_item]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[wardstock_location]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[wardstock_order]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[wardstock_orderitem]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[wardstock_userlocation]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[InpatientMedOrder]",
          "ObjectType": 3
       },

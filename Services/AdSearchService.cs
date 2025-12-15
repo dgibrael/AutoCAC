@@ -89,6 +89,22 @@ public sealed class UsersQuery
         return this;
     }
 
+    public UsersQuery UserNameEquals(string userName)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+            return this;
+
+        // Strip DOMAIN\ prefix if provided
+        var value = userName.Contains('\\')
+            ? userName.Split('\\', 2)[1]
+            : userName;
+
+        var f = Ldap.Escape(value.Trim());
+
+        _and.Add($"(sAMAccountName={f})"); // exact match (case-insensitive)
+        return this;
+    }
+
     public UsersQuery UserContains(string fragment)
     {
         if (string.IsNullOrWhiteSpace(fragment)) return this;

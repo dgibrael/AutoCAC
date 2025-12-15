@@ -1,0 +1,30 @@
+﻿@page "/wardstock/admin/users"
+@inject DialogService DialogService
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<DataGridVanilla TItem="AutoCAC.Models.AuthUser" QueryFactory="@Qry()" AddButtonClick="OnAddClick" SearchColumns="@(new[] { "Username", "LastName", "FirstName" })">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="Username" Title="Username" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="LastName" Title="Last Name" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="FirstName" Title="First Name" />
+    <ActionDefaultColumn TItem="AutoCAC.Models.AuthUser" ShowDelete="false" />
+</DataGridVanilla>
+
+@code {
+    private Func<mainContext, IQueryable<AuthUser>> Qry()
+    {
+        return db =>
+            db.AuthUsers
+              .Where(u => db.WardstockUserlocations
+                             .Any(w => w.AuthUserId == u.Id))
+              .OrderBy(x => x.Username);
+    }
+    private async Task OnAddClick()
+    {
+        var selected = await DialogService.StaffAdDialog();
+        if (selected is null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var user = await db.AuthUsers.FirstOrDefaultAsync(x => x.Username.ToLower() == selected.d1Username.ToLower());
+        Nav.NavigateToRelative(user.Id.ToString());
+    }
+}

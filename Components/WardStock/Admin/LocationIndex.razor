@@ -1,0 +1,37 @@
+﻿@page "/wardstock/admin/locations"
+@using AutoCAC.Components.Templates
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="LocationName" Title="LocationName" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="HasVfc" Title="HasVfc" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="InactiveDate" Title="InactiveDate" />
+    <ActionColumn TItem="AutoCAC.Models.WardstockLocation" Context="data">
+        <RadzenButton Icon="edit"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Text"
+                      Click="@(() => Nav.NavigateToRelative(data.Id.ToString()))" />
+        <RadzenButton Text="@(data?.InactiveDate == null ? "Deactivate" : "Re-Activate" )"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Variant="Variant.Text"
+                      Click="@(() => ToggleActivated(data))" />
+    </ActionColumn>
+</DataGridVanilla>
+
+@code {
+    private DataGridVanilla<WardstockLocation> grid;
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockLocation>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.WardstockLocations
+            .OrderBy(x => x.LocationName)
+            .AsQueryable();
+    }
+    private async Task ToggleActivated(AutoCAC.Models.WardstockLocation location)
+    {
+        location.InactiveDate = location.InactiveDate == null ? DateOnly.FromDateTime(DateTime.Now) : null;
+        await DbFactory.UpdateItemAsync(location);
+        await grid.ForceReload();
+    }
+}

@@ -1,0 +1,88 @@
+﻿@page "/wardstock/admin/locations/{Id:int}"
+@using AutoCAC.Models
+@using AutoCAC.Components.Templates.Forms
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<LoadingContent IsLoading="@(!pageLoaded)">
+	<RadzenTemplateForm TItem="WardstockLocation" Data="@pageItem" Submit="@OnSubmit">
+		<VanillaFormField Label="Location Name">
+			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" />
+		</VanillaFormField>
+		<VanillaFormField Label="Has VFC">
+			<RadzenCheckBox @bind-Value="@(pageItem.HasVfc)" />
+		</VanillaFormField>
+		<RadzenPickList @bind-Source="@(unSelectedItems)" @bind-Target="@(selectedItems)" TextProperty="Name"
+						Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true">
+			<SourceHeader>Available Locations:</SourceHeader>
+			<TargetHeader>Selected Locations:</TargetHeader>
+		</RadzenPickList>
+		<StandardButtons />
+	</RadzenTemplateForm>
+</LoadingContent>
+@code {
+	[Parameter] public int Id { get; set; }
+	private bool pageLoaded = false;
+	private WardstockLocation pageItem;
+	private IEnumerable<Drug> allItems { get; set; }
+	private IEnumerable<Drug> selectedItems { get; set; }
+	private IEnumerable<Drug> unSelectedItems { get; set; }
+	private HashSet<int> originalSelectedIds;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		pageItem = await db.WardstockLocations
+							.Include(x => x.WardstockItems)
+								.ThenInclude(x => x.Drug)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+
+		allItems = await db.Drugs.ToListAsync();
+		selectedItems = pageItem.WardstockItems.Select(x => x.Drug);
+		originalSelectedIds = selectedItems == null || !selectedItems.Any() ?
+										new HashSet<int>() : selectedItems.Select(x => x.Id).ToHashSet();
+		unSelectedItems = allItems
+			.Where(g => !originalSelectedIds.Contains(g.Id))
+			.ToList();
+		pageLoaded = true;
+		StateHasChanged();
+	}
+	private async Task OnSubmit()
+	{
+		if (selectedItems == null || !selectedItems.Any())
+		{
+			if (!originalSelectedIds.Any())
+			{
+				await DbFactory.UpdateItemAsync(pageItem);
+				Nav.NavigateToRelative(fromParent: true);
+				return;
+			}
+			pageItem.WardstockItems.Clear();
+			await DbFactory.SaveNavigationItemsAsync<WardstockLocation>(pageItem, x => x.WardstockItems);
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		var newSelectedIds = selectedItems.Select(x => x.Id).ToHashSet();
+
+		bool changed = !originalSelectedIds.SetEquals(newSelectedIds);
+
+		if (!changed)
+		{
+			await DbFactory.UpdateItemAsync(pageItem);
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+
+		pageItem.WardstockItems = newSelectedIds
+			.Select(x => new WardstockItem
+			{
+				LocationId = Id,
+				DrugId = x
+			})
+			.ToList();
+
+		await DbFactory.SaveNavigationItemsAsync<WardstockLocation>(pageItem, x => x.WardstockItems);
+
+		Nav.NavigateToRelative(fromParent: true);
+	}
+}
