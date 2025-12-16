@@ -1,0 +1,15 @@
+﻿@inject DialogService DialogService
+
+<h4>@Header</h4>
+<RadzenListBox TValue="string" Data="Choices" Style="width:100%;" Change="@(x => DialogService.Close(x))" />
+
+<div class="mt-3 flex justify-end gap-2">
+    <RadzenButton Text="Cancel" ButtonType="ButtonType.Button"
+                    ButtonStyle="ButtonStyle.Light"
+                    Click="() => DialogService.Close(null)" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<string> Choices { get; set; }
+    [Parameter] public string Header { get; set; } = "Select from below";
+}

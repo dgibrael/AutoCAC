@@ -9,7 +9,7 @@ public partial class WardstockOrder
 {
     public long Id { get; set; }
 
-    public DateTime OrderDateTime { get; set; }
+    public DateTime? OrderDateTime { get; set; }
 
     public DateTime? LastModifiedDateTime { get; set; }
 

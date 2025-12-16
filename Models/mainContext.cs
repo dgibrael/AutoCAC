@@ -730,7 +730,6 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.Location).WithMany(p => p.WardstockItems)
                 .HasForeignKey(d => d.LocationId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_wardstock_item_Location_id");
         });
 
@@ -755,7 +754,8 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.Location).WithMany(p => p.WardstockOrders)
                 .HasForeignKey(d => d.LocationId)
-                .HasConstraintName("wardstock_order_wardstock_location_id");
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_wardstock_order_wardstock_Location_id");
         });
 
         modelBuilder.Entity<WardstockOrderitem>(entity =>
