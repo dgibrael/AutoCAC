@@ -123,7 +123,12 @@ public sealed class DataGridHelper<T> where T : class
 
         ShouldCount = null;
     }
+    public Dictionary<string, List<T>> CustomColumnList { get; set; } = new();
 
+    public void AddToCustomColumnList(string colName, List<T> customList)
+    {
+        CustomColumnList.Add(colName, customList);
+    }
     public async Task LoadColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
     {
         args.Top = null;

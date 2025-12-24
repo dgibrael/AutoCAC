@@ -14,6 +14,18 @@ namespace AutoCAC.Extensions
                 Duration = 3000
             });
         }
+
+        public static void Info(this NotificationService notificationService, string message = "Updating...", string title = "Info")
+        {
+            notificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Info,
+                Summary = title,
+                Detail = message,
+                Duration = 3000
+            });
+        }
+
         public static void Error(this NotificationService notificationService, Exception ex, string customMsg = null)
         {
             notificationService.Notify(new NotificationMessage

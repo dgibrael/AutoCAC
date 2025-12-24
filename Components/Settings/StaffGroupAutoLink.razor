@@ -7,6 +7,7 @@
 @inject UserContextService User
 @inject IDbContextFactory<mainContext> DbFactory
 @inject IServiceProvider Services
+@inject NotificationService NotificationService
 <PageTitle>Auto Link Staff to Groups</PageTitle>
 
 <DataGridEditable TItem="AutoCAC.Models.GroupAutoMatch" QueryFactory="@Qry()">
@@ -47,15 +48,18 @@
     {
         if (!OperatingSystem.IsWindows())
         {
+            NotificationService.Info("server must be on windows");
             StateHasChanged();
             return;
         }
         var ad = Services.GetService<IAdSearch>();
         if (ad is null)
         {
+            NotificationService.Info("ad service not found");
             StateHasChanged();
             return;
         }
+        NotificationService.Info("updating...");
         await using var db = await DbFactory.CreateDbContextAsync();
         var allUsers = await db.AuthUsers.ToListAsync();
         var groupMatchList = await db.GroupAutoMatches
@@ -96,5 +100,6 @@
             }
         }
         await db.SaveChangesAsync();
+        NotificationService.Success("Successfully updated groups");
     }
 }

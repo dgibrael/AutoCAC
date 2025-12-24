@@ -1,0 +1,75 @@
+﻿@page "/tsaile/new"
+
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Tsaile
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Services
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@inject DialogService DialogService
+
+@if (selectedPatient == null)
+{
+	<span>Select a patient</span>
+}
+else
+{
+	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.ChartNumber})")</h3>
+	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
+		<VanillaFormField Label="Waiter">
+			<RadzenCheckBox @bind-Value="item.Waiting" />
+		</VanillaFormField>
+		<VanillaFormField Label="Controlled Substance">
+			<RadzenCheckBox @bind-Value="item.ControlledSubstance" />
+		</VanillaFormField>
+		<VanillaFormField Label="Needs Counseling">
+			<RadzenCheckBox @bind-Value="item.NeedsCounseling" />
+		</VanillaFormField>
+		<VanillaFormField Label="Comments">
+			<RadzenTextArea @bind-Value="initialComment" />
+		</VanillaFormField>
+
+		<StandardButtons />
+	</RadzenTemplateForm>
+}
+
+@code{
+	private TsaileBetterq item { get; set; } = new();
+	private TsailePatient selectedPatient { get; set; }
+	private string initialComment { get; set; }
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await SelectPatient();
+		}
+	}
+	private async Task SelectPatient()
+	{
+		selectedPatient = await DialogService.OpenAsync<TsaileSelectPatient>("Select a Patient", options: new DialogOptions{ Width = "80%" });
+		if (selectedPatient == null)
+		{
+			Nav.NavigateToRelative(fromParent: true);
+			return;
+		}
+		item.PatientId = selectedPatient.Id;
+		StateHasChanged();
+	}
+	private async Task OnSubmit()
+	{
+		item.Status = TsaileTicketStatus.Screening.ToString();
+		item.CreatedDateTime = DateTime.Now;
+		item.LastModifiedDateTime = DateTime.Now;
+		await item.CreateAsync(DbFactory, UserContext.UserProfile.Id);
+		if (!string.IsNullOrWhiteSpace(initialComment))
+		{
+			await item.AddCommentAsync(DbFactory, initialComment, UserContext.UserProfile.Id);
+		}
+		Notifications.Success("Successfully created ticket");
+		Nav.NavigateToRelative(fromParent: true);
+	}
+
+}
+

@@ -6,7 +6,7 @@
 @using AutoCAC.Extensions
 
 <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="ButtonStyle.Primary" Text="@ButtonText"
-                    IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="more_vert">
+                    IsBusy="@_isBusy" Click="@(btn => OnClick(btn))">
     @foreach (var btn in Buttons)
     {
         <RadzenSplitButtonItem Value="@btn.Value"

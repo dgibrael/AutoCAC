@@ -156,16 +156,16 @@ namespace AutoCAC.Extensions
         }
         public static async Task<string> ListDialogAsync(
             this DialogService dialogService,
-            IEnumerable<string> choices,
-            string value = "",
-            string title = "Enter Text")
+            HashSet<string> choices,
+            string header = "",
+            string title = "Select from below")
         {
             var result = await dialogService.OpenAsync<ListDialog>(
                 title,
                 new Dictionary<string, object>
                 {
                     { "Choices", choices },
-                    { "Header", value }
+                    { "Header", header }
                 });
             return result as string;
         }

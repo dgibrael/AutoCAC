@@ -1,0 +1,169 @@
+﻿@page "/tsaile/{Id:int}"
+
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Tsaile
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Services
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@inject DialogService DialogService
+
+
+<LoadingContent IsLoading="@(item == null)">
+	<h3>@($"Ticket for {item?.Patient?.Name} ({item?.Patient?.ChartNumber})")</h3>
+	<p>@($"Current status: {item?.Status}")</p>
+	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
+		<VanillaFormField Label="Waiter">
+			<RadzenCheckBox @bind-Value="item.Waiting" />
+		</VanillaFormField>
+		<VanillaFormField Label="Controlled Substance">
+			<RadzenCheckBox @bind-Value="item.ControlledSubstance" />
+		</VanillaFormField>
+		<VanillaFormField Label="Needs Counseling">
+			<RadzenCheckBox @bind-Value="item.NeedsCounseling" />
+		</VanillaFormField>
+		<ChatTemplate TItem="TsaileComment"
+					  Title="Comments"
+					  LoadData="LoadCommentsAsync"
+					  GetMessageId="@(c => c.Id.ToString())"
+					  GetUser="@(c => c.AuthUser.Username)"
+					  GetMessage="@(c => c.Remarks)"
+					  GetTimestamp="@(c => c.CreatedAt)"
+					  CreateMessage="@CreateComment" />
+		<StandardButtons />
+		<SplitButtonTemplate Buttons="@BuildButtons()" ButtonText="Additional Options"  />
+	</RadzenTemplateForm>
+</LoadingContent>
+
+@code{
+	[Parameter] public int Id { get; set; }
+	private TsaileBetterq item { get; set; }
+	private int _userId { get; set; } = 0;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadItem();
+			_userId = UserContext.UserProfile.Id;
+			StateHasChanged();
+		}
+	}
+	private async Task OnSubmit()
+	{
+		await item.AdvanceStatusAndSaveAsync(DbFactory, _userId);
+		Notifications.Success("Successfully created ticket");
+		Nav.NavigateToRelative(fromParent: true);
+	}
+
+	private async Task LoadItem()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		item = await db.TsaileBetterqs.Include(x => x.Patient).FirstOrDefaultAsync(x => x.Id == Id);
+	}
+
+	private async Task<IEnumerable<TsaileComment>> LoadCommentsAsync()
+	{
+		await using var db = DbFactory.CreateDbContext();
+		return await db.TsaileComments
+			.Where(x => x.TsaileBetterqId == Id)
+			.Include(x => x.AuthUser)
+			.OrderBy(x => x.CreatedAt)
+			.ToListAsync();
+	}
+
+	private TsaileComment CreateComment(string content)
+	{
+		return new TsaileComment
+		{
+			TsaileBetterqId = Id,
+			Remarks = content,
+			CreatedAt = DateTime.Now,
+			AuthUserId = _userId
+		};
+	}
+
+	IEnumerable<SplitButtonItem> BuildButtons() => new[]
+	{
+		new SplitButtonItem
+		{
+			Text = "Save Changes",
+			Value = "Save",
+			Icon = "save",
+			IconColor = Colors.Success,
+			Action = async () =>
+			{
+				await DbFactory.UpdateItemAsync(item);
+				Notifications.Success($"Successfully saved changes");
+				await LoadItem();
+				StateHasChanged();
+			}
+		},
+		new SplitButtonItem
+		{
+			Text = "Save and Move Forward",
+			Value = "Forward",
+			Icon = "arrow_forward",
+			IconColor = Colors.Success,
+			Disabled = () => item?.Status == TsaileTicketStatus.Complete.ToString(),
+			Action = async () =>
+			{
+				await item?.AdvanceStatusAndSaveAsync(DbFactory, _userId);
+				await LoadItem();
+				Notifications.Success($"Status updated to {item?.Status}");
+				StateHasChanged();
+			}
+		},
+		new SplitButtonItem
+		{
+			Text = "Save and Move Back",
+			Value = "Back",
+			Icon = "arrow_back",
+			IconColor = Colors.WarningLight,
+			Disabled = () => item?.Status == TsaileTicketStatus.Screening.ToString(),
+			Action = async () =>
+			{
+				await item?.ReverseStatusAndSaveAsync(DbFactory, _userId);
+				await LoadItem();
+				Notifications.Success($"Status updated to {item?.Status}");
+				StateHasChanged();
+			}
+		},
+		new SplitButtonItem
+		{
+			Text = "Save and Change Status",
+			Value = "ChangeStatus",
+			Icon = "edit",
+			IconColor = Colors.Info,
+			Action = async () =>
+			{
+				string newStatus = await DialogService.ListDialogAsync(Enum.GetNames<TsaileTicketStatus>().ToHashSet());
+				if (newStatus == null) return;
+				await item?.UpdateStatusAsync(DbFactory, newStatus, _userId);
+				await LoadItem();
+				Notifications.Success($"Status updated to {item?.Status}");
+				StateHasChanged();
+			}
+		},
+		new SplitButtonItem
+		{
+			Text = "Delete Record",
+			Value = "Delete",
+			Icon = "delete",
+			IconColor = Colors.Danger,
+			Action = async () =>
+			{
+				var confirm = await DialogService.DeleteConfirm("Ticket");
+				if (confirm == true)
+				{
+					await DbFactory.DeleteItemAsync(item);
+					Notifications.Success($"Deleted");
+					Nav.NavigateToRelative(fromParent: true);
+				}
+			}
+		}
+	};
+}
+

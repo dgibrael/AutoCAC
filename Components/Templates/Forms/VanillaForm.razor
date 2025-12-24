@@ -1,0 +1,70 @@
+﻿@typeparam TItem where TItem : class, new()
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using System.Linq.Expressions
+<RadzenTemplateForm TItem="TItem"
+                    Data="_item"
+                    Submit="@OnValidSubmit">
+    @ChildContent(_item)
+
+    <RadzenRow>
+        <RadzenButton Text="Submit" ButtonType="ButtonType.Submit" />
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@(() => Nav.NavigateToRelative(fromParent: true))" />
+    </RadzenRow>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public TItem Item { get; set; }
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+    private bool _newItem = true;
+    /// <summary>
+    /// Navigation properties to include when saving the entity.
+    /// </summary>
+    /// <remarks>
+    /// Usage example in the calling component:
+    /// <code>
+    /// private Expression&lt;Func&lt;Order, object&gt;&gt;[] navigationProperties =
+    /// {
+    ///     o => o.Customer,
+    ///     o => o.OrderLines
+    /// };
+    ///
+    /// &lt;VanillaEditForm TItem="Order"
+    ///             Item="order"
+    ///             NavigationProperties="navigationProperties" /&gt;
+    /// </code>
+    /// </remarks>
+    [Parameter] public Expression<Func<TItem, object>>[] navigationProperties { get; set; }
+
+    private TItem _item = new();
+
+    protected override void OnParametersSet()
+    {
+        _newItem = Item == null;
+        _item = Item ?? new TItem();
+    }
+
+    private async Task OnValidSubmit()
+    {
+        if (_newItem)
+        {
+            await DbFactory.AddItemAsync(_item);
+        }
+
+        if (navigationProperties != null)
+        {
+            await DbFactory.SaveNavigationItemsAsync(_item, navigationProperties);
+        }
+        else if (!_newItem)
+        {
+            await DbFactory.UpdateItemAsync(_item);
+        }
+        Notifications.Success("Saved successfully");
+        string urlSuffix = _newItem ? DbFactory.GetPrimaryKeyValue(_item).ToString() : null;
+        Nav.NavigateToRelative(urlSuffix, fromParent: true);
+    }
+}

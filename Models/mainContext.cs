@@ -59,6 +59,14 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Tiu> Tius { get; set; }
 
+    public virtual DbSet<TsaileActivitylog> TsaileActivitylogs { get; set; }
+
+    public virtual DbSet<TsaileBetterq> TsaileBetterqs { get; set; }
+
+    public virtual DbSet<TsaileComment> TsaileComments { get; set; }
+
+    public virtual DbSet<TsailePatient> TsailePatients { get; set; }
+
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     public virtual DbSet<VwUserNameMismatch> VwUserNameMismatches { get; set; }
@@ -623,6 +631,114 @@ public partial class mainContext : DbContext
                 .HasForeignKey(d => d.PatientId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Tiu_Patient");
+        });
+
+        modelBuilder.Entity<TsaileActivitylog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tsaile_a__3213E83F292954BB");
+
+            entity.ToTable("tsaile_activitylog");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.ChangedFrom)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.ChangedTo)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.TsaileBetterqId).HasColumnName("tsaile_betterq_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.TsaileActivitylogs)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tsaile_activitylog_auth_user");
+
+            entity.HasOne(d => d.TsaileBetterq).WithMany(p => p.TsaileActivitylogs)
+                .HasForeignKey(d => d.TsaileBetterqId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tsaile_activitylog_tsaile_betterq");
+        });
+
+        modelBuilder.Entity<TsaileBetterq>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tsaile_b__3213E83FA30F7FBB");
+
+            entity.ToTable("tsaile_betterq");
+
+            entity.HasIndex(e => new { e.Status, e.Waiting, e.LastModifiedDateTime }, "IX_tsaile_betterq_ActiveQueue").HasFilter("([CompletedDateTime] IS NULL)");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Efdt).HasColumnName("EFDT");
+            entity.Property(e => e.NeedsCounseling).HasDefaultValue(true);
+            entity.Property(e => e.Status).HasMaxLength(10);
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.TsaileBetterqs)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tsaile_betterq_PatientId");
+        });
+
+        modelBuilder.Entity<TsaileComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tsaile_c__3213E83FEBE15C21");
+
+            entity.ToTable("tsaile_comment");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Remarks)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.TsaileBetterqId).HasColumnName("tsaile_betterq_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.TsaileComments)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tsaile_comment_auth_user");
+
+            entity.HasOne(d => d.TsaileBetterq).WithMany(p => p.TsaileComments)
+                .HasForeignKey(d => d.TsaileBetterqId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_tsaile_comment_tsaile_betterq");
+        });
+
+        modelBuilder.Entity<TsailePatient>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__TsailePa__3213E83F55FAA269");
+
+            entity.ToTable("TsailePatient");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.Age).IsUnicode(false);
+            entity.Property(e => e.AttendingPhysician).IsUnicode(false);
+            entity.Property(e => e.CellNumber).IsUnicode(false);
+            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.CurrentAdmission).HasColumnType("datetime");
+            entity.Property(e => e.CurrentMovement).HasColumnType("datetime");
+            entity.Property(e => e.DateEnteredIntoFile).IsUnicode(false);
+            entity.Property(e => e.DateOfDeath).HasColumnType("datetime");
+            entity.Property(e => e.Diagnosis).IsUnicode(false);
+            entity.Property(e => e.Dob)
+                .HasColumnType("datetime")
+                .HasColumnName("DOB");
+            entity.Property(e => e.HomePhone).IsUnicode(false);
+            entity.Property(e => e.Last4).IsUnicode(false);
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.Pcp)
+                .IsUnicode(false)
+                .HasColumnName("PCP");
+            entity.Property(e => e.Race).IsUnicode(false);
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.RoomBed).IsUnicode(false);
+            entity.Property(e => e.Sex).IsUnicode(false);
+            entity.Property(e => e.Veteran).IsUnicode(false);
+            entity.Property(e => e.WardLocation).IsUnicode(false);
+            entity.Property(e => e.WorkPhone).IsUnicode(false);
+            entity.Property(e => e.ZipCode).IsUnicode(false);
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

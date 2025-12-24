@@ -103,6 +103,22 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tsaile_activitylog]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tsaile_betterq]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tsaile_comment]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[TsailePatient]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[wardstock_activitylog]",
          "ObjectType": 0
       },

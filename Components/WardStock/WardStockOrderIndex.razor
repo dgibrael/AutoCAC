@@ -82,7 +82,7 @@
 		else
 		{
 			await using var db = await DbFactory.CreateDbContextAsync();
-			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.Location.LocationName).ToListAsync();
+			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.Location.LocationName).ToHashSetAsync();
 			var selectedName = await DialogService.ListDialogAsync(locNames);
 			if (selectedName != null)
 			{

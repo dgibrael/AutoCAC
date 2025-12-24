@@ -1,0 +1,126 @@
+﻿@page "/tsaile"
+@using AutoCAC.Models
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates.Buttons
+@inject DialogService DialogService
+@inject IDbContextFactory<mainContext> DbFactory
+@inject UserContextService UserContext
+@inject NotificationService NotificationService
+@inject NavigationManager Nav
+<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid"
+                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting" 
+    FilterMode="FilterMode.CheckBoxList"/>
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="NeedsCounseling" Title="NeedsCounseling"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Status" Title="Status"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="LockedDateTime" Title="Locked At" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="LastModifiedDateTime" Title="Last Modified" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CalledDateTime" Title="Called At" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Efdt" Title="Earliest Fill Date" />
+    <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row">
+        <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
+    </ActionColumn>
+</DataGridVanilla>
+
+@code {
+    private DataGridVanilla<AutoCAC.Models.TsaileBetterq> grid;
+    private int _userId { get; set; } = 0;
+    protected override void OnInitialized()
+    {
+        _userId = UserContext.UserProfile.Id;
+    }
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.TsaileBetterq>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.TsaileBetterqs
+            .Where(x => x.CompletedDateTime == null)
+            .Include(x => x.Patient)
+            .Include(x => x.TsaileComments)
+            .AsQueryable();
+    }
+
+    IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
+    {
+        new SplitButtonItem
+        {
+            Text = "Edit",
+            Value = "Edit",
+            Icon = "edit",
+            IconColor = Colors.Primary,
+            Action = async () =>
+            {
+                Nav.NavigateToRelative(row.Id.ToString());
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Move Back",
+            Value = "Back",
+            Icon = "undo",
+            IconColor = Colors.WarningLight,
+            Disabled = () => row.Status == TsaileTicketStatus.Screening.ToString(),
+            Action = async () =>
+            {
+                await row.ReverseStatusAndSaveAsync(DbFactory, _userId);
+                NotificationService.Success($"Status updated to {row.Status}");
+                await grid.ForceReload();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Submit",
+            Value = "Forward",
+            Icon = "done_all",
+            IconColor = Colors.Success,
+            Disabled = () => row.Status == TsaileTicketStatus.Complete.ToString(),
+            Action = async () =>
+            {
+                await row.AdvanceStatusAndSaveAsync(DbFactory, _userId);
+                NotificationService.Success($"Status updated to {row.Status}");
+                await grid.ForceReload();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Delete Record",
+            Value = "Delete",
+            Icon = "delete",
+            IconColor = Colors.Danger,
+            Disabled = () => !UserContext.IsInGroupOrSuperuser("PharmacyTech"),
+            Action = async () =>
+            {
+                var confirm = await DialogService.DeleteConfirm("Ticket");
+                if (confirm == true)
+                {
+                    await DbFactory.DeleteItemAsync(row);
+                    NotificationService.Success($"Deleted");
+                    await grid.ForceReload();
+                }
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Change Status",
+            Value = "ChangeStatus",
+            Icon = "edit",
+            IconColor = Colors.Info,
+            Action = async () =>
+            {
+                string newStatus = await DialogService.ListDialogAsync(Enum.GetNames<TsaileTicketStatus>().ToHashSet());
+                if (newStatus == null) return;
+                await row?.UpdateStatusAsync(DbFactory, newStatus, _userId);
+                NotificationService.Success($"Status updated to {row?.Status}");
+                StateHasChanged();
+            }
+        },
+    };
+
+
+}

@@ -184,67 +184,6 @@ namespace AutoCAC.Extensions
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        public static async Task UpdateItemWithConcurrencyAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
-            TEntity item,
-            CancellationToken cancellationToken = default)
-            where TEntity : class
-        {
-            // 1. Remove navigation objects before attaching, but keep concurrency tokens
-            var type = typeof(TEntity);
-            foreach (var prop in type.GetProperties())
-            {
-                bool isCollection = typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
-                                    && prop.PropertyType != typeof(string)
-                                    && prop.PropertyType != typeof(byte[]);
-
-                bool isTimestamp = prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
-
-                // Null only EF navigation properties — not scalars, byte[], strings, or [Timestamp]
-                if (!prop.PropertyType.IsValueType &&
-                    prop.PropertyType != typeof(string) &&
-                    prop.PropertyType != typeof(byte[]) &&
-                    !isCollection &&
-                    !isTimestamp)
-                {
-                    prop.SetValue(item, null);
-                }
-            }
-
-            // 2. Normal EF attach/update
-            await using var db = await factory.CreateDbContextAsync(cancellationToken);
-            db.Attach(item);
-            var entry = db.Entry(item);
-
-            // detect concurrency token properties
-            var concurrencyProps = entry.Metadata.GetProperties()
-                .Where(p => p.IsConcurrencyToken)
-                .Select(p => p.Name)
-                .ToHashSet();
-
-            // 3. Mark only non-key scalars as modified, skip concurrency tokens
-            foreach (var propMeta in entry.Metadata.GetProperties())
-            {
-                if (propMeta.IsPrimaryKey()) continue;
-
-                var name = propMeta.Name;
-                var propEntry = entry.Property(name);
-
-                if (concurrencyProps.Contains(name))
-                {
-                    // ensure WHERE uses original token and we don't overwrite it
-                    propEntry.IsModified = false;
-                    propEntry.OriginalValue = type.GetProperty(name)?.GetValue(item);
-                }
-                else
-                {
-                    propEntry.IsModified = true;
-                }
-            }
-
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
         public static async Task<bool> UpdateItemWithConcurrencyAsync<TEntity>(
             this IDbContextFactory<mainContext> factory,
             TEntity item,
@@ -519,65 +458,6 @@ namespace AutoCAC.Extensions
             var pk = factory.GetPrimaryKeyValue(entity);
             if (pk is null) return;
             nav.NavigateTo(nav.GetPath(pk.ToString()));
-        }
-
-        public static async Task SaveNavigationItemsAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
-            TEntity item,
-            string[] navigationProperties,
-            CancellationToken ct = default)
-            where TEntity : class, new()
-        {
-            await using var db = await factory.CreateDbContextAsync(ct);
-
-            var entityType = db.Model.FindEntityType(typeof(TEntity))
-                ?? throw new InvalidOperationException($"Entity {typeof(TEntity).Name} not found in DbContext.");
-
-            // Build query with Includes
-            IQueryable<TEntity> query = db.Set<TEntity>();
-            foreach (var propName in navigationProperties)
-            {
-                query = query.Include(propName);
-            }
-
-            // Get primary key
-            var keyProp = entityType.FindPrimaryKey().Properties.Single();
-            var keyClrProp = typeof(TEntity).GetProperty(keyProp.Name)
-                ?? throw new InvalidOperationException($"Key property {keyProp.Name} not found.");
-
-            var keyValue = keyClrProp.GetValue(item)
-                ?? throw new InvalidOperationException("Primary key value is null.");
-
-            // Load original tracked entity
-            var original = await query.FirstOrDefaultAsync(
-                e => EF.Property<object>(e, keyProp.Name).Equals(keyValue), ct);
-
-            if (original == null)
-                throw new InvalidOperationException("Entity no longer exists.");
-
-            // Update scalar values
-            db.Entry(original).CurrentValues.SetValues(item);
-
-            // Replace navigation collections
-            foreach (var propName in navigationProperties)
-            {
-                var prop = typeof(TEntity).GetProperty(propName)
-                    ?? throw new InvalidOperationException($"Navigation property '{propName}' not found.");
-
-                var newCollection = prop.GetValue(item) as IEnumerable;
-                var originalCollection = prop.GetValue(original) as IList;
-
-                if (originalCollection == null)
-                    throw new InvalidOperationException(
-                        $"Navigation property '{propName}' must be assignable to IList.");
-
-                originalCollection.Clear();
-
-                foreach (var element in newCollection)
-                    originalCollection.Add(element);
-            }
-
-            await db.SaveChangesAsync(ct);
         }
 
         public static async Task SaveNavigationItemsAsync<TEntity>(
