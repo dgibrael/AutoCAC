@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using Radzen;
 using Radzen.Blazor;
+using System.Linq;
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
 namespace AutoCAC;
@@ -59,7 +60,8 @@ public sealed class DataGridHelper<T> where T : class
         bool ignoreFilter = false,
         bool useClientSideData = false,
         string initialSearchText = "",
-        bool pivotTable = false
+        bool pivotTable = false,
+        IReadOnlyDictionary<string, IEnumerable<object>> customColumnChoices = null
         )
     {
         _db = db;
@@ -73,6 +75,8 @@ public sealed class DataGridHelper<T> where T : class
         UseClientSideData = useClientSideData;
         SearchText = initialSearchText;
         IsPivotTable = pivotTable;
+        CustomColumnChoices = customColumnChoices
+            ?? new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
     }
 
     public void SetQuickFilter(string text)
@@ -123,16 +127,22 @@ public sealed class DataGridHelper<T> where T : class
 
         ShouldCount = null;
     }
-    public Dictionary<string, List<T>> CustomColumnList { get; set; } = new();
-
-    public void AddToCustomColumnList(string colName, List<T> customList)
-    {
-        CustomColumnList.Add(colName, customList);
-    }
+    public IReadOnlyDictionary<string, IEnumerable<object>> CustomColumnChoices { get; set; }
+        = new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
     public async Task LoadColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
     {
         args.Top = null;
         args.Skip = null;
+
+        var propertyName = args.Column.GetFilterProperty();
+
+        // CUSTOM CHOICES
+        if (CustomColumnChoices.TryGetValue(propertyName, out var values))
+        {
+            args.Data = ObjectFactoryHelpers.CreateStubs<T>(propertyName, values);
+            args.Count = values.Count();
+            return; // IMPORTANT: bypass DB
+        }
 
         await using var ctx = await _db.CreateDbContextAsync();
         var query = Source(ctx).AsNoTracking();

@@ -25,17 +25,17 @@
 		<VanillaFormField Label="Needs Counseling">
 			<RadzenCheckBox @bind-Value="item.NeedsCounseling" />
 		</VanillaFormField>
-		<ChatTemplate TItem="TsaileComment"
-					  Title="Comments"
-					  LoadData="LoadCommentsAsync"
-					  GetMessageId="@(c => c.Id.ToString())"
-					  GetUser="@(c => c.AuthUser.Username)"
-					  GetMessage="@(c => c.Remarks)"
-					  GetTimestamp="@(c => c.CreatedAt)"
-					  CreateMessage="@CreateComment" />
 		<StandardButtons />
-		<SplitButtonTemplate Buttons="@BuildButtons()" ButtonText="Additional Options"  />
 	</RadzenTemplateForm>
+	<ChatTemplate TItem="TsaileComment"
+		Title="Comments"
+		LoadData="LoadCommentsAsync"
+		GetMessageId="@(c => c.Id.ToString())"
+		GetUser="@(c => c.AuthUser.Username)"
+		GetMessage="@(c => c.Remarks)"
+		GetTimestamp="@(c => c.CreatedAt)"
+		CreateMessage="@CreateComment" />
+	<SplitButtonTemplate Buttons="@BuildButtons()" ButtonText="Additional Options" />
 </LoadingContent>
 
 @code{

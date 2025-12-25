@@ -143,6 +143,7 @@
     [Parameter] public bool IgnoreFilter { get; set; } = false;
     [Parameter] public DataGridTemplate InitialTemplate { get; set; }
     [Parameter] public string InitialSearchText { get; set; } = "";
+    [Parameter] public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
     int PageSize;
     int OriginalPageSize;
@@ -173,7 +174,7 @@
         OriginalPageSize = PageSize;
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
                                             , SearchColumns, DataGridName, IgnoreFilter
-                                            , UseClientSideData, InitialSearchText
+                                            , UseClientSideData, InitialSearchText, customColumnChoices: CustomChoices
                                           );
         StateHasChanged();
     }

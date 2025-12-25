@@ -16,6 +16,16 @@ namespace AutoCAC.Utilities
             return stub;
         }
 
+        public static List<T> CreateStubs<T>(
+            string propertyName,
+            IEnumerable<object> values)
+        {
+            return CreateStubs<T>(
+                propertyName,
+                values.Cast<object>().ToArray()
+            );
+        }
+
         public static List<T> CreateStubs<T>(string propertyName, params object[] values)
         {
             var prop = typeof(T).GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance)

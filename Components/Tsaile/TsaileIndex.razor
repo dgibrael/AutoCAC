@@ -8,7 +8,8 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Nav
 <DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid"
-                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })">
+                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })"
+                 CustomChoices="@(new Dictionary<string, IEnumerable<object>> { ["Status"] = Enum.GetNames<TsaileTicketStatus>() })">
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
@@ -36,6 +37,7 @@
     {
         _userId = UserContext.UserProfile.Id;
     }
+
     private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.TsaileBetterq>> Qry()
     {
         //make sure to add QueryFactory="@Qry()" to datagrid params
