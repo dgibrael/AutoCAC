@@ -4,13 +4,13 @@
 @typeparam TItem where TItem : class
 @typeparam TValue
 
-<RadzenDataGridColumn TItem="TItem"
+<RadzenDataGridColumn TItem="TItem" Type="typeof(IEnumerable<TValue>)"
                       Property="@Property"
-                      Title="@(Title ?? Property)"
+                      Title="@(Title ?? Property)" 
                       FilterValue="@(CurrentFilter?.Count() > 0 ? CurrentFilter : null)"
                       OrderIndex="@ColumnIndex"
                       Template="Template"
-                      EditTemplate="EditTemplate" @ref="col" FilterOperator="FilterOperator.Contains">
+                      EditTemplate="EditTemplate" @ref="col">
 
     <FilterTemplate>
         <RadzenListBox
@@ -31,8 +31,7 @@
     [Parameter] public int? ColumnIndex { get; set; }
     [Parameter] public bool MultiSelect { get; set; } = true;
     [Parameter] public Dictionary<string, TValue> Choices { get; set; }
-
-    private IEnumerable<TValue> CurrentFilter = Array.Empty<TValue>();
+    private IEnumerable<TValue> CurrentFilter;
     private RadzenDataGridColumn<TItem> col;
     private async Task OnChange()
     {

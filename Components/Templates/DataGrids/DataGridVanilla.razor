@@ -241,7 +241,6 @@
         Helper.Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
             ? null
             : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
-
         await Grid.ReloadSettings();
     }
 
