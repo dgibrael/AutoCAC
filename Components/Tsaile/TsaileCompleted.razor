@@ -1,0 +1,110 @@
+﻿@page "/tsaile/completed"
+@using AutoCAC.Models
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates.Buttons
+@inject DialogService DialogService
+@inject IDbContextFactory<mainContext> DbFactory
+@inject UserContextService UserContext
+@inject NotificationService NotificationService
+@inject NavigationManager Nav
+<RadzenLink Text="Go to Main Que" Path="tsaile" Icon="home" />
+<RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
+<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid"
+                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })">
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="NeedsCounseling" Title="NeedsCounseling"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
+                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
+    <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
+        <SplitButtonTemplate DefaultButtonValue="Back"
+                             ButtonText="Send Back to Pickup"
+                             MainIcon="undo"
+                             Buttons="@BuildButtons(row)" />
+    </ActionColumn>
+</DataGridVanilla>
+
+@code {
+    private DataGridVanilla<AutoCAC.Models.TsaileBetterq> grid;
+    private int _userId { get; set; } = 0;
+    protected override void OnInitialized()
+    {
+        _userId = UserContext.UserProfile.Id;
+    }
+
+    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.TsaileBetterq>> Qry()
+    {
+        //make sure to add QueryFactory="@Qry()" to datagrid params
+        return db => db.TsaileBetterqs
+            .Where(x => x.Status == TsaileTicketStatus.Complete.ToString())
+            .Include(x => x.Patient)
+            .OrderByDescending(x => x.CompletedDateTime)
+            .AsQueryable();
+    }
+
+    IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
+    {
+        new SplitButtonItem
+        {
+            Text = "Edit",
+            Value = "Edit",
+            Icon = "edit",
+            IconColor = Colors.Primary,
+            Action = async () =>
+            {
+                Nav.NavigateToRelative(row.Id.ToString(), fromParent: true);
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Send back to Pickup",
+            Value = "Back",
+            Icon = "undo",
+            IconColor = Colors.WarningLight,
+            Disabled = () => row.Status == TsaileTicketStatus.ReadyForPickup.ToString(),
+            Action = async () =>
+            {
+                await row.ReverseStatusAndSaveAsync(DbFactory, _userId);
+                NotificationService.Success($"Status updated to {row.Status}");
+                await grid?.ForceReload();
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Delete",
+            Value = "Delete",
+            Icon = "delete",
+            IconColor = Colors.Danger,
+            Action = async () =>
+            {
+                var confirm = await DialogService.DeleteConfirm("Ticket");
+                if (confirm == true)
+                {
+                    await row.UpdateStatusAsync(DbFactory, TsaileTicketStatus.Deleted.ToString(), _userId);
+                    NotificationService.Success($"Moved to Trash");
+                    await grid?.ForceReload();
+                }
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Change Status",
+            Value = "ChangeStatus",
+            Icon = "edit",
+            IconColor = Colors.Info,
+            Action = async () =>
+            {
+                string newStatus = await DialogService.ListDialogAsync(Enum.GetNames<TsaileTicketStatus>().ToHashSet());
+                if (newStatus == null) return;
+                await row?.UpdateStatusAsync(DbFactory, newStatus, _userId);
+                NotificationService.Success($"Status updated to {row?.Status}");
+                await grid?.ForceReload();
+            }
+        },
+    };
+}

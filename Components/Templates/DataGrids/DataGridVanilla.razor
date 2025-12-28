@@ -66,7 +66,7 @@
                         PageSizeOptions="pageSizes" Group="OnGroup"
                         ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
                         Context="row" EmptyTemplate="EmptyTemplate"
-                        RowSelect="@RowSelect">
+                        RowSelect="@RowSelect" CellRender="CellRender">
             <GroupHeaderTemplate Context="group">
                 @if(GroupHeaderCustom is not null)
                 {
@@ -144,6 +144,7 @@
     [Parameter] public DataGridTemplate InitialTemplate { get; set; }
     [Parameter] public string InitialSearchText { get; set; } = "";
     [Parameter] public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
+    [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
     int PageSize;
     int OriginalPageSize;
@@ -240,6 +241,7 @@
         Helper.Settings = string.IsNullOrWhiteSpace(tmpl?.DataGridSettings)
             ? null
             : JsonSerializer.Deserialize<DataGridSettings>(tmpl.DataGridSettings);
+
         await Grid.ReloadSettings();
     }
 

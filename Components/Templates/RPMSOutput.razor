@@ -32,6 +32,7 @@
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public string ButtonLabel { get; set; } = "Open RPMS Output";
+    private CancellationTokenSource _pollingCts;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -73,7 +74,6 @@
     }
 
     private int TaskNumber { get; set; }
-    private SqlWatcher watcher;
     private string TableName { get; set; }
     private Func<Task> _onUpdateComplete;
     private async Task UpdateFromRPMS(string tableName)
@@ -102,62 +102,59 @@
     }
     private async Task RunStatusWatcherAsync(IProgress<double> progress)
     {
-        var tcs = new TaskCompletionSource<bool>();
-        IDisposable localWatcher = null;
-
-        async void OnStatusChangeForDialog()
-        {
-            var _status = await DbFactory.GetFirstValueAsync($@"
-            Select Status From DataImportStatus
-            Where JobID = {TaskNumber} and TableName = {TableName}");
-
-            switch (_status)
-            {
-                case "REQUESTED":
-                    progress.Report(0);
-                    break;
-                case "RECEIVING":
-                    progress.Report(10);
-                    break;
-                case "PARSING":
-                    progress.Report(50);
-                    break;
-                case "UPDATING":
-                    progress.Report(75);
-                    break;
-                case "DONE":
-                    progress.Report(100);
-                    await DbFactory.ExecuteSqlAsync(
-                        $"DELETE FROM DataImportStatus Where JobID = {TaskNumber}");
-
-                    localWatcher?.Dispose();
-
-                    if (_onUpdateComplete != null)
-                        await _onUpdateComplete();
-
-                    tcs.TrySetResult(true);
-                    return;
-            }
-
-            // re-arm the watcher for the next change (same pattern you use)
-            localWatcher?.Dispose();
-            localWatcher = SqlWatcher.CreateDataImportStatus(
-                DbFactory, TaskNumber, TableName, OnStatusChangeForDialog, false);
-        }
-
-        // prime the watcher once
-        localWatcher = SqlWatcher.CreateDataImportStatus(
-            DbFactory, TaskNumber, TableName, OnStatusChangeForDialog, false);
+        _pollingCts?.Cancel();
+        _pollingCts = new CancellationTokenSource();
+        var token = _pollingCts.Token;
 
         try
         {
-            await tcs.Task; // completes when status == DONE
+            while (!token.IsCancellationRequested)
+            {
+                var status = await DbFactory.GetFirstValueAsync($@"
+                SELECT Status
+                FROM DataImportStatus
+                WHERE JobID = {TaskNumber}
+                  AND TableName = {TableName}");
+
+                switch (status)
+                {
+                    case "REQUESTED":
+                        progress.Report(0);
+                        break;
+
+                    case "RECEIVING":
+                        progress.Report(10);
+                        break;
+
+                    case "PARSING":
+                        progress.Report(50);
+                        break;
+
+                    case "UPDATING":
+                        progress.Report(75);
+                        break;
+
+                    case "DONE":
+                        progress.Report(100);
+
+                        await DbFactory.ExecuteSqlAsync(
+                            $"DELETE FROM DataImportStatus WHERE JobID = {TaskNumber}");
+
+                        if (_onUpdateComplete != null)
+                            await _onUpdateComplete();
+
+                        return; // exit polling loop
+                }
+
+                await Task.Delay(1000, token); // poll every 1 second
+            }
         }
-        finally
+        catch (TaskCanceledException)
         {
-            localWatcher?.Dispose();
+            // expected on dispose / dialog close
         }
     }
+
 
     public async Task RunUpdateFromRPMS(string tableName, Func<Task> onComplete = null)
     {
@@ -186,7 +183,8 @@
     {
         RPMS.ClearAllModeChangedSubscriptions();
         _queuedAction = null;
-        watcher?.Dispose();
-        watcher = null;
+        _pollingCts?.Cancel();
+        _pollingCts?.Dispose();
+        _pollingCts = null;
     }
 }

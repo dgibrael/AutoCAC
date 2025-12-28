@@ -227,7 +227,7 @@ public sealed class DataGridHelper<T> where T : class
             Settings = null;
             return;
         }
-
+        Console.WriteLine(json);
         if (IsPivotTable)
             PivotSettings = JsonSerializer.Deserialize<PivotGridSettings>(json);
         else

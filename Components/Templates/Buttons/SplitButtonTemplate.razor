@@ -5,24 +5,29 @@
 @inject NotificationService Notifications
 @using AutoCAC.Extensions
 
-<RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="ButtonStyle.Primary" Text="@ButtonText"
-                    IsBusy="@_isBusy" Click="@(btn => OnClick(btn))">
-    @foreach (var btn in Buttons)
-    {
-        <RadzenSplitButtonItem Value="@btn.Value"
-                                Text="@btn.Text"
-                                Icon="@btn.Icon"
-                                IconColor="@btn.IconColor"
-                                Disabled="@(btn.Disabled?.Invoke() ?? false)" />
-    }
-</RadzenSplitButton>
+<div title="@($"{TooltipText ?? ButtonText} (click arrow for more options)")" style="max-width: 100%;">
+    <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="ButtonStyle.Primary" 
+                       Text="@ButtonText" IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="@MainIcon" 
+                       Style="max-width: 100%; white-space: wrap;">
+        @foreach (var btn in Buttons)
+        {
+            <RadzenSplitButtonItem Value="@btn.Value"
+                                    Text="@btn.Text"
+                                    Icon="@btn.Icon"
+                                    IconColor="@btn.IconColor"
+                                    Disabled="@(btn.Disabled?.Invoke() ?? false)" />
+        }
+    </RadzenSplitButton>
+</div>
 
 @code {
     bool _isBusy;
     [Parameter] public Func<Task> DefaultAction { get; set; }
     [Parameter] public string DefaultButtonValue { get; set; }
     [Parameter] public string ButtonText { get; set; } = "Edit";
+    [Parameter] public string TooltipText { get; set; } = null;
     [Parameter] public IEnumerable<SplitButtonItem> Buttons { get; set; }
+    [Parameter] public string MainIcon { get; set; } = null;
     private Func<Task> _resolvedDefaultAction;
 
     protected override void OnParametersSet()

@@ -531,6 +531,18 @@ namespace AutoCAC.Extensions
             return (PropertyInfo)memberExp.Member;
         }
 
+        public static async Task<IEnumerable<TProperty>> GetDistinct<TEntity, TProperty>(
+            this IDbContextFactory<mainContext> factory,
+            Expression<Func<TEntity, TProperty>> selector)
+            where TEntity : class
+        {
+            await using var db = await factory.CreateDbContextAsync();
+
+            return await db.Set<TEntity>()
+                .Select(selector)
+                .Distinct()
+                .ToListAsync();
+        }
     }
 }
 

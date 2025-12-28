@@ -1,0 +1,43 @@
+﻿@using System.ComponentModel.DataAnnotations
+@typeparam TItem where TItem : class
+@typeparam TValue
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+<StaticChoiceColumnMultiselect TItem="TItem"
+                    TValue="TValue"
+                    Property="@Property"
+                    Title="@Title"
+                    ColumnIndex="@ColumnIndex" MultiSelect="MultiSelect"
+                    Choices="@ChoicesDictionary" />
+@code {
+    [Parameter, EditorRequired] public string Property { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public int? ColumnIndex { get; set; }
+    /// <summary>
+    /// Distinct values used to generate filter choices
+    /// </summary>
+    [Parameter] public IEnumerable<TValue> Choices { get; set; }
+    [Parameter] public bool MultiSelect { get; set; } = true;
+    private Dictionary<string, TValue> ChoicesDictionary;
+    protected override void OnInitialized()
+    {
+        ChoicesDictionary = BuildDictionary();
+    }
+
+    private Dictionary<string, TValue> BuildDictionary()
+    {
+        var dict = new Dictionary<string, TValue>();
+
+        if (Choices == null)
+            return dict;
+
+        foreach (var value in Choices.Distinct())
+        {
+            // null-safe and deterministic
+            dict[value?.ToString() ?? string.Empty] = value;
+        }
+
+        return dict;
+    }
+}
+

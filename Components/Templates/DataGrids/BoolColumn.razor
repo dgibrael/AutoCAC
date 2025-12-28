@@ -1,0 +1,19 @@
+﻿
+@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+@typeparam TItem where TItem : class
+
+<StaticChoiceColumnMultiselect TItem="TItem" TValue="bool" Property="@Property" Title="@Title" ColumnIndex="ColumnIndex"           
+    Choices="@(new Dictionary<string, bool> { ["true"] = true, ["false"] = false })" MultiSelect="false"/>
+@code {
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+    [Parameter] public string Property { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public int? ColumnIndex { get; set; }
+    private RadzenDataGridColumn<TItem> col;
+    private bool? currentBoolFilter;
+}

@@ -1,0 +1,47 @@
+﻿@using System.ComponentModel.DataAnnotations
+@typeparam TItem where TItem : class
+@typeparam TEnum where TEnum : struct, Enum
+
+    <StaticChoiceColumnMultiselect TItem="TItem"
+                        TValue="string"
+                        Property="@Property"
+                        Title="@Title"
+                        ColumnIndex="@ColumnIndex" MultiSelect="@MultiSelect"
+                        Choices="@EnumChoices" />
+
+@code {
+    [Parameter, EditorRequired] public string Property { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public int? ColumnIndex { get; set; }
+    [Parameter] public bool MultiSelect { get; set; } = false;
+    private Dictionary<string, string> EnumChoices;
+
+    protected override void OnInitialized()
+    {
+        EnumChoices = BuildEnumDictionary();
+    }
+
+    private Dictionary<string, string> BuildEnumDictionary()
+    {
+        var dict = new Dictionary<string, string>();
+
+        foreach (var value in Enum.GetValues<TEnum>())
+        {
+            dict[GetDisplayText(value)] = value.ToString();
+        }
+
+        return dict;
+    }
+
+    private string GetDisplayText(TEnum value)
+    {
+        var member = typeof(TEnum).GetMember(value.ToString())[0];
+        var display = member
+            .GetCustomAttributes(typeof(DisplayAttribute), false)
+            .Cast<DisplayAttribute>()
+            .FirstOrDefault();
+
+        return display?.Name ?? value.ToString();
+    }
+}
+

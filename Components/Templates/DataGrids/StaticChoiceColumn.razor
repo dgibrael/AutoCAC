@@ -1,0 +1,55 @@
+﻿
+@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+@typeparam TItem where TItem : class
+@typeparam TValue
+<RadzenDataGridColumn TItem="TItem" Property="@Property" Title="@(Title ?? Property)" FilterValue="@CurrentFilter" 
+    OrderIndex="ColumnIndex" @ref="col" Template="Template" EditTemplate="EditTemplate" FilterOperator="FilterOperator.Contains" >
+    <FilterTemplate>
+        <RadzenListBox TValue="TValue" @bind-Value="@CurrentFilter" Style="width:100%;" 
+                       TextProperty="Key" ValueProperty="Value" Change="@(() => col?.CloseFilter())"
+                       Data="@ChoicesWithAll" />
+    </FilterTemplate>
+</RadzenDataGridColumn>
+
+@code {
+    [Parameter] public RenderFragment<TItem> Template { get; set; }
+    [Parameter] public RenderFragment<TItem> EditTemplate { get; set; }
+    [Parameter, EditorRequired] public string Property { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public int? ColumnIndex { get; set; }
+
+    /// <summary>
+    /// Dictionary of display text → filter value
+    /// </summary>
+    [Parameter] public Dictionary<string, TValue> Choices { get; set; }
+    private TValue CurrentFilter;
+    private RadzenDataGridColumn<TItem> col;
+
+    private Dictionary<string, TValue> ChoicesWithAll
+    {
+        get
+        {
+            var dict = new Dictionary<string, TValue>
+            {
+                ["\u00A0"] = default
+            };
+
+            if (Choices != null)
+            {
+                foreach (var kvp in Choices)
+                {
+                    dict[kvp.Key] = kvp.Value;
+                }
+            }
+
+            return dict;
+        }
+    }
+
+
+}

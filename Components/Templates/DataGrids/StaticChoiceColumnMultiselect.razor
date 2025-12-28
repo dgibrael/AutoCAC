@@ -1,0 +1,53 @@
+﻿@inject DialogService DialogService
+@inject NotificationService Notifications
+@using AutoCAC.Extensions
+@typeparam TItem where TItem : class
+@typeparam TValue
+
+<RadzenDataGridColumn TItem="TItem"
+                      Property="@Property"
+                      Title="@(Title ?? Property)"
+                      FilterValue="@(CurrentFilter?.Count() > 0 ? CurrentFilter : null)"
+                      OrderIndex="@ColumnIndex"
+                      Template="Template"
+                      EditTemplate="EditTemplate" @ref="col" FilterOperator="FilterOperator.Contains">
+
+    <FilterTemplate>
+        <RadzenListBox
+                       Data="@Choices"
+                       Multiple="true"
+                       @bind-Value="@CurrentFilter"
+                       TextProperty="Key"
+                       ValueProperty="Value" AllowSelectAll="MultiSelect" Change="OnChange"
+                       Style="width:100%;"/>
+    </FilterTemplate>
+</RadzenDataGridColumn>
+
+@code {
+    [Parameter] public RenderFragment<TItem> Template { get; set; }
+    [Parameter] public RenderFragment<TItem> EditTemplate { get; set; }
+    [Parameter, EditorRequired] public string Property { get; set; }
+    [Parameter] public string Title { get; set; }
+    [Parameter] public int? ColumnIndex { get; set; }
+    [Parameter] public bool MultiSelect { get; set; } = true;
+    [Parameter] public Dictionary<string, TValue> Choices { get; set; }
+
+    private IEnumerable<TValue> CurrentFilter = Array.Empty<TValue>();
+    private RadzenDataGridColumn<TItem> col;
+    private async Task OnChange()
+    {
+        if (!MultiSelect)
+        {
+            var filterLength = CurrentFilter.Count();
+            Console.WriteLine(filterLength);
+            if (filterLength > 1)
+            {
+                var lastItem = CurrentFilter.Last();
+                CurrentFilter = new[] { lastItem };
+                StateHasChanged();
+            }
+            await col?.CloseFilter();
+
+        }
+    }
+}

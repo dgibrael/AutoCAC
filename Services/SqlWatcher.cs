@@ -2,102 +2,73 @@
 using AutoCAC.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using System;
 using System.Data;
 
-public class SqlWatcher : IDisposable
+public sealed class SqlWatcher : IDisposable
 {
-    private readonly IDbContextFactory<mainContext> _factory;
-    private readonly string _query;
-    private readonly SqlParameter[] _parameters;
-    private readonly Action _onChange;
-
     private readonly SqlConnection _connection;
-    private readonly SqlCommand _command;
-    private SqlDependency _dependency;
-    private bool _disposed = false;
+    private readonly string _query;
+    private readonly Func<SqlParameter[]> _parametersFactory;
 
-    private SqlWatcher(
+    private SqlCommand _command;
+    private SqlDependency _dependency;
+    private SqlDataReader _reader; // 🔑 THIS IS THE FIX
+    private bool _disposed;
+
+    public event Action Changed;
+
+    public SqlWatcher(
         IDbContextFactory<mainContext> factory,
         string query,
-        SqlParameter[] parameters,
-        Action onChange)
+        Func<SqlParameter[]> parametersFactory)
     {
-        _factory = factory;
         _query = query;
-        _parameters = parameters;
-        _onChange = onChange;
+        _parametersFactory = parametersFactory;
 
-        var context = _factory.CreateDbContext();
-        _connection = (SqlConnection)context.Database.GetDbConnection();
-        if (_connection.State != ConnectionState.Open)
-            _connection.Open();
-
-        _command = new SqlCommand(_query, _connection);
-        if (_parameters != null)
-            _command.Parameters.AddRange(_parameters);
+        var ctx = factory.CreateDbContext();
+        _connection = (SqlConnection)ctx.Database.GetDbConnection();
+        _connection.Open();
 
         Subscribe();
     }
 
     private void Subscribe()
     {
+        if (_disposed) return;
+
+        _command = new SqlCommand(_query, _connection);
+
+        var parameters = _parametersFactory?.Invoke();
+        if (parameters != null)
+            _command.Parameters.AddRange(parameters);
+
         _dependency = new SqlDependency(_command);
-        _dependency.OnChange += HandleChange;
-        _command.ExecuteReader();
+        _dependency.OnChange += OnChange;
+
+        _reader = _command.ExecuteReader(); // 🔑 MUST STAY ALIVE
     }
 
-    private void HandleChange(object sender, SqlNotificationEventArgs e)
+    private void OnChange(object sender, SqlNotificationEventArgs e)
     {
+        _dependency.OnChange -= OnChange;
+
+        _reader?.Dispose();
+        _command?.Dispose();
+
         if (e.Type == SqlNotificationType.Change)
-            _onChange?.Invoke();
+            Changed?.Invoke();
+
+        Subscribe();
     }
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _dependency.OnChange -= HandleChange;
-        _command?.Dispose();
-        _connection?.Dispose();
         _disposed = true;
-    }
 
-    public SqlWatcher Resubscribe()
-    {
-        Dispose();
-        return new SqlWatcher(_factory, _query, _parameters, _onChange);
-    }
-
-    public static SqlWatcher CreateDataImportStatus(
-        IDbContextFactory<mainContext> factory,
-        int jobId,
-        string tableName,
-        Action onChange,
-        bool setToRequested = false
-        )
-    {
-        if (setToRequested)
-        {
-            _ = factory.ExecuteSqlAsync($@"
-                MERGE INTO dbo.DataImportStatus AS target
-                USING (SELECT {jobId} AS JobId, {tableName} AS TableName) AS source
-                ON target.JobId = source.JobId AND target.TableName = source.TableName
-                WHEN MATCHED THEN
-                    UPDATE SET Status = 'REQUESTED'
-                WHEN NOT MATCHED THEN
-                    INSERT (JobId, TableName, Status) VALUES ({jobId}, {tableName}, 'REQUESTED');");
-        }
-
-        var query = @"SELECT Status FROM dbo.DataImportStatus 
-                      WHERE JobId = @jobId AND TableName = @tableName";
-
-        var parameters = new[]
-        {
-            new SqlParameter("@jobId", jobId),
-            new SqlParameter("@tableName", tableName)
-        };
-
-        return new SqlWatcher(factory, query, parameters, onChange);
+        _dependency?.OnChange -= OnChange;
+        _reader?.Dispose();
+        _command?.Dispose();
+        _connection.Dispose();
     }
 }
 

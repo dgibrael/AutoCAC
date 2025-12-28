@@ -68,7 +68,7 @@ if (OperatingSystem.IsWindows())
 builder.Services.AddScoped<UserContextService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<CacheService>();
-
+builder.Services.AddSingleton<TsaileTicketWatcher>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
