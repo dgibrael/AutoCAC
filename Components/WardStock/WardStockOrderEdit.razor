@@ -6,6 +6,8 @@
 @inject NavigationManager Nav
 @inject UserContextService UserContext
 @inject NotificationService NotificationService
+@inject IJSRuntime JS
+@inject DialogService DialogService
 <LoadingContent IsLoading="@(!pageLoaded)">
 	@if(UserType == "unauthorized")
 	{
@@ -17,13 +19,7 @@
 		<RadzenTemplateForm TItem="WardstockOrder" Data="@pageItem" Submit="@OnSubmit">
 			@if(UserType != "tech" && (pageItem.Status is ("Create" or "Edit")))
 			{				
-				<h4>Items that can be ordered</h4>
-				<RadzenListBox TValue="WardstockItem" Data="@unSelectedItems" Change="OnSelectDrug" 
-					@bind-Value="selectedFromList" AllowFiltering="true" LoadData="@LoadData"
-					Count="@unSelectedCount" SearchText="@searchText"
-				>
-					<Template Context="item">@item.Drug.Name</Template>
-				</RadzenListBox>
+				<RadzenButton Text="Add Item To Order" Icon="add" Click="@AddItemClick"/>
 			}
 			<h4>@($"Items in order for {pageItem?.Location?.LocationName}")</h4>
 			@foreach(var item in selectedItems)
@@ -35,13 +31,13 @@
 					<RadzenColumn Size="4">
 						<RadzenLabel Text="@($"Qty Ordered (Par: {item?.Item?.Par})")" Style="width: 50%"/>
 						<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered" 
-									   Disabled="@(UserType == "tech" || (pageItem?.Status is not ("Create" or "Edit")))"
-									   Min="0" Style="width: 50%" />
+										Disabled="@(UserType == "tech" || (pageItem?.Status is not ("Create" or "Edit")))"
+										Min="0" Style="width: 50%" />
 					</RadzenColumn>
 					<RadzenColumn Size="4">
 						<RadzenLabel Text="Qty Filled" Style="width: 50%" />
 						<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled" 
-									   Disabled="@(UserType == "nurse" || (pageItem.Status is not ("Submit" or "Filled" or "Checked")))"
+										Disabled="@(UserType == "nurse" || (pageItem.Status is not ("Submit" or "Filled" or "Checked")))"
 							Min="0" Style="width: 50%" />
 					</RadzenColumn>
 					<RadzenColumn Size="1" >
@@ -50,28 +46,34 @@
 				</RadzenRow>
 			}
 			<VanillaFormField Label="Remarks">
-				<RadzenTextArea @bind-Value="@pageItem.Comments" />
+				<RadzenTextArea @bind-Value="@pageItem.Comments" style="width: 100%" />
 			</VanillaFormField>
 			@if(UserType == "super")
 			{
-				<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back a step" ButtonType="ButtonType.Button" Click="@OnSendBack" Icon="undo" />
+				<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" ButtonType="ButtonType.Button" Click="@OnSendBack" Icon="undo" />
 			}
 			<RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Button" Click="@OnSaveOnly" Text="Save Changes Without Submitting" />
 			<StandardButtons />
 		</RadzenTemplateForm>
+		<RadzenButton Text="Print Order"
+					  Click="@(() => JS.PrintByIdVanilla("wardstockItemsDiv"
+							  	  , printHeader: pageItem?.Location?.LocationName))" />
+		<div id="wardstockItemsDiv" style="visibility: hidden;">
+			<ul>
+				@foreach(var printItem in selectedItems)
+				{
+					<li>@($"{printItem?.Item?.Drug?.Name}: {printItem?.QtyOrdered} ordered ({printItem?.QtyFilled} filled)")</li>
+				}
+			</ul>
+		</div>
 	}
 </LoadingContent>
 	@code {
 	[Parameter] public int Id { get; set; }
 	private bool pageLoaded = false;
 	private WardstockOrder pageItem;
-	private List<AutoCAC.Models.WardstockItem> allItems { get; set; }
+	private List<AutoCAC.Models.WardstockItem> allAllowedItems { get; set; }
 	private List<AutoCAC.Models.WardstockOrderitem> selectedItems { get; set; }
-	private List<AutoCAC.Models.WardstockOrderitem> originalSelectedItems { get; set; }
-	private IEnumerable<AutoCAC.Models.WardstockItem> unSelectedItems { get; set; }
-	private int unSelectedCount;
-	private WardstockItem selectedFromList;
-	private HashSet<int> newSelectedIds;
 	private string searchText = "";
 	private string UserType { get; set; }
 	private List<string> statusChoices = new List<string>{ "Create", "Edit", "Submit", "Filled", "Checked", "Complete" };
@@ -99,102 +101,105 @@
 			if (userLocations) UserType = "nurse";
 			else UserType = "unauthorized";
 		}
-		allItems = await db.WardstockItems
+		allAllowedItems = await db.WardstockItems
 							.Where(x => x.LocationId == pageItem.LocationId)
 							.Include(x => x.Drug)
 							.ToListAsync();
 		selectedItems = pageItem.WardstockOrderitems.ToList();
-		originalSelectedItems = selectedItems
-								.Select(x => new WardstockOrderitem
-								{
-									OrderId = Id,
-									ItemId = x.ItemId,
-									QtyOrdered = x.QtyOrdered,
-									QtyFilled = x.QtyFilled
-								})
-								.ToList();
-		newSelectedIds = selectedItems == null || !selectedItems.Any() ?
-										new HashSet<int>() : selectedItems.Select(x => x.ItemId).ToHashSet();
 		pageLoaded = true;
 		StateHasChanged();
 	}
 
-	private async Task LoadData(LoadDataArgs args)
+	private async Task LoadOrderItems()
 	{
-		var q = allItems
-			.Where(g => !newSelectedIds.Contains(g.Id));
-		if (!string.IsNullOrWhiteSpace(args?.Filter)) q = q.Where(x => x.Drug.Name.ToLower().Contains(args.Filter.ToLower()));
-		unSelectedItems = q
-			.ToList();
-		unSelectedCount = unSelectedItems.Count();
+		await using var db = await DbFactory.CreateDbContextAsync();
+		allAllowedItems = await db.WardstockItems
+							.Where(x => x.LocationId == pageItem.LocationId)
+							.Include(x => x.Drug)
+							.ToListAsync();
+		selectedItems = pageItem.WardstockOrderitems.ToList();
 	}
 
-	private async Task OnSelectDrug(object value)
+	private async Task LoadPageItem()
 	{
-		if (value == null) return;
-		var selected = value as WardstockItem;
-		newSelectedIds.Add(selected.Id);
-		using var db = await DbFactory.CreateDbContextAsync();
-		var newItem = await db.WardstockItems
-						.Include(x => x.Drug)
-						.FirstOrDefaultAsync(x => x.Id == selected.Id);
-		selectedItems.Add(new WardstockOrderitem
+		await using var db = await DbFactory.CreateDbContextAsync();
+		pageItem = await db.WardstockOrders
+							.Include(x => x.Location)
+							.Include(x => x.WardstockOrderitems)
+								.ThenInclude(x => x.Item)
+									.ThenInclude(x => x.Drug)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+	}
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry =>
+		db =>
+		{
+			var curLst = selectedItems.Select(x => x.ItemId).ToHashSet();
+			return db.WardstockItems
+				.Include(x => x.Drug)
+				.Where(x => x.LocationId == pageItem.LocationId && !curLst.Contains(x.Id))
+				.Select(x => x.Drug)
+				.AsQueryable();
+		};
+
+	private async Task AddItemClick()
+	{
+		var selectedDrug = await DialogService.DataGridSelectAsync<Drug>(
+						Qry, new[] { "Name" }
+						, searchColumns: new[] { "Name"}
+						);
+		if (selectedDrug == null) return;
+		var selectedItem = allAllowedItems.FirstOrDefault(x => x.DrugId == selectedDrug.Id);
+		var newOrderItem = new WardstockOrderitem
 			{
 				OrderId = Id,
-				ItemId = selected.Id,
-				QtyOrdered = 0.0,
-				QtyFilled = 0.0,
-				Item = newItem
-			}
-		);
-		selectedFromList = null;
-		await LoadData(new LoadDataArgs{ Filter = searchText });
-		StateHasChanged();
+				ItemId = selectedItem.Id,
+				Item = selectedItem
+			};
+		selectedItems.Add(newOrderItem);
 	}
 
 	private async Task SaveChanges()
 	{
-		if (selectedItems == null || !selectedItems.Any())
+		selectedItems = selectedItems.Distinct().ToList();
+		await DbFactory.UpdateItemAsync(pageItem);
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var dbItems = await db.WardstockOrderitems.Where(x => x.OrderId == Id)
+						.Include(x => x.Item)
+							.ThenInclude(x => x.Drug)
+						.AsNoTracking()
+						.ToListAsync();
+		var updatedRows = dbItems
+							.Join(selectedItems, a => a.Id, b => b.Id, (a, b) => new { a, b })
+							.Where(x => x.a.QtyFilled != x.b.QtyFilled || x.a.QtyOrdered != x.b.QtyOrdered)
+							.Select(x => x.b)
+							.ToList();
+		var idsDb = dbItems.Select(x => x.ItemId).ToHashSet();
+		var idsCurrent = selectedItems.Select(x => x.ItemId).ToHashSet();
+		var onlyDb = dbItems.Where(x => !idsCurrent.Contains(x.ItemId));
+		var onlyCurrent = selectedItems.Where(x => !idsDb.Contains(x.ItemId));
+		if (updatedRows.Any())
 		{
-			if (!originalSelectedItems.Any())
+			foreach(var u in updatedRows)
 			{
-				await DbFactory.UpdateItemAsync(pageItem);
-				return;
+				await db.UpdateItemAsync(u);
 			}
-			pageItem.WardstockOrderitems.Clear();
-			await DbFactory.SaveNavigationItemsAsync<WardstockOrder>(pageItem, x => x.WardstockOrderitems);
-			return;
 		}
-		bool changed =
-			// New items
-			selectedItems.Any(s => !originalSelectedItems.Any(o => o.ItemId == s.ItemId))
-			||
-			// Removed items
-			originalSelectedItems.Any(o => !selectedItems.Any(s => s.ItemId == o.ItemId))
-			||
-			// Modified items
-			selectedItems.Any(s =>
-				originalSelectedItems.Any(o =>
-					o.ItemId == s.ItemId && (o.QtyOrdered != s.QtyOrdered || o.QtyFilled != s.QtyFilled)));
-
-		if (!changed)
+		if (onlyDb.Any())
 		{
-			await DbFactory.UpdateItemAsync(pageItem);
-			return;
+			foreach(var d in onlyDb)
+			{
+				await db.DeleteItemAsync(d);
+			}
 		}
-		pageItem.WardstockOrderitems.Clear();
-		pageItem.WardstockOrderitems = selectedItems
-										.Select(x => new WardstockOrderitem
-										{
-											OrderId = Id,
-											ItemId = x.ItemId,
-											QtyOrdered = x.QtyOrdered,
-											QtyFilled = x.QtyFilled
-										}
-										)
-										.ToList();
-
-		await DbFactory.SaveNavigationItemsAsync<WardstockOrder>(pageItem, x => x.WardstockOrderitems);
+		if (onlyCurrent.Any())
+		{
+			foreach (var a in onlyCurrent)
+			{
+				await db.AddItemAsync(a);
+			}
+		}
+		await db.SaveChangesAsync();
+		NotificationService.Success("Changes Saved");
 	}
 
 	private async Task OnSaveOnly()
@@ -205,7 +210,9 @@
 		{
 			pageItem.Status = "Edit";
 		}
-		await NotificationService.TryNotify(SaveChanges, "Successfuly saved");
+		await SaveChanges();
+		await LoadPageItem();
+		await LoadOrderItems();
 		StateHasChanged();
 	}
 
@@ -248,8 +255,7 @@
 			pageItem.Status = statusChoices.Next(pageItem.Status);
 			statusChanged = true;
 		}
-
-		await NotificationService.TryNotify(SaveChanges, "Successfuly saved");
+		await SaveChanges();
 		if (statusChanged)
 		{
 			var activity = new WardstockActivitylog
@@ -265,8 +271,6 @@
 	}
 	private async Task OnDeleteClick(WardstockOrderitem item)
 	{
-		newSelectedIds.Remove(item.ItemId);
 		selectedItems.Remove(item);
-		await LoadData(new LoadDataArgs { Filter = searchText });
 	}
 }

@@ -3,6 +3,7 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
+@inject DialogService DialogService
 <DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid">
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="LocationName" Title="LocationName" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="HasVfc" Title="HasVfc" />

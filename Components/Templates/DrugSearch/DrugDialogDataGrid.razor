@@ -1,0 +1,24 @@
+﻿@using System.Linq.Expressions
+@using AutoCAC.Models
+
+<DataGridDialog TItem="Drug"
+                QueryFactory="Qry"
+                SearchColumns="@(new[] { "Name", "PharmacyOrderableItem" })"
+                IncludeColumns="@(new[] { "Name", "PharmacyOrderableItem", "Id" })" />
+
+@code {
+    [Parameter] public Expression<Func<Drug, bool>> WherePredicate { get; set; }
+
+    private Func<mainContext, IQueryable<Drug>> Qry =>
+        db =>
+        {
+            IQueryable<Drug> query = db.Drugs;
+
+            if (WherePredicate != null)
+            {
+                query = query.Where(WherePredicate);
+            }
+
+            return query;
+        };
+}

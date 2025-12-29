@@ -7,8 +7,8 @@
 @using AutoCAC.Extensions
 @typeparam TItem where TItem : class
 
-<StaticChoiceColumnMultiselect TItem="TItem" TValue="bool" Property="@Property" Title="@Title" ColumnIndex="ColumnIndex"           
-    Choices="@(new Dictionary<string, bool> { ["true"] = true, ["false"] = false })" MultiSelect="false"/>
+<StaticChoiceColumn TItem="TItem" TValue="bool?" Property="@Property" Title="@Title" ColumnIndex="ColumnIndex"           
+    Choices="@(new Dictionary<string, bool?> {["\u00A0"] = null, ["true"] = true, ["false"] = false })"/>
 @code {
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     [Parameter] public string Property { get; set; }

@@ -3,11 +3,11 @@
 @typeparam TValue
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
-<StaticChoiceColumnMultiselect TItem="TItem"
+<StaticChoiceColumn TItem="TItem"
                     TValue="TValue"
                     Property="@Property"
                     Title="@Title"
-                    ColumnIndex="@ColumnIndex" MultiSelect="MultiSelect"
+                    ColumnIndex="@ColumnIndex"
                     Choices="@ChoicesDictionary" />
 @code {
     [Parameter, EditorRequired] public string Property { get; set; }

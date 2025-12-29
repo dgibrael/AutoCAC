@@ -14,17 +14,17 @@
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
 <DataGridVanilla TItem="TsaileBetterqDto" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid" 
                  SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })" CellRender="CellFormat"
+                 CustomChoices="@(new Dictionary<string, IEnumerable<object>> { ["Status"] = Enum.GetNames<TsaileTicketStatus>() })">
                  >
-    <EnumChoiceColumn TItem="TsaileBetterqDto" TEnum="TsaileTicketStatus" Property="Status" ColumnIndex="3" MultiSelect="true"/>
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList"/>
     <BoolColumn TItem="TsaileBetterqDto" Property="ControlledSubstance" Title="ControlledSubstance" ColumnIndex="5"/>
     <BoolColumn TItem="TsaileBetterqDto" Property="Waiting" Title="Waiting" ColumnIndex="6"/>
     <BoolColumn TItem="TsaileBetterqDto" Property="NeedsCounseling" Title="Needs Counseling" ColumnIndex="7"/>
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" 
-       />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CreatedDateTime" Title="Created" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="LastModifiedDateTime" Title="Last Modified" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CreatedDateTime" Title="Created At" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CalledDateTime" Title="Called At" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="LockedDateTime" Title="Locked At" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Efdt" Title="Earliest Fill Date" />

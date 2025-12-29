@@ -69,6 +69,15 @@ namespace AutoCAC.Extensions
         {
             return await js.InvokeAsync<int>("getWindowHeight");
         }
+        public static async Task PrintById(this IJSRuntime js, string elementId, string className = null
+            , string printHeader = null)
+        {
+            await js.InvokeVoidAsync("printById", elementId, className, printHeader);
+        }
+        public static async Task PrintByIdVanilla(this IJSRuntime js, string elementId, string printHeader = null)
+        {
+            await js.InvokeVoidAsync("printByIdVanilla", elementId, printHeader);
+        }
 
     }
 }

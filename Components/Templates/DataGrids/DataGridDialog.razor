@@ -20,6 +20,8 @@
                  TrailingColumns="TrailingColumns"
                  DataGridName="DataGridName"
                  ChildContent="ChildContent"
+                 PageSize="PageSize"
+                 PrintHeader="@PrintHeader"
                  />
 <CancelDialogButton />
 
@@ -35,6 +37,8 @@
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter] public int PageSize { get; set; } = 0;
+    [Parameter] public string PrintHeader { get; set; }
     private DataGridVanilla<TItem> _vanilla;
 
     public Task ForceReload() => _vanilla?.ForceReload() ?? Task.CompletedTask;

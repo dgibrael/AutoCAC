@@ -116,11 +116,38 @@ namespace AutoCAC.Extensions
             CancellationToken cancellationToken = default)
             where TEntity : class
         {
+            // 1. Remove navigation objects before Add
+            var type = typeof(TEntity);
+            foreach (var prop in type.GetProperties())
+            {
+                bool isCollection =
+                    typeof(IEnumerable).IsAssignableFrom(prop.PropertyType)
+                    && prop.PropertyType != typeof(string)
+                    && prop.PropertyType != typeof(byte[]);
+
+                bool isTimestamp =
+                    prop.GetCustomAttributes(typeof(TimestampAttribute), true).Any();
+
+                // Null only EF navigation properties
+                if (!prop.PropertyType.IsValueType &&
+                    prop.PropertyType != typeof(string) &&
+                    prop.PropertyType != typeof(byte[]) &&
+                    !isCollection &&
+                    !isTimestamp)
+                {
+                    prop.SetValue(item, null);
+                }
+            }
+
+            // 2. Normal EF Add
             await using var db = await factory.CreateDbContextAsync(cancellationToken);
+
             await db.Set<TEntity>().AddAsync(item, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
+
             return item;
         }
+
 
         /// <summary>
         /// Adds a range of entities and saves. Returns the input sequence to allow further use with populated keys.

@@ -182,3 +182,88 @@ window.downloadFileFromStream = async function (fileName, contentStreamReference
 };
 
 window.getWindowHeight = () => window.innerHeight;
+
+window.printById = (elementId, className, header) => {
+    const root = document.getElementById(elementId);
+    if (!root) {
+        console.error(`Element not found: ${elementId}`);
+        return;
+    }
+
+    let contentHtml;
+    const printHeader = header || 'Print'
+    // If a class name is provided, select only those elements inside the root
+    if (className) {
+        const elements = root.querySelectorAll(`.${className}`);
+
+        if (elements.length === 0) {
+            console.warn(
+                `No elements with class '${className}' found inside '${elementId}'`
+            );
+            return;
+        }
+
+        contentHtml = Array.from(elements)
+            .map(e => e.outerHTML)
+            .join('');
+    } else {
+        // Default behavior: print entire element
+        contentHtml = root.outerHTML;
+    }
+
+    const printWindow = window.open('', '', 'width=1024,height=768');
+    printWindow.document.open();
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>${printHeader}</title>
+            <link rel="stylesheet" href="/css/site.css" />
+        </head>
+        <body>
+            <h4>${printHeader}</h4>
+            ${contentHtml}
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+};
+
+window.printByIdVanilla = (elementId, printHeader) => {
+    const element = document.getElementById(elementId);
+    if (!element) {
+        console.error(`Element not found: ${elementId}`);
+        return;
+    }
+    const header = printHeader || '';
+    const printWindow = window.open('', '', 'width=1024,height=768');
+    printWindow.document.open();
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Print ${header}</title>
+            <link rel="stylesheet" href="/css/site.css" />
+        </head>
+        <body>
+            ${header}
+            ${element.innerHTML}
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+    };
+};

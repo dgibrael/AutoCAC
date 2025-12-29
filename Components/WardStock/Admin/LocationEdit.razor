@@ -1,88 +1,96 @@
 ﻿@page "/wardstock/admin/locations/{Id:int}"
 @using AutoCAC.Models
 @using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Templates.Buttons
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
+@inject DialogService DialogService
+<BackLink />
 <LoadingContent IsLoading="@(!pageLoaded)">
 	<RadzenTemplateForm TItem="WardstockLocation" Data="@pageItem" Submit="@OnSubmit">
 		<VanillaFormField Label="Location Name">
-			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" />
+			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="@metaEdit" />
 		</VanillaFormField>
 		<VanillaFormField Label="Has VFC">
-			<RadzenCheckBox @bind-Value="@(pageItem.HasVfc)" />
+			<RadzenCheckBox @bind-Value="@(pageItem.HasVfc)" Disabled="@metaEdit" />
 		</VanillaFormField>
-		<RadzenPickList @bind-Source="@(unSelectedItems)" @bind-Target="@(selectedItems)" TextProperty="Name"
-						Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true">
-			<SourceHeader>Available Locations:</SourceHeader>
-			<TargetHeader>Selected Locations:</TargetHeader>
-		</RadzenPickList>
-		<StandardButtons />
+		@if(metaEdit)
+		{
+			<StandardButtons CancelClick="ToggleMetaEdit" SubmitText="Save Property Changes"/>
+		}
+		else
+		{
+			<RadzenButton Click="ToggleMetaEdit" ButtonType="ButtonType.Button" Text="Edit Attributes" 
+				Size="ButtonSize.Medium" Icon="edit" />
+		}
 	</RadzenTemplateForm>
+	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" QueryFactory="Qry">
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Drug.Name" Title="Drug" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Par" Title="Par">
+			<EditTemplate Context="row">
+				<RadzenNumeric @bind-Value="row.Par"  />
+			</EditTemplate>
+		</RadzenDataGridColumn>
+	</DataGridEditable>
 </LoadingContent>
-@code {
+<BackLink />
+	@code {
 	[Parameter] public int Id { get; set; }
+	private bool metaEdit = false;
 	private bool pageLoaded = false;
 	private WardstockLocation pageItem;
-	private IEnumerable<Drug> allItems { get; set; }
-	private IEnumerable<Drug> selectedItems { get; set; }
-	private IEnumerable<Drug> unSelectedItems { get; set; }
-	private HashSet<int> originalSelectedIds;
+
+	async Task ToggleMetaEdit()
+	{
+		metaEdit = !metaEdit;
+		await LoadPageItem();
+		StateHasChanged();
+	}
+
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockItem>> Qry =>
+		db =>
+		{
+			return db.WardstockItems
+				.Include(x => x.Drug)
+				.Where(x => x.LocationId == Id)
+				.AsQueryable();
+
+		};
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (!firstRender) return;
+		await LoadPageItem();
+		pageLoaded = true;
+		StateHasChanged();
+	}
+
+	private async Task LoadPageItem()
+	{
 		await using var db = await DbFactory.CreateDbContextAsync();
 		pageItem = await db.WardstockLocations
 							.Include(x => x.WardstockItems)
 								.ThenInclude(x => x.Drug)
 							.FirstOrDefaultAsync(x => x.Id == Id);
-
-		allItems = await db.Drugs.ToListAsync();
-		selectedItems = pageItem.WardstockItems.Select(x => x.Drug);
-		originalSelectedIds = selectedItems == null || !selectedItems.Any() ?
-										new HashSet<int>() : selectedItems.Select(x => x.Id).ToHashSet();
-		unSelectedItems = allItems
-			.Where(g => !originalSelectedIds.Contains(g.Id))
-			.ToList();
-		pageLoaded = true;
-		StateHasChanged();
 	}
+
 	private async Task OnSubmit()
 	{
-		if (selectedItems == null || !selectedItems.Any())
-		{
-			if (!originalSelectedIds.Any())
-			{
-				await DbFactory.UpdateItemAsync(pageItem);
-				Nav.NavigateToRelative(fromParent: true);
-				return;
-			}
-			pageItem.WardstockItems.Clear();
-			await DbFactory.SaveNavigationItemsAsync<WardstockLocation>(pageItem, x => x.WardstockItems);
-			Nav.NavigateToRelative(fromParent: true);
-			return;
-		}
+		await DbFactory.UpdateItemAsync(pageItem);
+		await LoadPageItem();
+	}
 
-		var newSelectedIds = selectedItems.Select(x => x.Id).ToHashSet();
-
-		bool changed = !originalSelectedIds.SetEquals(newSelectedIds);
-
-		if (!changed)
-		{
-			await DbFactory.UpdateItemAsync(pageItem);
-			Nav.NavigateToRelative(fromParent: true);
-			return;
-		}
-
-		pageItem.WardstockItems = newSelectedIds
-			.Select(x => new WardstockItem
+	private async Task<WardstockItem> SelectNewDrug()
+	{
+		await LoadPageItem();
+		var curSelected = pageItem.WardstockItems.Select(x => x.Drug.Id).ToHashSet();
+		var selected = await DialogService.DrugSelectDialogAsync(x => !curSelected.Contains(x.Id));
+		return new WardstockItem
 			{
 				LocationId = Id,
-				DrugId = x
-			})
-			.ToList();
+				DrugId = selected.Id,
+				Drug = selected,
+				Par = 0
+			};
 
-		await DbFactory.SaveNavigationItemsAsync<WardstockLocation>(pageItem, x => x.WardstockItems);
-
-		Nav.NavigateToRelative(fromParent: true);
 	}
 }

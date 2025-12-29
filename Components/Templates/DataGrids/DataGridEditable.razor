@@ -7,11 +7,12 @@
 
 <DataGridVanilla TItem="TItem"
                  @ref="basegrid"
-                 DataGridName="@DataGridName"
-                 SearchColumns="@SearchColumns"
+                 DataGridName="@DataGridName" RowEdit="EditRow"
+                 SearchColumns="@SearchColumns" RowDoubleClick="OnRowDoubleClick"
                  AddButtonClick="@(DefaultAddButton ? OnAddClick : null)"
                  ExpandContentView="@ExpandContentView" ExpandContentEdit="@ExpandContentEdit"
                  ExpandContentBoth="@ExpandContentBoth" QueryFactory="QueryFactory"
+                 PageSize="PageSize" PrintHeader="@PrintHeader"
                  ActionColumnDefault="false">
     <ChildContent>
         @ChildContent
@@ -38,7 +39,7 @@
                 }
                 @if (DefaultRowButtonsViewMode)
                 {
-                    <RadzenButton Icon="edit" Variant="Variant.Flat" ButtonType="ButtonType.Submit" Click="@(() => EditRow(item))" />
+                    <RadzenButton Icon="edit" Variant="Variant.Flat" ButtonType="ButtonType.Submit" Click="@(() => EditBtnClick(item))" />
                     <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Click="@(() => DeleteRowAsync(item))" />
                 }
             </Template>
@@ -56,12 +57,22 @@
     [Parameter] public string DataGridName { get; set; }
     [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
-    [Parameter] public EventCallback<TItem> EditButtonClick { get; set; }
     [Parameter] public string[] SearchColumns { get; set; }
     [Parameter] public string[] NavigationColumns { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
+    [Parameter] public int PageSize { get; set; } = 0;
+    [Parameter] public string PrintHeader { get; set; }
+    TItem currentlyEditing = null;
+    private async Task OnRowDoubleClick(DataGridRowMouseEventArgs<TItem> args)
+    {
+        if (!basegrid.Grid.IsRowInEditMode(args.Data))
+        {
+            await EditBtnClick(args.Data);
+        }
+    }
+
     public DataGridVanilla<TItem> basegrid;
     private readonly HashSet<TItem> _newItems = new();
 
@@ -70,6 +81,20 @@
         await basegrid.SetQuickFilter();
 
         TItem newItem;
+
+        if (currentlyEditing != null)
+        {
+            var save = await DialogService
+            .YesNoDialog("You have unsaved changes for another item. Would you like to save or discard changes?"
+                         , okText: "Save", cancelText: "Discard");
+            if (save == true)
+            {
+                await SaveRowAsync(currentlyEditing, leaveEdit: false);
+            }
+            basegrid.Grid.CancelEditRow(currentlyEditing);
+            currentlyEditing = null;
+            await basegrid.Grid.Reload();
+        }
 
         if (AddAction is not null)
         {
@@ -108,36 +133,54 @@
             // Normal path: existing rows, let Radzen handle insertion
             await basegrid.Grid.InsertRow(newItem);
         }
+    }
 
-        if ((ExpandContentEdit != null || ExpandContentBoth != null) &&
-            !basegrid.Grid.IsRowExpanded(newItem))
+    public void ResetCurrentlyEditing(TItem item)
+    {
+        if (currentlyEditing != item) return;
+        currentlyEditing = null;
+    }
+    public async Task EditRow(TItem item)
+    {
+        if (currentlyEditing != null)
         {
-            await basegrid.Grid.ExpandRow(newItem);
+            if (currentlyEditing == item) return;
+            var save = await DialogService
+            .YesNoDialog("You have unsaved changes for another item. Would you like to save or discard changes?"
+                         ,okText: "Save", cancelText: "Discard");
+            if (save != true)
+            {
+                currentlyEditing = null;
+                await basegrid.Grid.Reload();
+                return;
+            }
+            await SaveRowAsync(currentlyEditing, leaveEdit: false);
+            basegrid.Grid.CancelEditRow(currentlyEditing);
+        }
+        currentlyEditing = item;
+        if ((ExpandContentEdit != null || ExpandContentBoth != null) && !basegrid.Grid.IsRowExpanded(item))
+        {
+            await basegrid.Grid.ExpandRow(item);
         }
     }
 
-
-    public async Task EditRow(TItem item)
+    public async Task EditBtnClick(TItem item)
     {
-        if (EditButtonClick.HasDelegate)
-        {
-            await EditButtonClick.InvokeAsync(item);
-        }
-        else
-        {
-            await basegrid.Grid.EditRow(item);
-            if ((ExpandContentEdit!=null || ExpandContentBoth!=null) && !basegrid.Grid.IsRowExpanded(item))
-            {
-                await basegrid.Grid.ExpandRow(item);
-            }
-        }
+        await basegrid.Grid.EditRow(item);
     }
 
     public void CancelRow(TItem item)
     {
         basegrid.Grid.CancelEditRow(item);
         if (_newItems.Remove(item))
+        {
             _ = basegrid.ForceReload();
+        }
+        else
+        {
+            basegrid.Grid.Reload();
+        }
+        ResetCurrentlyEditing(item);
     }
 
     public async Task SaveRowAsync(TItem item, bool leaveEdit = true)
@@ -156,6 +199,7 @@
             Notify(NotificationSeverity.Success, "Saved", "Changes successfully saved.");
             if (leaveEdit)
             {
+                ResetCurrentlyEditing(item);
                 basegrid.Grid.CancelEditRow(item);
                 await basegrid.Grid.Reload();
             }
@@ -168,6 +212,7 @@
 
     public async Task DeleteRowAsync(TItem item)
     {
+        ResetCurrentlyEditing(item);
         var ok = await DialogService.Confirm("Delete this item?", "Confirm Delete");
         if (ok != true) return;
         await DbFactory.DeleteItemAsync(item);

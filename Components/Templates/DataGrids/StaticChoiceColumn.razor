@@ -8,11 +8,11 @@
 @typeparam TItem where TItem : class
 @typeparam TValue
 <RadzenDataGridColumn TItem="TItem" Property="@Property" Title="@(Title ?? Property)" FilterValue="@CurrentFilter" 
-    OrderIndex="ColumnIndex" @ref="col" Template="Template" EditTemplate="EditTemplate" FilterOperator="FilterOperator.Contains" >
+    OrderIndex="ColumnIndex" @ref="col" Template="Template" EditTemplate="EditTemplate" >
     <FilterTemplate>
-        <RadzenListBox TValue="TValue" @bind-Value="@CurrentFilter" Style="width:100%;" 
-                       TextProperty="Key" ValueProperty="Value" Change="@(() => col?.CloseFilter())"
-                       Data="@ChoicesWithAll" />
+        <RadzenListBox TValue="TValue" @bind-Value="@CurrentFilter" Style="width:100%;" AllowClear="true"
+                       TextProperty="Key" ValueProperty="Value" Change="@OnChange"
+                       Data="@Choices" />
     </FilterTemplate>
 </RadzenDataGridColumn>
 
@@ -22,6 +22,7 @@
     [Parameter, EditorRequired] public string Property { get; set; }
     [Parameter] public string Title { get; set; }
     [Parameter] public int? ColumnIndex { get; set; }
+
 
     /// <summary>
     /// Dictionary of display text → filter value
@@ -51,5 +52,15 @@
         }
     }
 
+    private async Task OnChange()
+    {
+        if (col == null) return;
+        if (EqualityComparer<TValue>.Default.Equals(CurrentFilter, default))
+        {
 
+            col?.ClearFilters();
+            await col?.Grid.Reload();
+        }
+        col?.CloseFilter();
+    }
 }

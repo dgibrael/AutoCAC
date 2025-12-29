@@ -46,7 +46,7 @@
         </RadzenStack>
 
         <RadzenDataGrid @ref="Grid" @bind-Settings="Helper.Settings"
-                        Data="Helper.Data"
+                    Data="Helper.Data" id="@Helper.PageName"
                         Count="Helper.Count"
                         LoadData="LoadData"
                         LoadColumnFilterData="Helper.LoadColumnFilterDataAsync"
@@ -60,12 +60,12 @@
                         AllowColumnReorder="true"
                         AllowGrouping="true"
                         AllowCompositeDataCells="true"
-                        AllowColumnPicking="true"
+                        AllowColumnPicking="true" RowDoubleClick="RowDoubleClick"
                         ShowPagingSummary="true" AllowMultiColumnSorting="true"
-                        ColumnWidth="200px" AllGroupsExpanded="false" 
-                        PageSizeOptions="pageSizes" Group="OnGroup"
+                        ColumnWidth="200px" AllGroupsExpanded="false"
+                        PageSizeOptions="pageSizes" Group="OnGroup" RowEdit="RowEdit"
                         ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
-                        Context="row" EmptyTemplate="EmptyTemplate"
+                        Context="row" EmptyTemplate="EmptyTemplate" EditMode="DataGridEditMode.Multiple"
                         RowSelect="@RowSelect" CellRender="CellRender">
             <GroupHeaderTemplate Context="group">
                 @if(GroupHeaderCustom is not null)
@@ -132,6 +132,8 @@
     [Parameter] public string DataGridName { get; set; } = null;
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public EventCallback<TItem> RowSelect { get; set; }
+    [Parameter] public EventCallback<TItem> RowEdit { get; set; }
+    [Parameter] public EventCallback<DataGridRowMouseEventArgs<TItem>> RowDoubleClick { get; set; }
     [Parameter] public string AddButtonUrl { get; set; }
     [Parameter] public bool AddButtonDefault { get; set; } = false;
     [Parameter] public bool ActionColumnDefault { get; set; } = false;
@@ -145,8 +147,9 @@
     [Parameter] public string InitialSearchText { get; set; } = "";
     [Parameter] public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
     [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
+    [Parameter] public int PageSize { get; set; } = 0;
+    [Parameter] public string PrintHeader { get; set; }
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
-    int PageSize;
     int OriginalPageSize;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
@@ -164,14 +167,16 @@
     {
         if (!firstRender) return;
 
-        var height = await JSRuntime.GetWindowHeight();
-
-        if (height < 800)
-            PageSize = 5;      // small screens
-        else if (height < 1200)
-            PageSize = 10;     // medium
-        else
-            PageSize = 20;     // large
+        if (PageSize == 0)
+        {            
+            var height = await JSRuntime.GetWindowHeight();
+            if (height < 800)
+                PageSize = 5;      // small screens
+            else if (height < 1200)
+                PageSize = 10;     // medium
+            else
+                PageSize = 20;     // large
+        }
         OriginalPageSize = PageSize;
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
                                             , SearchColumns, DataGridName, IgnoreFilter

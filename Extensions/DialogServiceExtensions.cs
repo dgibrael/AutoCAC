@@ -1,9 +1,14 @@
 ﻿using AutoCAC.Components.Templates;
+using AutoCAC.Components.Templates.DataGrids;
+using AutoCAC.Components.Templates.DrugSearch;
 using AutoCAC.Components.Templates.PatientSearch;
 using AutoCAC.Components.Templates.StaffSearch;
+using AutoCAC.Models;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Options;
 using Radzen;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace AutoCAC.Extensions
@@ -13,12 +18,15 @@ namespace AutoCAC.Extensions
         public static async Task<bool?> YesNoDialog(
             this DialogService dialogService,
             string message = "Are you sure?",
-            string title = "Confirm")
+            string title = "Confirm",
+            string okText = "Yes",
+            string cancelText = "No"
+            )
         {
             return await dialogService.Confirm(message, title, new ConfirmOptions
             {
-                OkButtonText = "Yes",
-                CancelButtonText = "No"
+                OkButtonText = okText,
+                CancelButtonText = cancelText
             });
         }
         public static async Task<bool?> DeleteConfirm(
@@ -139,6 +147,25 @@ namespace AutoCAC.Extensions
 
             return result as AutoCAC.Models.Patient;
         }
+        public static async Task<AutoCAC.Models.Drug> DrugSelectDialogAsync(
+            this DialogService dialogService,
+            Expression<Func<Drug, bool>> whereExpression = null,
+            DialogOptions options = null)
+        {
+            var result = await dialogService.OpenAsync<DrugDialogDataGrid>(
+                title: "Select a Drug from below",
+                parameters: new Dictionary<string, object> { ["WherePredicate"] = whereExpression },
+                options: options ?? new DialogOptions
+                {
+                    AutoFocusFirstElement = true,
+                    Width = "75%",
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
+
+            return result as AutoCAC.Models.Drug;
+        }
         public static async Task<string> AutoCompleteDialogAsync(
             this DialogService dialogService,
             string value,
@@ -216,6 +243,48 @@ namespace AutoCAC.Extensions
 
             // Fire-and-forget intentionally; suppress CS4014 correctly
             _ = dialogService.OpenAsync<LoadingDialog>("", options: options);
+        }
+
+        public static async Task<TItem> DataGridSelectAsync<TItem>(
+            this DialogService dialogService,
+            Func<AutoCAC.Models.mainContext, IQueryable<TItem>> queryFactory = null,
+            IEnumerable<string> includeColumns = null,
+            IEnumerable<string> excludeColumns = null,
+            string[] searchColumns = null,
+            string header = null
+            )
+            where TItem : class
+        {
+            var parameters = new Dictionary<string, object>();
+
+            if (queryFactory != null)
+                parameters[nameof(DataGridDialog<TItem>.QueryFactory)] = queryFactory;
+
+            if (includeColumns != null)
+                parameters[nameof(DataGridDialog<TItem>.IncludeColumns)] = includeColumns;
+
+            if (excludeColumns != null)
+                parameters[nameof(DataGridDialog<TItem>.ExcludeColumns)] = excludeColumns;
+
+            if (searchColumns != null)
+                parameters[nameof(DataGridDialog<TItem>.SearchColumns)] = searchColumns;
+
+            var options = new DialogOptions
+            {
+                AutoFocusFirstElement = true,
+                Width = "75%",
+                CloseDialogOnOverlayClick = true,
+                Resizable = true,
+                Draggable = true
+            };
+
+            var result = await dialogService.OpenAsync<DataGridDialog<TItem>>(
+                title: header ?? $"Select {typeof(TItem).Name}",
+                parameters: parameters,
+                options: options
+                );
+
+            return result as TItem;
         }
     }
 }
