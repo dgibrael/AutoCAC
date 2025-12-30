@@ -11,9 +11,6 @@
 		<VanillaFormField Label="Location Name">
 			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="@metaEdit" />
 		</VanillaFormField>
-		<VanillaFormField Label="Has VFC">
-			<RadzenCheckBox @bind-Value="@(pageItem.HasVfc)" Disabled="@metaEdit" />
-		</VanillaFormField>
 		@if(metaEdit)
 		{
 			<StandardButtons CancelClick="ToggleMetaEdit" SubmitText="Save Property Changes"/>

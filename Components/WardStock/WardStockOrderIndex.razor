@@ -22,13 +22,7 @@
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="Location.LocationName" Title="Location" />
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="Comments" Title="Comments" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Title="Activity">
-		<Template Context="a">
-			<span style="white-space: wrap">@string.Join("; ", a.WardstockActivitylogs.Select(x => $"{x.Remarks} @ {x.ActivityAt}"))</span>
-		</Template>
-	</RadzenDataGridColumn>
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="OrderDateTime" Title="OrderDateTime" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="NeededByDateTime" Title="NeededByDateTime" />
 	<ActionDefaultColumn TItem="AutoCAC.Models.WardstockOrder"  Grid="@grid.Grid"
 	DisableDeleteWhen="@(x => !_isSupervisor && _myLocations?.Contains(x.LocationId) != true)" />
 </DataGridVanilla>
@@ -54,7 +48,6 @@
 		{
 			var q = db.WardstockOrders
 			.Include(x => x.Location)
-			.Include(x => x.WardstockActivitylogs)
 			.OrderByDescending(x => x.LastModifiedDateTime)
 			.AsQueryable();
 			if (_isSupervisor) return q;
@@ -71,7 +64,8 @@
 		var newOrder = new WardstockOrder
 			{
 				LastModifiedDateTime = DateTime.Now,
-				Status = "Create"
+				Status = "Create",
+				OrderDateTime = DateTime.Now
 			};
 		int selectedLoc;
 		if (locCount == 1)
@@ -82,7 +76,10 @@
 		else
 		{
 			await using var db = await DbFactory.CreateDbContextAsync();
-			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.Location.LocationName).ToHashSetAsync();
+			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId)
+							.Select(x => x.Location.LocationName)
+							.Order()
+							.ToHashSetAsync();
 			var selectedName = await DialogService.ListDialogAsync(locNames);
 			if (selectedName != null)
 			{

@@ -18,106 +18,107 @@
 @using AutoCAC.Components.Templates
 <LoadingContent IsLoading="@(Helper is null)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-            @if (Helper?.SearchColumns != null)
+        @if (Helper?.SearchColumns != null)
+        {
+            <RadzenColumn Size="4">
+                <QuickSearch @bind-Value="Helper.SearchText" @bind-Value:after="ForceReload" />
+            </RadzenColumn>
+        }
+        @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
+        {
+            <RadzenButton Icon="add_circle_outline"
+                          Text="Add"
+                          ButtonStyle="ButtonStyle.Success"
+                          Click="@OnAddClickInternal"
+                          Variant="Variant.Flat" />
+        }
+        @HeaderContent
+        <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
+        <RadzenSplitButton Text="Save Template" Icon="save"
+                           Click="@(item => SaveGridSettingsClick(item))"
+                           ButtonStyle="ButtonStyle.Base">
+            <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
+            <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
+        </RadzenSplitButton>
+        <SearchTemplateDropown DataGridName="@Helper.PageName" @ref="templateDropdown"
+                               SelectedTemplateChanged="OnTemplatePicked" InitialValue="InitialTemplate"
+                               Placeholder="Load Saved Template..." />
+    </RadzenStack>
+
+    <RadzenDataGrid @ref="Grid" @bind-Settings="Helper.Settings"
+                    Data="Helper.Data"
+                    Count="Helper.Count"
+                    LoadData="LoadData"
+                    LoadColumnFilterData="Helper.LoadColumnFilterDataAsync"
+                    TItem="TItem"
+                    IsLoading="IsLoading"
+                    AllowFiltering="true"
+                    AllowPaging="true"
+                    PageSize="@PageSize"
+                    AllowSorting="true"
+                    AllowColumnResize="true"
+                    AllowColumnReorder="true"
+                    AllowGrouping="true"
+                    AllowCompositeDataCells="true"
+                    AllowColumnPicking="true"
+                    ShowPagingSummary="true" AllowMultiColumnSorting="true"
+                    ColumnWidth="200px" AllGroupsExpanded="false"
+                    PageSizeOptions="pageSizes" Group="OnGroup" RowEdit="RowEdit"
+                    ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
+                    Context="row" EmptyTemplate="EmptyTemplate" RowDoubleClick="RowDoubleClick"
+                    RowSelect="@RowSelect" CellRender="CellRender">
+        <GroupHeaderTemplate Context="group">
+            @if (GroupHeaderCustom is not null)
             {
-                <RadzenColumn Size="4">
-                    <QuickSearch @bind-Value="Helper.SearchText" @bind-Value:after="ForceReload" />
-                </RadzenColumn>
+                @GroupHeaderCustom(group)
             }
-            @if (!string.IsNullOrEmpty(AddButtonUrl) || AddButtonClick.HasDelegate)
+            else
             {
-                <RadzenButton Icon="add_circle_outline"
-                              Text="Add"
-                              ButtonStyle="ButtonStyle.Success"
-                              Click="@OnAddClickInternal"
-                              Variant="Variant.Flat" />
+                @($"{group.Data.Key}: {group.Data.Count}")
+                ;
             }
-            @HeaderContent
-            <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-            <RadzenSplitButton Text="Save Template" Icon="save"
-                               Click="@(item => SaveGridSettingsClick(item))"
-                               ButtonStyle="ButtonStyle.Base">
-                <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
-                <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
-            </RadzenSplitButton>
-            <SearchTemplateDropown DataGridName="@Helper.PageName" @ref="templateDropdown"
-                                   SelectedTemplateChanged="OnTemplatePicked" InitialValue="InitialTemplate"
-                                   Placeholder="Load Saved Template..." />
-        </RadzenStack>
+        </GroupHeaderTemplate>
+        <Columns>
+            @LeadingColumns?.Invoke(row)
+            @if (ActionColumnDefault)
+            {
+                <ActionDefaultColumn Grid="Grid" Context="x" />
+            }
+            @if (ChildContent is not null)
+            {
+                @ChildContent
+            }
+            else if (IncludeColumns is not null && IncludeColumns.Any())
+            {
+                @foreach (var col in IncludeColumns)
+                {
+                    <RadzenDataGridColumn TItem="TItem" Property="@col" Title="@col" />
+                }
+            }
+            else
+            {
+                var props = typeof(TItem)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
 
-        <RadzenDataGrid @ref="Grid" @bind-Settings="Helper.Settings"
-                    Data="Helper.Data" id="@Helper.PageName"
-                        Count="Helper.Count"
-                        LoadData="LoadData"
-                        LoadColumnFilterData="Helper.LoadColumnFilterDataAsync"
-                        TItem="TItem"
-                        IsLoading="IsLoading"
-                        AllowFiltering="true"
-                        AllowPaging="true"
-                        PageSize="@PageSize"
-                        AllowSorting="true"
-                        AllowColumnResize="true"
-                        AllowColumnReorder="true"
-                        AllowGrouping="true"
-                        AllowCompositeDataCells="true"
-                        AllowColumnPicking="true" RowDoubleClick="RowDoubleClick"
-                        ShowPagingSummary="true" AllowMultiColumnSorting="true"
-                        ColumnWidth="200px" AllGroupsExpanded="false"
-                        PageSizeOptions="pageSizes" Group="OnGroup" RowEdit="RowEdit"
-                        ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
-                        Context="row" EmptyTemplate="EmptyTemplate" EditMode="DataGridEditMode.Multiple"
-                        RowSelect="@RowSelect" CellRender="CellRender">
-            <GroupHeaderTemplate Context="group">
-                @if(GroupHeaderCustom is not null)
+                @foreach (var prop in props)
                 {
-                    @GroupHeaderCustom(group)
+                    <RadzenDataGridColumn TItem="TItem" Property="@prop.Name" Title="@prop.Name" />
                 }
-                else
-                {
-                    @($"{group.Data.Key}: {group.Data.Count}");
-                }
-            </GroupHeaderTemplate>
-            <Columns>
-                @LeadingColumns?.Invoke(row)
-                @if (ActionColumnDefault)
-                {
-                    <ActionDefaultColumn Grid="Grid" Context="x" />
-                }
-                @if (ChildContent is not null)
-                {
-                    @ChildContent
-                }
-                else if (IncludeColumns is not null && IncludeColumns.Any())
-                {
-                    @foreach (var col in IncludeColumns)
-                    {
-                        <RadzenDataGridColumn TItem="TItem" Property="@col" Title="@col" />
-                    }
-                }
-                else
-                {
-                    var props = typeof(TItem)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Where(p => !ExcludeColumns.Contains(p.Name, StringComparer.OrdinalIgnoreCase));
+            }
+            @TrailingColumns?.Invoke(row)
+        </Columns>
 
-                    @foreach (var prop in props)
-                    {
-                        <RadzenDataGridColumn TItem="TItem" Property="@prop.Name" Title="@prop.Name" />
-                    }
-                }
-                @TrailingColumns?.Invoke(row)
-            </Columns>
+        <Template Context="item">
+            @ExpandContentView?.Invoke(item)
+            @ExpandContentBoth?.Invoke(item)
+        </Template>
 
-            <Template Context="item">
-                @ExpandContentView?.Invoke(item)
-                @ExpandContentBoth?.Invoke(item)
-            </Template>
-
-            <EditTemplate Context="item">
-                @ExpandContentEdit?.Invoke(item)
-                @ExpandContentBoth?.Invoke(item)
-            </EditTemplate>
-        </RadzenDataGrid>
+        <EditTemplate Context="item">
+            @ExpandContentEdit?.Invoke(item)
+            @ExpandContentBoth?.Invoke(item)
+        </EditTemplate>
+    </RadzenDataGrid>
 </LoadingContent>
 @code {
     [Parameter] public RenderFragment ChildContent { get; set; }
@@ -132,8 +133,8 @@
     [Parameter] public string DataGridName { get; set; } = null;
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public EventCallback<TItem> RowSelect { get; set; }
-    [Parameter] public EventCallback<TItem> RowEdit { get; set; }
     [Parameter] public EventCallback<DataGridRowMouseEventArgs<TItem>> RowDoubleClick { get; set; }
+    [Parameter] public EventCallback<TItem> RowEdit { get; set; }
     [Parameter] public string AddButtonUrl { get; set; }
     [Parameter] public bool AddButtonDefault { get; set; } = false;
     [Parameter] public bool ActionColumnDefault { get; set; } = false;
@@ -147,9 +148,9 @@
     [Parameter] public string InitialSearchText { get; set; } = "";
     [Parameter] public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
     [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
-    [Parameter] public int PageSize { get; set; } = 0;
     [Parameter] public string PrintHeader { get; set; }
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
+    int PageSize;
     int OriginalPageSize;
     private bool IsLoading;
     public RadzenDataGrid<TItem> Grid;
@@ -167,16 +168,14 @@
     {
         if (!firstRender) return;
 
-        if (PageSize == 0)
-        {            
-            var height = await JSRuntime.GetWindowHeight();
-            if (height < 800)
-                PageSize = 5;      // small screens
-            else if (height < 1200)
-                PageSize = 10;     // medium
-            else
-                PageSize = 20;     // large
-        }
+        var height = await JSRuntime.GetWindowHeight();
+
+        if (height < 800)
+            PageSize = 5;      // small screens
+        else if (height < 1200)
+            PageSize = 10;     // medium
+        else
+            PageSize = 20;     // large
         OriginalPageSize = PageSize;
         Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
                                             , SearchColumns, DataGridName, IgnoreFilter

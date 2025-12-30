@@ -6,7 +6,6 @@
 @inject DialogService DialogService
 <DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid">
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="LocationName" Title="LocationName" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="HasVfc" Title="HasVfc" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="InactiveDate" Title="InactiveDate" />
     <ActionColumn TItem="AutoCAC.Models.WardstockLocation" Context="data">
         <RadzenButton Icon="edit"

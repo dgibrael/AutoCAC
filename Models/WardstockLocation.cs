@@ -11,8 +11,6 @@ public partial class WardstockLocation
 
     public string LocationName { get; set; } = null!;
 
-    public bool HasVfc { get; set; }
-
     public DateOnly? InactiveDate { get; set; }
 
     public virtual ICollection<WardstockItem> WardstockItems { get; set; } = new List<WardstockItem>();

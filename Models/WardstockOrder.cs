@@ -13,8 +13,6 @@ public partial class WardstockOrder
 
     public DateTime? LastModifiedDateTime { get; set; }
 
-    public DateTime? NeededByDateTime { get; set; }
-
     public int LocationId { get; set; }
 
     public string Status { get; set; } = null!;

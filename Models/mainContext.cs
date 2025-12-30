@@ -671,7 +671,7 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Efdt).HasColumnName("EFDT");
             entity.Property(e => e.NeedsCounseling).HasDefaultValue(true);
-            entity.Property(e => e.Status).HasMaxLength(10);
+            entity.Property(e => e.Status).HasMaxLength(100);
 
             entity.HasOne(d => d.Patient).WithMany(p => p.TsaileBetterqs)
                 .HasForeignKey(d => d.PatientId)
@@ -854,7 +854,6 @@ public partial class mainContext : DbContext
             entity.ToTable("wardstock_location");
 
             entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.HasVfc).HasColumnName("HasVFC");
             entity.Property(e => e.LocationName).HasMaxLength(255);
         });
 

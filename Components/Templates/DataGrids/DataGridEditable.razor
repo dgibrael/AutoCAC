@@ -7,12 +7,12 @@
 
 <DataGridVanilla TItem="TItem"
                  @ref="basegrid"
-                 DataGridName="@DataGridName" RowEdit="EditRow"
-                 SearchColumns="@SearchColumns" RowDoubleClick="OnRowDoubleClick"
-                 AddButtonClick="@(DefaultAddButton ? OnAddClick : null)"
+                 DataGridName="@DataGridName"
+                 SearchColumns="@SearchColumns"
+                 AddButtonClick="@(DefaultAddButton ? OnAddClick : null)" RowDoubleClick="OnRowDoubleClick"
+                 RowEdit="EditRow"
                  ExpandContentView="@ExpandContentView" ExpandContentEdit="@ExpandContentEdit"
                  ExpandContentBoth="@ExpandContentBoth" QueryFactory="QueryFactory"
-                 PageSize="PageSize" PrintHeader="@PrintHeader"
                  ActionColumnDefault="false">
     <ChildContent>
         @ChildContent
