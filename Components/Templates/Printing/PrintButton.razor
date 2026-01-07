@@ -1,0 +1,16 @@
+﻿@inject IJSRuntime JS
+<RadzenButton Text="Print" Icon="print"
+              Click="@OnClick" />
+
+@code{
+    [Parameter] public EventCallback BeforePrint { get; set; }
+    private async Task OnClick()
+    {
+        if (BeforePrint.HasDelegate)
+        {
+            await BeforePrint.InvokeAsync();
+            StateHasChanged();
+        }
+        await JS.InvokeVoidAsync("blazorPrintDialog.openAndPrint");
+    }
+}

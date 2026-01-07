@@ -4,7 +4,8 @@
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
 @inject DialogService DialogService
-<DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid">
+@inject NotificationService Notifications
+<DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid" AddButtonClick="@AddBtnClick">
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="LocationName" Title="LocationName" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="InactiveDate" Title="InactiveDate" />
     <ActionColumn TItem="AutoCAC.Models.WardstockLocation" Context="data">
@@ -34,4 +35,39 @@
         await DbFactory.UpdateItemAsync(location);
         await grid.ForceReload();
     }
+
+    private async Task AddBtnClick()
+    {
+        var locName = await DialogService.TextPromptAsync(
+            "New Location",
+            "Enter New Location Name");
+
+        if (string.IsNullOrWhiteSpace(locName))
+            return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var location = await db.WardstockLocations
+            .FirstOrDefaultAsync(x => x.LocationName == locName);
+
+        if (location is null)
+        {
+            location = new WardstockLocation
+            {
+                LocationName = locName
+            };
+
+            db.WardstockLocations.Add(location);
+            await db.SaveChangesAsync();
+        }
+        else
+        {
+            Notifications.Notify(detail: "Location already exists");
+        }
+
+        long locId = location.Id;
+
+        Nav.NavigateToRelative(locId.ToString());
+    }
+
 }

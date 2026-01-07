@@ -9,7 +9,7 @@
 <LoadingContent IsLoading="@(!pageLoaded)">
 	<RadzenTemplateForm TItem="WardstockLocation" Data="@pageItem" Submit="@OnSubmit">
 		<VanillaFormField Label="Location Name">
-			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="@metaEdit" />
+			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="!metaEdit" />
 		</VanillaFormField>
 		@if(metaEdit)
 		{
@@ -74,6 +74,7 @@
 	{
 		await DbFactory.UpdateItemAsync(pageItem);
 		await LoadPageItem();
+		metaEdit = false;
 	}
 
 	private async Task<WardstockItem> SelectNewDrug()

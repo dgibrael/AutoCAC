@@ -39,5 +39,7 @@ public partial class AuthUser
 
     public virtual ICollection<WardstockActivitylog> WardstockActivitylogs { get; set; } = new List<WardstockActivitylog>();
 
+    public virtual ICollection<WardstockComment> WardstockComments { get; set; } = new List<WardstockComment>();
+
     public virtual ICollection<WardstockUserlocation> WardstockUserlocations { get; set; } = new List<WardstockUserlocation>();
 }

@@ -123,6 +123,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[wardstock_comment]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[wardstock_item]",
          "ObjectType": 0
       },

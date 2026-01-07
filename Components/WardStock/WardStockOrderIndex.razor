@@ -17,14 +17,22 @@
     						 		})" />
 </AuthVanilla>
 
-<DataGridVanilla TItem="AutoCAC.Models.WardstockOrder" QueryFactory="@Qry()" AddButtonClick="@AddBtnClick" @ref="grid">
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="Location.LocationName" Title="Location" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="Comments" Title="Comments" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrder" Property="OrderDateTime" Title="OrderDateTime" />
-	<ActionDefaultColumn TItem="AutoCAC.Models.WardstockOrder"  Grid="@grid.Grid"
-	DisableDeleteWhen="@(x => !_isSupervisor && _myLocations?.Contains(x.LocationId) != true)" />
+<DataGridVanilla TItem="AutoCAC.Models.WardstockDto" QueryFactory="@Qry()" AddButtonClick="@AddBtnClick" @ref="grid">
+	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LocationName" Title="Location"
+						  FilterMode="FilterMode.CheckBoxList" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="OrderDateTime" Title="OrderDateTime" />
+	<ActionColumn TItem="AutoCAC.Models.WardstockDto" Context="row">
+		<RadzenButton Icon="edit"
+					  ButtonStyle="ButtonStyle.Primary"
+					  Variant="Variant.Text"
+					  Click="@(() => Nav.NavigateToRelative(row.Id.ToString()))" />
+		<RadzenButton Icon="delete"
+					  ButtonStyle="ButtonStyle.Danger"
+					  Variant="Variant.Text" Disabled="!_isSupervisor"
+					  Click="@(() => OnDeleteAsync(row))" />
+	</ActionColumn>
 </DataGridVanilla>
 
 @code {
@@ -32,7 +40,7 @@
 	private bool _isPharmacy;
 	private bool _isSupervisor;
 	private HashSet<int> _myLocations;
-	private DataGridVanilla<WardstockOrder> grid;
+	private DataGridVanilla<WardstockDto> grid;
 	protected override async Task OnInitializedAsync()
 	{
 		_isSupervisor = UserContext.IsInGroupOrSuperuser("PharmacyTechSupervisor", "PharmacistSupervisor");
@@ -41,20 +49,29 @@
 		await using var db = await DbFactory.CreateDbContextAsync();
 		_myLocations = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.LocationId).ToHashSetAsync<int>();
 	}
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockOrder>> Qry()
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockDto>> Qry()
 	{
 		//make sure to add QueryFactory="@Qry()" to datagrid params
 		return db =>
-		{
-			var q = db.WardstockOrders
+			db.WardstockOrders
 			.Include(x => x.Location)
-			.OrderByDescending(x => x.LastModifiedDateTime)
+			.Select(x => new WardstockDto
+				{
+					Id = x.Id,
+					LastModifiedDateTime = x.LastModifiedDateTime,
+					LocationId = x.LocationId,
+					LocationName = x.Location.LocationName,
+					OrderDateTime = x.OrderDateTime,
+					Status = x.Status
+				}
+			)
+			.Where(x =>
+				_isSupervisor ||
+				(_isPharmacy && x.Status != "New") ||
+				(_myLocations != null && _myLocations.Contains(x.LocationId))
+			)
+			.OrderBy(x => x.LastModifiedDateTime)
 			.AsQueryable();
-			if (_isSupervisor) return q;
-			if (_isPharmacy) return q.Where(x => x.Status != "New");
-			if (_myLocations is null || _myLocations.Count == 0) return q.Where(x => false);
-			return q.Where(x => _myLocations.Contains(x.LocationId));
-		};
 	}
 
 	private async Task AddBtnClick()
@@ -98,5 +115,13 @@
 		};
 		await DbFactory.UpdateItemAsync(activity);
 		Nav.NavigateToRelative(newOrder.Id.ToString());
+	}
+
+	private async Task OnDeleteAsync(WardstockDto item)
+	{
+		var confirm = await DialogService.Confirm("Are you sure you want to delete?");
+		if (confirm != true) return;
+		var itemId = await DbFactory.DeleteByPkAsync<WardstockOrder>(item.Id);
+		await grid.Grid.FirstPage(true);
 	}
 }

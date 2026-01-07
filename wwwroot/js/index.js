@@ -183,87 +183,76 @@ window.downloadFileFromStream = async function (fileName, contentStreamReference
 
 window.getWindowHeight = () => window.innerHeight;
 
-window.printById = (elementId, className, header) => {
-    const root = document.getElementById(elementId);
-    if (!root) {
-        console.error(`Element not found: ${elementId}`);
-        return;
+window.blazorPrintDialog = {
+    openAndPrint() {
+        // Cleanup any leftovers
+        document.getElementById("print-dialog")?.remove();
+        document.getElementById("blazor-print-style")?.remove();
+
+        // Create dialog
+        const dialog = document.createElement("dialog");
+        dialog.id = "print-dialog";
+        dialog.style.padding = "0";
+        dialog.style.width = "100%";
+        dialog.style.maxWidth = "100%";
+
+        const container = document.createElement("div");
+        container.className = "print-dialog-content";
+
+        // Clone print content
+        document.querySelectorAll(".print-include").forEach(el => {
+            const src = el.querySelector(".print-source"); // see Razor note below
+            if (!src) return;
+
+            const clone = src.cloneNode(true);
+
+            // Ensure it renders even if it was screen-hidden
+            clone.classList.remove("screen-hidden");
+            clone.removeAttribute("hidden");
+            if (clone.style) clone.style.display = "";
+
+            container.appendChild(clone);
+        });
+
+        dialog.appendChild(container);
+        document.body.appendChild(dialog);
+
+        // Inject print-only CSS scoped to this dialog
+        const style = document.createElement("style");
+        style.id = "blazor-print-style";
+        style.textContent = `
+@media print {
+  body > *:not(#${dialog.id}) { display: none !important; }
+
+  dialog#${dialog.id} {
+    display: block !important;
+    position: static !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  dialog#${dialog.id}::backdrop { display: none !important; }
+}`;
+        document.head.appendChild(style);
+
+        const cleanup = () => {
+            window.removeEventListener("afterprint", cleanup);
+            try { dialog.close(); } catch { }
+            dialog.remove();
+            style.remove();
+        };
+
+        window.addEventListener("afterprint", cleanup, { once: true });
+
+        dialog.showModal();
+
+        // Ensure layout/paint before print snapshot
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => window.print());
+        });
     }
-
-    let contentHtml;
-    const printHeader = header || 'Print'
-    // If a class name is provided, select only those elements inside the root
-    if (className) {
-        const elements = root.querySelectorAll(`.${className}`);
-
-        if (elements.length === 0) {
-            console.warn(
-                `No elements with class '${className}' found inside '${elementId}'`
-            );
-            return;
-        }
-
-        contentHtml = Array.from(elements)
-            .map(e => e.outerHTML)
-            .join('');
-    } else {
-        // Default behavior: print entire element
-        contentHtml = root.outerHTML;
-    }
-
-    const printWindow = window.open('', '', 'width=1024,height=768');
-    printWindow.document.open();
-
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>${printHeader}</title>
-            <link rel="stylesheet" href="/css/site.css" />
-        </head>
-        <body>
-            <h4>${printHeader}</h4>
-            ${contentHtml}
-        </body>
-        </html>
-    `);
-
-    printWindow.document.close();
-
-    printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-    };
 };
 
-window.printByIdVanilla = (elementId, printHeader) => {
-    const element = document.getElementById(elementId);
-    if (!element) {
-        console.error(`Element not found: ${elementId}`);
-        return;
-    }
-    const header = printHeader || '';
-    const printWindow = window.open('', '', 'width=1024,height=768');
-    printWindow.document.open();
-
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Print ${header}</title>
-            <link rel="stylesheet" href="/css/site.css" />
-        </head>
-        <body>
-            ${header}
-            ${element.innerHTML}
-        </body>
-        </html>
-    `);
-
-    printWindow.document.close();
-
-    printWindow.onload = () => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-    };
-};

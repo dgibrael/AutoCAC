@@ -1,6 +1,7 @@
-﻿@page "/wardstock/{Id:int}"
+﻿@page "/wardstock/{Id:long}"
 @using AutoCAC.Models
 @using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Templates.Printing
 @using AutoCAC.Services
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
@@ -8,219 +9,191 @@
 @inject NotificationService NotificationService
 @inject IJSRuntime JS
 @inject DialogService DialogService
+@using AutoCAC.Components.Templates.Buttons
+
+<BackLink />
 <LoadingContent IsLoading="@(!pageLoaded)">
-	@if(UserType == "unauthorized")
+	@if(UserType == UserTypes.unauthorized)
 	{
 		<span>You are not authorized to view this page</span>
 	}
 	else
 	{
 		<h3>@($"Order for {pageItem?.Location?.LocationName}; Current Status: {pageItem?.Status}")</h3>
-		<RadzenTemplateForm TItem="WardstockOrder" Data="@pageItem" Submit="@OnSubmit">
-			@if(UserType != "tech" && (pageItem.Status is ("Create" or "Edit")))
-			{				
-				<RadzenButton Text="Add Item To Order" Icon="add" Click="@AddItemClick"/>
-			}
-			<h4>@($"Items in order for {pageItem?.Location?.LocationName}")</h4>
-			@foreach(var item in selectedItems)
+		<DataGridEditable TItem="WardstockOrderitem" QueryFactory="Qry" AddAction="AddItemClick"
+			DisableDeletePredicate="@(x => UserType != UserTypes.super)" AllowFiltering="false"
+			AllowSorting="false" AllowGrouping="false" AllowColumnReorder="false"
+			>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Drug.Name" 
+			Title="Drug"/>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyOrdered" Title="QtyOrdered"
+								  >
+				<EditTemplate Context="item">
+					<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered"
+								   Disabled="@(UserType == UserTypes.tech || pageItem?.StatusEnum != WardstockOrderStatus.New)"
+								   Min="0" Max="(decimal?)item?.Item?.Par ?? 0" Style="width: 100%" />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyFilled" Title="QtyFilled"
+								  >
+				<EditTemplate Context="item">
+					<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled"
+								   Disabled="@(UserType == UserTypes.nurse || 
+									(pageItem.StatusEnum is not (
+										WardstockOrderStatus.Submitted 
+										or WardstockOrderStatus.Filled or WardstockOrderStatus.Checked)))"
+								   Min="0" Style="width: 100%" />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="Lot" Title="Lot" 
+							  />
+		</DataGridEditable>
+		<PrintContent PrintOnly="false">
+			<ChatTemplate TItem="WardstockComment" LoadData="LoadCommentsAsync" GetUser="@(x => x.AuthUser.Username)"  
+					GetMessage="@(x => x.Comment)" GetTimestamp="@(x => x.CreatedAt)" GetMessageId="@(x => x.Id.ToString())"
+					CreateMessage="CreateComment"
+			/>
+		</PrintContent>
+		<PrintContent>
+			@if (orderedItems != null)
 			{
-				<RadzenRow>
-					<RadzenColumn Size="2">
-						<RadzenLabel Text="@item?.Item?.Drug?.Name" Style="width: 100%;" />
-					</RadzenColumn>
-					<RadzenColumn Size="4">
-						<RadzenLabel Text="@($"Qty Ordered (Par: {item?.Item?.Par})")" Style="width: 50%"/>
-						<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered" 
-										Disabled="@(UserType == "tech" || (pageItem?.Status is not ("Create" or "Edit")))"
-										Min="0" Style="width: 50%" />
-					</RadzenColumn>
-					<RadzenColumn Size="4">
-						<RadzenLabel Text="Qty Filled" Style="width: 50%" />
-						<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled" 
-										Disabled="@(UserType == "nurse" || (pageItem.Status is not ("Submit" or "Filled" or "Checked")))"
-							Min="0" Style="width: 50%" />
-					</RadzenColumn>
-					<RadzenColumn Size="1" >
-						<RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="@(() => OnDeleteClick(item))" Disabled="@(UserType == "tech")" />
-					</RadzenColumn>
-				</RadzenRow>
+				<RadzenDataGrid TItem="WardstockOrderitem" Data="orderedItems" >
+					<Columns>
+						<RadzenDataGridColumn Property="Item.Drug.Name" Title="Drug" />
+						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" />
+						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" />
+					</Columns>
+				</RadzenDataGrid>
 			}
-			<VanillaFormField Label="Remarks">
-				<RadzenTextArea @bind-Value="@pageItem.Comments" style="width: 100%" />
-			</VanillaFormField>
-			@if(UserType == "super")
-			{
-				<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" ButtonType="ButtonType.Button" Click="@OnSendBack" Icon="undo" />
-			}
-			<RadzenButton ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Button" Click="@OnSaveOnly" Text="Save Changes Without Submitting" />
-			<StandardButtons />
-		</RadzenTemplateForm>
-		<RadzenButton Text="Print Order"
-					  Click="@(() => JS.PrintByIdVanilla("wardstockItemsDiv"
-							  	  , printHeader: pageItem?.Location?.LocationName))" />
-		<div id="wardstockItemsDiv" style="visibility: hidden;">
-			<ul>
-				@foreach(var printItem in selectedItems)
-				{
-					<li>@($"{printItem?.Item?.Drug?.Name}: {printItem?.QtyOrdered} ordered ({printItem?.QtyFilled} filled)")</li>
-				}
-			</ul>
-		</div>
+		</PrintContent>
+		@if(UserType == UserTypes.super)
+		{
+			<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" Click="@OnSendBack" Icon="undo" />
+		}
+		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check" Disabled="@(pageItem?.IsLastStatus == true)" />
+		<PrintButton BeforePrint="GetOrderedItems" />
 	}
 </LoadingContent>
+<BackLink />
 	@code {
-	[Parameter] public int Id { get; set; }
+	[Parameter] public long Id { get; set; }
 	private bool pageLoaded = false;
 	private WardstockOrder pageItem;
 	private List<AutoCAC.Models.WardstockItem> allAllowedItems { get; set; }
-	private List<AutoCAC.Models.WardstockOrderitem> selectedItems { get; set; }
-	private string searchText = "";
-	private string UserType { get; set; }
-	private List<string> statusChoices = new List<string>{ "Create", "Edit", "Submit", "Filled", "Checked", "Complete" };
+	private IEnumerable<WardstockOrderitem> orderedItems;
+	private enum UserTypes
+	{
+		super,
+		tech,
+		nurse,
+		unauthorized
+	}
+	private UserTypes UserType { get; set; }
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (!firstRender) return;
 		await using var db = await DbFactory.CreateDbContextAsync();
-		pageItem = await db.WardstockOrders
-							.Include(x => x.Location)
-							.Include(x => x.WardstockOrderitems)
-								.ThenInclude(x => x.Item)
-									.ThenInclude(x => x.Drug)
-							.FirstOrDefaultAsync(x => x.Id == Id);
+		await LoadPageItem(db);
+		allAllowedItems = await db.WardstockItems
+							.Include(x => x.Drug)
+							.Where(x => x.LocationId == pageItem.LocationId).ToListAsync();
 		if (UserContext.IsInGroupOrSuperuser("PharmacyTechSupervisor", "PharmacistSupervisor"))
 		{
-			UserType = "super";
+			UserType = UserTypes.super;
 		}
 		else if (UserContext.IsInGroup("PharmacyTech"))
 		{
-			UserType = "tech";
+			UserType = UserTypes.tech;
 		}
 		else
 		{
 			var userLocations = await db.WardstockUserlocations.AnyAsync(x => x.LocationId == pageItem.LocationId && x.AuthUserId == UserContext.UserProfile.Id);
-			if (userLocations) UserType = "nurse";
-			else UserType = "unauthorized";
+			if (userLocations) UserType = UserTypes.nurse;
+			else UserType = UserTypes.unauthorized;
 		}
-		allAllowedItems = await db.WardstockItems
-							.Where(x => x.LocationId == pageItem.LocationId)
-							.Include(x => x.Drug)
-							.ToListAsync();
-		selectedItems = pageItem.WardstockOrderitems.ToList();
 		pageLoaded = true;
 		StateHasChanged();
 	}
 
-	private async Task LoadOrderItems()
+	private async Task LoadPageItem(mainContext db)
 	{
-		await using var db = await DbFactory.CreateDbContextAsync();
-		allAllowedItems = await db.WardstockItems
-							.Where(x => x.LocationId == pageItem.LocationId)
-							.Include(x => x.Drug)
-							.ToListAsync();
-		selectedItems = pageItem.WardstockOrderitems.ToList();
+		pageItem = await db.WardstockOrders
+					.Include(x => x.Location)
+					.FirstOrDefaultAsync(x => x.Id == Id);
 	}
 
 	private async Task LoadPageItem()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
-		pageItem = await db.WardstockOrders
-							.Include(x => x.Location)
-							.Include(x => x.WardstockOrderitems)
-								.ThenInclude(x => x.Item)
-									.ThenInclude(x => x.Drug)
-							.FirstOrDefaultAsync(x => x.Id == Id);
+		await LoadPageItem(db);
 	}
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry =>
+	private Func<mainContext, IQueryable<Drug>> DrugQry =>
+		db =>
+			db.WardstockItems
+					.Where(wi =>
+						wi.LocationId == pageItem.LocationId &&
+						!db.WardstockOrderitems.Any(oi =>
+							oi.OrderId == Id &&
+							oi.ItemId == wi.Id))
+					.Select(wi => wi.Drug);
+
+	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockOrderitem>> Qry =>
 		db =>
 		{
-			var curLst = selectedItems.Select(x => x.ItemId).ToHashSet();
-			return db.WardstockItems
-				.Include(x => x.Drug)
-				.Where(x => x.LocationId == pageItem.LocationId && !curLst.Contains(x.Id))
-				.Select(x => x.Drug)
+			return db.WardstockOrderitems
+				.Where(x => x.OrderId == Id)
+				.Include(x => x.Item)
+					.ThenInclude(x => x.Drug)
 				.AsQueryable();
 		};
 
-	private async Task AddItemClick()
+	private async Task GetOrderedItems()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		orderedItems = await db.WardstockOrderitems
+				.Where(x => x.OrderId == Id)
+				.Include(x => x.Item)
+					.ThenInclude(x => x.Drug)
+				.ToListAsync();
+	}
+
+	private async Task<WardstockOrderitem> AddItemClick()
 	{
 		var selectedDrug = await DialogService.DataGridSelectAsync<Drug>(
-						Qry, new[] { "Name" }
+						DrugQry, new[] { "Name" }
 						, searchColumns: new[] { "Name"}
 						);
-		if (selectedDrug == null) return;
+		if (selectedDrug == null) return null;
 		var selectedItem = allAllowedItems.FirstOrDefault(x => x.DrugId == selectedDrug.Id);
-		var newOrderItem = new WardstockOrderitem
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var existingOpenOrder = await db.WardstockOrderitems
+									.Include(x => x.Order)
+									.Where(x => x.ItemId == selectedItem.Id
+											&& x.OrderId != Id
+											&& x.Order.Status != WardstockOrderStatus.Completed.ToString()
+									)
+									.FirstOrDefaultAsync();
+		if (existingOpenOrder is not null)
+		{
+			NotificationService.Notify(detail: $@"there is already an open order for {selectedDrug.Name}
+										(current status: {existingOpenOrder.Order.Status}).
+										Click here to go to order.",
+										click: x => Nav.NavigateToRelative(existingOpenOrder.Id.ToString(), fromParent: true)
+			);
+			return null;
+		}
+		return new WardstockOrderitem
 			{
 				OrderId = Id,
 				ItemId = selectedItem.Id,
 				Item = selectedItem
 			};
-		selectedItems.Add(newOrderItem);
-	}
-
-	private async Task SaveChanges()
-	{
-		selectedItems = selectedItems.Distinct().ToList();
-		await DbFactory.UpdateItemAsync(pageItem);
-		await using var db = await DbFactory.CreateDbContextAsync();
-		var dbItems = await db.WardstockOrderitems.Where(x => x.OrderId == Id)
-						.Include(x => x.Item)
-							.ThenInclude(x => x.Drug)
-						.AsNoTracking()
-						.ToListAsync();
-		var updatedRows = dbItems
-							.Join(selectedItems, a => a.Id, b => b.Id, (a, b) => new { a, b })
-							.Where(x => x.a.QtyFilled != x.b.QtyFilled || x.a.QtyOrdered != x.b.QtyOrdered)
-							.Select(x => x.b)
-							.ToList();
-		var idsDb = dbItems.Select(x => x.ItemId).ToHashSet();
-		var idsCurrent = selectedItems.Select(x => x.ItemId).ToHashSet();
-		var onlyDb = dbItems.Where(x => !idsCurrent.Contains(x.ItemId));
-		var onlyCurrent = selectedItems.Where(x => !idsDb.Contains(x.ItemId));
-		if (updatedRows.Any())
-		{
-			foreach(var u in updatedRows)
-			{
-				await db.UpdateItemAsync(u);
-			}
-		}
-		if (onlyDb.Any())
-		{
-			foreach(var d in onlyDb)
-			{
-				await db.DeleteItemAsync(d);
-			}
-		}
-		if (onlyCurrent.Any())
-		{
-			foreach (var a in onlyCurrent)
-			{
-				await db.AddItemAsync(a);
-			}
-		}
-		await db.SaveChangesAsync();
-		NotificationService.Success("Changes Saved");
-	}
-
-	private async Task OnSaveOnly()
-	{
-		//statusChoices = new List<string> { "Create", "Edit", "Submit", "Filled", "Checked", "Complete" } add ReadyForPickup
-		//change
-		if (pageItem.Status == "Create")
-		{
-			pageItem.Status = "Edit";
-		}
-		await SaveChanges();
-		await LoadPageItem();
-		await LoadOrderItems();
-		StateHasChanged();
 	}
 
 	private async Task OnSendBack()
 	{
-		//statusChoices = new List<string> { "Create", "Edit", "Submit", "Filled", "Checked", "Complete" }
-		if (pageItem.Status == "Create") return;
-		pageItem.Status = statusChoices.Previous(pageItem.Status);
+		if (pageItem.StatusEnum == WardstockOrderStatus.New) return;
+		pageItem.SendBack();
 		try
 		{			
 			await DbFactory.UpdateItemAsync(pageItem);
@@ -244,33 +217,37 @@
 
 	private async Task OnSubmit()
 	{
-		bool statusChanged = false;
-		if (pageItem.Status == "Create")
-		{
-			pageItem.Status = "Submit";
-			statusChanged = true;
-		}
-		else if(pageItem.Status != "Complete")
-		{
-			pageItem.Status = statusChoices.Next(pageItem.Status);
-			statusChanged = true;
-		}
-		await SaveChanges();
-		if (statusChanged)
-		{
-			var activity = new WardstockActivitylog
-				{
-					AuthUserId = UserContext.UserProfile.Id,
-					WardstockOrderId = Id,
-					ActivityAt = DateTime.Now,
-					Remarks = $"Status Changed to {pageItem.Status}"
-				};
-			await DbFactory.UpdateItemAsync(activity);
-		}
+		pageItem.SendForward();
+		await DbFactory.UpdateItemAsync(pageItem);
+		var activity = new WardstockActivitylog
+			{
+				AuthUserId = UserContext.UserProfile.Id,
+				WardstockOrderId = Id,
+				ActivityAt = DateTime.Now,
+				Remarks = $"Status Changed to {pageItem.Status}"
+			};
+		await DbFactory.UpdateItemAsync(activity);
 		Nav.NavigateToRelative(fromParent: true);
 	}
-	private async Task OnDeleteClick(WardstockOrderitem item)
+
+	private async Task<IEnumerable<WardstockComment>> LoadCommentsAsync()
 	{
-		selectedItems.Remove(item);
+		await using var db = await DbFactory.CreateDbContextAsync();
+		return await db.WardstockComments
+			.Where(x => x.WardstockOrderId == Id)
+			.Include(x => x.AuthUser)
+			.OrderBy(x => x.CreatedAt)
+			.ToListAsync();
+	}
+
+	private WardstockComment CreateComment(string content)
+	{
+		return new WardstockComment
+		{
+			WardstockOrderId = Id,
+			Comment = content,
+			CreatedAt = DateTime.Now,
+			AuthUserId = UserContext.UserProfile.Id
+		};
 	}
 }

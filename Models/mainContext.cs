@@ -75,6 +75,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<WardstockActivitylog> WardstockActivitylogs { get; set; }
 
+    public virtual DbSet<WardstockComment> WardstockComments { get; set; }
+
     public virtual DbSet<WardstockItem> WardstockItems { get; set; }
 
     public virtual DbSet<WardstockLocation> WardstockLocations { get; set; }
@@ -824,8 +826,29 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.WardstockOrder).WithMany(p => p.WardstockActivitylogs)
                 .HasForeignKey(d => d.WardstockOrderId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_wardstock_activitylog_wardstock_order_id");
+                .HasConstraintName("fk_wardstock_activitylog_wardstock_order_id");
+        });
+
+        modelBuilder.Entity<WardstockComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__wardstoc__3214EC07B35F1EB0");
+
+            entity.ToTable("wardstock_comment");
+
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.Comment).IsUnicode(false);
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(4)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.WardstockOrderId).HasColumnName("wardstock_order_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.WardstockComments)
+                .HasForeignKey(d => d.AuthUserId)
+                .HasConstraintName("FK_wardstock_comment_auth_user");
+
+            entity.HasOne(d => d.WardstockOrder).WithMany(p => p.WardstockComments)
+                .HasForeignKey(d => d.WardstockOrderId)
+                .HasConstraintName("FK_wardstock_comment_wardstock_order");
         });
 
         modelBuilder.Entity<WardstockItem>(entity =>

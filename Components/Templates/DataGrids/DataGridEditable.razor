@@ -10,7 +10,8 @@
                  DataGridName="@DataGridName"
                  SearchColumns="@SearchColumns"
                  AddButtonClick="@(DefaultAddButton ? OnAddClick : null)" RowDoubleClick="OnRowDoubleClick"
-                 RowEdit="EditRow"
+                 RowEdit="EditRow" AllowFiltering="AllowFiltering" AllowGrouping="AllowGrouping" 
+                 AllowSorting="AllowSorting" AllowColumnReorder="AllowColumnReorder"
                  ExpandContentView="@ExpandContentView" ExpandContentEdit="@ExpandContentEdit"
                  ExpandContentBoth="@ExpandContentBoth" QueryFactory="QueryFactory"
                  ActionColumnDefault="false">
@@ -39,8 +40,12 @@
                 }
                 @if (DefaultRowButtonsViewMode)
                 {
-                    <RadzenButton Icon="edit" Variant="Variant.Flat" ButtonType="ButtonType.Submit" Click="@(() => EditBtnClick(item))" />
-                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" Click="@(() => DeleteRowAsync(item))" />
+                    <RadzenButton Icon="edit" Variant="Variant.Flat" ButtonType="ButtonType.Submit" 
+                    Disabled="@(DisableEditPredicate?.Invoke(item) ?? false)"
+                    Click="@(() => EditBtnClick(item))" />
+                    <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Variant="Variant.Flat" 
+                        Disabled="@(DisableDeletePredicate?.Invoke(item) ?? false)"
+                        Click="@(() => DeleteRowAsync(item))" />
                 }
             </Template>
         </RadzenDataGridColumn>
@@ -64,6 +69,12 @@
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
     [Parameter] public int PageSize { get; set; } = 0;
     [Parameter] public string PrintHeader { get; set; }
+    [Parameter] public Func<TItem, bool> DisableDeletePredicate { get; set; }
+    [Parameter] public Func<TItem, bool> DisableEditPredicate { get; set; }
+    [Parameter] public bool AllowGrouping { get; set; } = false;
+    [Parameter] public bool AllowSorting { get; set; } = true;
+    [Parameter] public bool AllowFiltering { get; set; } = true;
+    [Parameter] public bool AllowColumnReorder { get; set; } = false;
     TItem currentlyEditing = null;
     private async Task OnRowDoubleClick(DataGridRowMouseEventArgs<TItem> args)
     {

@@ -23,5 +23,7 @@ public partial class WardstockOrder
 
     public virtual ICollection<WardstockActivitylog> WardstockActivitylogs { get; set; } = new List<WardstockActivitylog>();
 
+    public virtual ICollection<WardstockComment> WardstockComments { get; set; } = new List<WardstockComment>();
+
     public virtual ICollection<WardstockOrderitem> WardstockOrderitems { get; set; } = new List<WardstockOrderitem>();
 }

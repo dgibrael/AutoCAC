@@ -27,6 +27,22 @@
             </RadzenColumn>
             <RadzenColumn Size="7">
                 <RadzenStack AlignItems="AlignItems.Center" Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-px-2">
+                    @if (_canAccess is not null)
+                    {
+                        var parentPath = NavigationManager.GetPath(fromParent: true).Trim('/');
+                        if (parentPath == "")
+                        {
+                            if (NavigationManager.GetPath().Trim('/') != "")
+                            {
+                                <RadzenLink Path="" Icon="home" Text="Home" />
+                            }
+                        }
+                        else
+                        {
+                            <RadzenLink Path="@(NavigationManager.GetPath(fromParent: true))" Icon="arrow_upward"
+                                        Text="@($"Back to {NavigationManager.GetPath(fromParent: true).Trim('/')}")" />
+                        }
+                    }
                     <RadzenLink Icon="settings" Path="/settings" />
                 </RadzenStack>
             </RadzenColumn>

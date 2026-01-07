@@ -52,17 +52,17 @@
                     LoadColumnFilterData="Helper.LoadColumnFilterDataAsync"
                     TItem="TItem"
                     IsLoading="IsLoading"
-                    AllowFiltering="true"
+                    AllowFiltering="AllowFiltering"
                     AllowPaging="true"
                     PageSize="@PageSize"
-                    AllowSorting="true"
+                    AllowSorting="AllowSorting"
                     AllowColumnResize="true"
-                    AllowColumnReorder="true"
-                    AllowGrouping="true"
+                    AllowColumnReorder="AllowColumnReorder"
+                    AllowGrouping="AllowGrouping"
                     AllowCompositeDataCells="true"
                     AllowColumnPicking="true"
                     ShowPagingSummary="true" AllowMultiColumnSorting="true"
-                    ColumnWidth="200px" AllGroupsExpanded="false"
+                    ColumnWidth="200px" AllGroupsExpanded="false" 
                     PageSizeOptions="pageSizes" Group="OnGroup" RowEdit="RowEdit"
                     ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
                     Context="row" EmptyTemplate="EmptyTemplate" RowDoubleClick="RowDoubleClick"
@@ -149,6 +149,10 @@
     [Parameter] public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
     [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
     [Parameter] public string PrintHeader { get; set; }
+    [Parameter] public bool AllowGrouping { get; set; } = true;
+    [Parameter] public bool AllowSorting { get; set; } = true;
+    [Parameter] public bool AllowFiltering { get; set; } = true;
+    [Parameter] public bool AllowColumnReorder { get; set; } = true;
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
     int PageSize;
     int OriginalPageSize;
