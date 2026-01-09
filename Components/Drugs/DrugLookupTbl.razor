@@ -21,7 +21,8 @@
         <RadzenRow>
             <RadzenLabel Text="Show only active" Style="margin-left: 0.5rem;" />
             <RadzenCheckBox TValue="bool" @bind-Value="showOnlyActive" Change="OnShowOnlyActiveChanged" />
-            <DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.Drug" RowSelect="OnRowSelect" AddButtonClick="AddButtonClick" QueryFactory="@Qry()">
+            <DataGridVanilla TItem="AutoCAC.Models.Drug" RowSelect="OnRowSelect" 
+            AddButtonClick="AddButtonClick" GridModel="GridModel">
                 <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Id" Title="IEN" Width="100px"/>
                 <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Name" Title="Name" />
                 <RadzenDataGridColumn TItem="AutoCAC.Models.Drug" Property="Ndc" Title="Current Ndc" Width="100px" />
@@ -53,27 +54,28 @@
 </RadzenStack>
     @code {
     [Parameter] public EventCallback<AutoCAC.Models.Drug> SelectionChanged { get; set; }
-    protected DataGridVanilla<AutoCAC.Models.Drug> grid0;
     private Drug selectedRow;
     bool showOnlyActive = true;
     [Parameter] public Ndf SelectedNdf { get; set; }
+    private DataGridHelper<AutoCAC.Models.Drug> GridModel = new();
+
+    protected override void OnInitialized()
+    {
+        GridModel.QueryFactory = ctx =>
+            {
+                var q = ctx.Drugs.AsQueryable().Where(d => d.VaPrintName == SelectedNdf.PrintName);
+                if (showOnlyActive)
+                    q = q.Where(d => d.InactiveDate == null);
+
+                return q;
+            };
+    }
 
     async Task OnShowOnlyActiveChanged(bool _)
     {
-        await grid0.ForceReload(); // This triggers LoadData to re-run with updated filter
+        await GridModel.ReloadAsync();
     }
 
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
-    {        
-        return ctx =>
-        {
-            var q = ctx.Drugs.AsQueryable().Where(d => d.VaPrintName == SelectedNdf.PrintName);
-            if (showOnlyActive)
-                q = q.Where(d => d.InactiveDate == null);
-
-            return q;
-        };
-    }
 
     private async Task OnRowSelect(Drug selected)
     {

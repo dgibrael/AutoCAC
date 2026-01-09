@@ -5,13 +5,16 @@
 {    
     <RadzenLink Path="@BackButtonUrl" Text="Back" Icon="arrow_back" />
 }
-<DataGridVanilla TItem="AutoCAC.Models.Patient" IncludeColumns="@(new[] { "ChartNumber", "Name", "Dob" })" SearchColumns="@(new[] { "ChartNumber", "Name" })" 
-RowSelect="@RowSelect"
-/>
+<DataGridVanilla TItem="AutoCAC.Models.Patient" RowSelect="@RowSelect" GridModel="GridModel"/>
 
 @code{
     [Parameter] public EventCallback<AutoCAC.Models.Patient> RowSelect { get; set; }
     [Parameter] public string BackButtonUrl { get; set; }
+    private DataGridHelper<AutoCAC.Models.Patient> GridModel = new()
+    {
+        IncludeColumns = new[] { "ChartNumber", "Name", "Dob" },
+        SearchColumns = new[] { "ChartNumber", "Name" }
+    };
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)

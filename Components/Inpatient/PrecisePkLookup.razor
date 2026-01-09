@@ -3,17 +3,15 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> Db
 <PageTitle>Precise PK Lookup</PageTitle>
-<DataGridVanilla @ref="grid" TItem="AutoCAC.Models.PatientLink" IncludeColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" 
-	SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" })" QueryFactory="@Qry()" >
+<DataGridVanilla TItem="AutoCAC.Models.PatientLink" GridModel="GridModel" >
 	<HeaderContent>
 		<PatientDialogButton AfterPatientSelect="OnSelect" />
 	</HeaderContent>
 	<TrailingColumns>
-		<ActionDefaultColumn TItem="AutoCAC.Models.PatientLink" ShowEdit="false" Grid="grid.Grid" />
+		<ActionDefaultColumn TItem="AutoCAC.Models.PatientLink" ShowEdit="false" GridModel="GridModel" />
 	</TrailingColumns>
 </DataGridVanilla>
 @code {
-	private DataGridVanilla<PatientLink> grid;
 	private async Task OnSelect(AutoCAC.Models.Patient patient)
 	{
 		var patientId = patient.Id;
@@ -26,11 +24,13 @@
 		{
 			await Db.AddItemAsync(pkPatient);
 		}
-		await grid.SetQuickFilter(patient.ChartNumber);
+		await GridModel.SetQuickFilterAsync(patient.ChartNumber);
 	}
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PatientLink>> Qry()
+	private DataGridHelper<AutoCAC.Models.PatientLink> GridModel = new()
 	{
-		return db => db.PatientLinks
-			.Include(x => x.Patient);
-	}
+		QueryFactory = db => db.PatientLinks
+			.Include(x => x.Patient),
+		IncludeColumns = new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" },
+		SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber", "LinkId" }
+	};
 }

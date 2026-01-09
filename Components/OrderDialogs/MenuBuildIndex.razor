@@ -11,7 +11,8 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Components.Templates.DataGrids
-<DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.MenuBuildMetum" AddButtonClick="@AddButtonClick" QueryFactory="@Qry()" SearchColumns="@(new[] { "DisplayText" })">
+<DataGridVanilla TItem="AutoCAC.Models.MenuBuildMetum" AddButtonClick="AddButtonClick" 
+    GridModel="GridModel">
     <HeaderContent>
         <RadzenButton Text="@(showAll ? "Show Mine" : "Show All")" Click="@ToggleShowAll" Icon="visibility" ButtonStyle="ButtonStyle.Base" />
     </HeaderContent>
@@ -32,15 +33,15 @@
     </ChildContent>
 </DataGridVanilla>
 @code {
-    protected DataGridVanilla<AutoCAC.Models.MenuBuildMetum> grid0;
     private bool showAll { get; set; }
+    private DataGridHelper<AutoCAC.Models.MenuBuildMetum> GridModel = new()
+    {
+        SearchColumns = new[] { "DisplayText" }
+    };
     protected override void OnInitialized()
     {
         showAll = UserContext.UserProfile.IsSuperuser;
-    }
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.MenuBuildMetum>> Qry()
-    {
-        return ctx =>
+        GridModel.QueryFactory = ctx =>
         {
             var q = ctx.MenuBuildMeta.AsQueryable();
             if (!showAll)
@@ -52,7 +53,7 @@
     private async Task ToggleShowAll()
     {
         showAll = !showAll;
-        await grid0.ForceReload();
+        await GridModel.ReloadAsync();
     }
 
     protected async Task EditRow(AutoCAC.Models.MenuBuildMetum args)
@@ -72,6 +73,6 @@
         await using var db = await DbFactory.CreateDbContextAsync();
         db.MenuBuildMeta.Remove(item);
         await db.SaveChangesAsync();
-        await grid0.Grid.FirstPage(true);
+        await GridModel.ReloadAsync();
     }
 }

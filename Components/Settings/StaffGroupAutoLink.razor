@@ -10,7 +10,7 @@
 @inject NotificationService NotificationService
 <PageTitle>Auto Link Staff to Groups</PageTitle>
 
-<DataGridEditable TItem="AutoCAC.Models.GroupAutoMatch" QueryFactory="@Qry()">
+<DataGridEditable TItem="AutoCAC.Models.GroupAutoMatch" GridModel="GridModel">
     <RadzenDataGridColumn TItem="AutoCAC.Models.GroupAutoMatch" Property="AdGroup" Title="Active Directory Group">
         <EditTemplate Context="r">
             <RadzenTextBox @bind-Value="r.AdGroup" Style="width:100%" />
@@ -35,14 +35,12 @@
                             .ToListAsync();
         }
     }
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.GroupAutoMatch>> Qry()
+    private DataGridHelper<AutoCAC.Models.GroupAutoMatch> GridModel = new()
     {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.GroupAutoMatches
+        QueryFactory = db => db.GroupAutoMatches
             .Include(x => x.AuthGroup)
-            .AsNoTracking();
-    }
+            .AsNoTracking()
+    };
 
     private async Task RunAutoLink()
     {

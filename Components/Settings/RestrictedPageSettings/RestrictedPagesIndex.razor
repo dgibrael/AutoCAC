@@ -8,7 +8,7 @@
 @inject IDbContextFactory<mainContext> DbFactory
 <PageTitle>Restricted Page Settings</PageTitle>
 
-<DataGridVanilla TItem="RestrictedPage" QueryFactory="@Qry()" AddButtonDefault="true">
+<DataGridVanilla TItem="RestrictedPage" GridModel="GridModel">
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="RelativeUrl" Title="RelativeUrl" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Property="AlwaysAllowSuperusers" Title="AlwaysAllowSuperusers" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.RestrictedPage" Title="Restricted to Groups" >
@@ -23,11 +23,11 @@
     <ActionDefaultColumn TItem="RestrictedPage"/>
 </DataGridVanilla>
 @code{
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.RestrictedPage>> Qry()
+    private DataGridHelper<AutoCAC.Models.RestrictedPage> GridModel = new()
     {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.RestrictedPages
+        QueryFactory = db => db.RestrictedPages
             .Include(x => x.RestrictedPageGroups)
-                .ThenInclude(x => x.AuthGroup);
-    }
+                .ThenInclude(x => x.AuthGroup),
+        AddButtonDefault = true
+    };
 }

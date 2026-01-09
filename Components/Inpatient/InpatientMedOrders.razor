@@ -15,7 +15,7 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @inject mainContext Db
 @using AutoCAC.Utilities
-<DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.InpatientMedOrder" >
+<DataGridVanilla TItem="AutoCAC.Models.InpatientMedOrder" >
     <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="PatientName" Title="Patient Name" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="Imo" Title="IMO" FilterMode="FilterMode.CheckBoxList"/>
@@ -39,7 +39,3 @@
     <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="AppointmentDateTime" Title="Appointment Date Time" />
 </DataGridVanilla>
 
-@code {
-    protected IEnumerable<AutoCAC.Models.InpatientMedOrder> data;
-    protected DataGridVanilla<AutoCAC.Models.InpatientMedOrder> grid0;
-}

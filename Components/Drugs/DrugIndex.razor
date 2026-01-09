@@ -1,7 +1,7 @@
 ﻿@page "/drugs"
 @using AutoCAC.Components.Templates.DataGrids
 
-<DataGridVanilla TItem="AutoCAC.Models.Drug" SearchColumns="@(new[] { "Name", "PharmacyOrderableItem", "VaPrintName" })">
+<DataGridVanilla TItem="AutoCAC.Models.Drug" GridModel="GridModel">
 	<HeaderContent><h2>Drugs</h2></HeaderContent>
 	<GroupHeaderCustom Context="group">
 		@{
@@ -52,9 +52,10 @@
 </DataGridVanilla>
 
 @code{
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Drug>> Qry()
-	{
-		return db => db.Drugs
-			.Where(x => !string.IsNullOrWhiteSpace(x.DosageForm));
-	}
+	private DataGridHelper<AutoCAC.Models.Drug> GridModel = new()
+		{
+			QueryFactory = db => db.Drugs
+				.Where(x => !string.IsNullOrWhiteSpace(x.DosageForm)),
+			SearchColumns = new[] { "Name", "PharmacyOrderableItem", "VaPrintName" }
+		};
 }

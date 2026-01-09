@@ -3,7 +3,7 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
-<DataGridVanilla TItem="AutoCAC.Models.AuthUser" QueryFactory="@Qry()" AddButtonClick="OnAddClick" SearchColumns="@(new[] { "Username", "LastName", "FirstName" })">
+<DataGridVanilla TItem="AutoCAC.Models.AuthUser" GridModel="GridModel" AddButtonClick="OnAddClick">
     <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="Username" Title="Username" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="LastName" Title="Last Name" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.AuthUser" Property="FirstName" Title="First Name" />
@@ -11,14 +11,14 @@
 </DataGridVanilla>
 
 @code {
-    private Func<mainContext, IQueryable<AuthUser>> Qry()
+    private DataGridHelper<AutoCAC.Models.AuthUser> GridModel = new()
     {
-        return db =>
-            db.AuthUsers
+        QueryFactory = db => db.AuthUsers
               .Where(u => db.WardstockUserlocations
                              .Any(w => w.AuthUserId == u.Id))
-              .OrderBy(x => x.Username);
-    }
+              .OrderBy(x => x.Username),
+        SearchColumns = new[] { "Username", "LastName", "FirstName" }
+    };
     private async Task OnAddClick()
     {
         var selected = await DialogService.StaffAdDialog();

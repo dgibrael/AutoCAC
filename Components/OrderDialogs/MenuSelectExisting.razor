@@ -1,10 +1,11 @@
-﻿<DataGridDialog TItem="AutoCAC.Models.OrderDialog" IncludeColumns="@(new[] { "DisplayText", "Name" })"
-                SearchColumns="@(new[] { "DisplayText", "Name" })" QueryFactory="@Qry()" />
+﻿<DataGridDialog TItem="AutoCAC.Models.OrderDialog" GridModel="GridModel" />
 
 @code {
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.OrderDialog>> Qry()
+    private DataGridHelper<AutoCAC.Models.OrderDialog> GridModel = new()
     {
-        return db => db.OrderDialogs
-            .Where(x => x.Type == "menu");
-    }
+        QueryFactory = db => db.OrderDialogs
+            .Where(x => x.Type == "menu"),
+        IncludeColumns = new[] { "DisplayText", "Name" },
+        SearchColumns = new[] { "DisplayText", "Name" }
+    };
 }

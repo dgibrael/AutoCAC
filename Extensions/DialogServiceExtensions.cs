@@ -256,18 +256,15 @@ namespace AutoCAC.Extensions
             where TItem : class
         {
             var parameters = new Dictionary<string, object>();
-
-            if (queryFactory != null)
-                parameters[nameof(DataGridDialog<TItem>.QueryFactory)] = queryFactory;
-
-            if (includeColumns != null)
-                parameters[nameof(DataGridDialog<TItem>.IncludeColumns)] = includeColumns;
-
-            if (excludeColumns != null)
-                parameters[nameof(DataGridDialog<TItem>.ExcludeColumns)] = excludeColumns;
-
-            if (searchColumns != null)
-                parameters[nameof(DataGridDialog<TItem>.SearchColumns)] = searchColumns;
+            DataGridHelper<TItem> gridModel = new()
+            {
+                QueryFactory = queryFactory,
+                IncludeColumns = includeColumns,
+                ExcludeColumns = excludeColumns,
+                SearchColumns = searchColumns,
+            };
+           
+            parameters[nameof(DataGridDialog<TItem>.GridModel)] = gridModel;
 
             var options = new DialogOptions
             {

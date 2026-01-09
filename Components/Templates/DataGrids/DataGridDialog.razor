@@ -6,38 +6,24 @@
 @* add the namespace that contains DataGridVanilla if different *@
 @* @using AutoCAC.Components.Templates.Grids *@
 
-<DataGridVanilla TItem="TItem"
-                 @ref="_vanilla"
-                 QueryFactory="QueryFactory"
-                 IncludeColumns="IncludeColumns"
-                 ExcludeColumns="ExcludeColumns"
-                 SearchColumns="@SearchColumns"
+<DataGridVanilla TItem="TItem" GridModel="GridModel"
                  RowSelect="OnSelect"
                  ExpandContentView="ExpandContentView"
                  ExpandContentEdit="ExpandContentEdit"
                  ExpandContentBoth="ExpandContentBoth"
                  LeadingColumns="LeadingColumns"
                  TrailingColumns="TrailingColumns"
-                 DataGridName="DataGridName"
                  ChildContent="ChildContent"
                  />
 <CancelDialogButton />
 
 @code {
+    [Parameter] public DataGridHelper<TItem> GridModel { get; set; } = new();
     [Parameter] public RenderFragment ChildContent { get; set; }
-    [Parameter] public IEnumerable<string> ExcludeColumns { get; set; } = new List<string>();
-    [Parameter] public IEnumerable<string> IncludeColumns { get; set; }
-    [Parameter] public string[] SearchColumns { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentEdit { get; set; }
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
-    [Parameter] public string DataGridName { get; set; }
-    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
-    private DataGridVanilla<TItem> _vanilla;
-
-    public Task ForceReload() => _vanilla?.ForceReload() ?? Task.CompletedTask;
-
     public void OnSelect(TItem selected) => DialogService.Close(selected);
 }

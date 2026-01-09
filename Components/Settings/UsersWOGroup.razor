@@ -4,16 +4,13 @@
 
 <PageTitle>Users not matched to a group</PageTitle>
 
-<DataGridVanilla TItem="AuthUser"
-	IncludeColumns="@(new[] { "Username", "FirstName", "LastName" })"
-	SearchColumns="@(new[] { "Username", "FirstName", "LastName" })"
-	QueryFactory="@Qry()">
-</DataGridVanilla>
+<DataGridVanilla TItem="AuthUser"GridModel="GridModel"/>
 @code{
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.AuthUser>> Qry()
+    private DataGridHelper<AutoCAC.Models.AuthUser> GridModel = new()
     {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.AuthUsers
-            .Where(u => !u.AuthUserGroups.Any());
-    }
+        QueryFactory = db => db.AuthUsers
+            .Where(u => !u.AuthUserGroups.Any()),
+		IncludeColumns = new[] { "Username", "FirstName", "LastName" },
+        SearchColumns = new[] { "Username", "FirstName", "LastName" }
+    };
 }

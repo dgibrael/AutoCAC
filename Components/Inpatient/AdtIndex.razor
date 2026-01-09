@@ -1,5 +1,11 @@
 ﻿@page "/inpatient/adt"
-<DataGridVanilla TItem="AutoCAC.Models.Adt" SearchColumns="@(new[] { "Patient", "ChartNumber", "AttendingPhysician", "WardLocation", "WardAtDischarge" })"
-					IncludeColumns="@(new List<string>{"EnteredDateTime", "Transaction", "Patient", "ChartNumber"
-					, "WardLocation", "RoomBed", "WardAtDischarge", "AttendingPhysician", "Diagnosis", "AdmitDateTime"
-					, "DischargeDateTime"})" />
+<DataGridVanilla TItem="AutoCAC.Models.Adt" GridModel="GridModel"/>
+@code{
+	private DataGridHelper<AutoCAC.Models.Adt> GridModel = new()
+	{
+		IncludeColumns = new[] {"EnteredDateTime", "Transaction", "Patient", "ChartNumber"
+						, "WardLocation", "RoomBed", "WardAtDischarge", "AttendingPhysician", "Diagnosis", "AdmitDateTime"
+						, "DischargeDateTime"},
+		SearchColumns = new[] { "Patient", "ChartNumber", "AttendingPhysician", "WardLocation", "WardAtDischarge" }
+	};
+}

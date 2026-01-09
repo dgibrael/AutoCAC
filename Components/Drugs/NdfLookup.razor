@@ -17,8 +17,9 @@
     else
     {
         <pre>Type NDC or NDF Drug name below. (Recommended: Search by NDC for more accuracy)<br />Then presss enter to filter restults<br />Then click an option to select</pre>
-        <DataGridVanilla @ref="grid0" TItem="AutoCAC.Models.Ndf"
-                            RowSelect="OnRowSelect" QueryFactory="@Qry()" SearchColumns="@(new[] { "Ndc", "ProductName", "PrintName" })">
+        <DataGridVanilla TItem="AutoCAC.Models.Ndf" GridModel="GridModel"
+                            RowSelect="OnRowSelect"
+                            >
             <EmptyTemplate>
                 <p>No matching drugs found in the national drug file. Double-check the NDC.</p>
                 <p>Tip: if there is no matching NDC, use the drug name that most closely matches your product, then manually change the NDC in RPMS</p>
@@ -32,11 +33,8 @@
     }
 </RadzenStack>
 
-@code {
+    @code {
     [Parameter] public EventCallback<Ndf> SelectionChanged { get; set; }
-    protected IEnumerable<AutoCAC.Models.Ndf> data;
-    protected int count = 0;
-    protected DataGridVanilla<AutoCAC.Models.Ndf> grid0;
     private Ndf selectedRow;
     private async Task OnRowSelect(Ndf selected)
     {
@@ -44,12 +42,12 @@
         await SelectionChanged.InvokeAsync(selected);
         await InvokeAsync(StateHasChanged);
     }
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Ndf>> Qry()
-    {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.Ndfs
-            .Where(x => x.InactiveDate == null);
-    }
+    private DataGridHelper<AutoCAC.Models.Ndf> GridModel = new()
+        {
+            QueryFactory = db => db.Ndfs
+                .Where(x => x.InactiveDate == null),
+            SearchColumns = new[] { "Ndc", "ProductName", "PrintName" }
+        };
 
     private async Task ClearSelection()
     {

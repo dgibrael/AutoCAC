@@ -1,14 +1,16 @@
 ﻿@page "/notes"
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
-<DataGridVanilla TItem="AutoCAC.Models.Tiu" SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber", "DocumentType", "Author"})"
-                    IncludeColumns="@(new List<string>{"Patient.Name", "Patient.ChartNumber", "DocumentType", "Author", "EntryDateTime"})"
-                    QueryFactory="@Qry()">
+<DataGridVanilla TItem="AutoCAC.Models.Tiu" GridModel="GridModel" >
 </DataGridVanilla>
 
 @code{
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.Tiu>> Qry()
+    private DataGridHelper<AutoCAC.Models.Tiu> GridModel = new()
     {
-        return db => db.Tius
-            .Include(x => x.Patient);
-    }
+        QueryFactory = db => db.Tius
+            .AsNoTracking()
+            .Include(x => x.Patient),
+        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber", "DocumentType", "Author"},
+        IncludeColumns = new List<string>{"Patient.Name", "Patient.ChartNumber", "DocumentType"
+                        , "Author", "EntryDateTime"}
+    };
 }

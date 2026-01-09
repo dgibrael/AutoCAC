@@ -21,7 +21,7 @@
 				Size="ButtonSize.Medium" Icon="edit" />
 		}
 	</RadzenTemplateForm>
-	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" QueryFactory="Qry">
+	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" GridModel="GridModel">
 		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Drug.Name" Title="Drug" />
 		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Par" Title="Par">
 			<EditTemplate Context="row">
@@ -43,16 +43,14 @@
 		await LoadPageItem();
 		StateHasChanged();
 	}
-
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockItem>> Qry =>
-		db =>
-		{
-			return db.WardstockItems
+	private DataGridHelper<AutoCAC.Models.WardstockItem> GridModel = new();
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db => db.WardstockItems
 				.Include(x => x.Drug)
 				.Where(x => x.LocationId == Id)
 				.AsQueryable();
-
-		};
+	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (!firstRender) return;

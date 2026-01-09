@@ -5,6 +5,12 @@
 
 <PageTitle>Order Dialogs</PageTitle>
 
-<DataGridVanilla TItem="Models.OrderDialog" 
-	IncludeColumns="@(new[] { "Name", "DisplayText", "Type", "DisplayGroup", "Package" })"
-	SearchColumns="@(new[] { "Name", "DisplayText" })" />
+<DataGridVanilla TItem="Models.OrderDialog" GridModel="GridModel" />
+
+@code{
+    private DataGridHelper<AutoCAC.Models.OrderDialog> GridModel = new()
+    {
+        IncludeColumns = new[] { "Name", "DisplayText", "Type", "DisplayGroup", "Package" },
+        SearchColumns=new[] { "Name", "DisplayText" }
+    };
+}

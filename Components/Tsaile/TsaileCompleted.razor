@@ -9,8 +9,7 @@
 @inject NavigationManager Nav
 <RadzenLink Text="Go to Main Que" Path="tsaile" Icon="home" />
 <RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
-<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid"
-                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })">
+<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" GridModel="GridModel">
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
@@ -30,22 +29,21 @@
 </DataGridVanilla>
 
 @code {
-    private DataGridVanilla<AutoCAC.Models.TsaileBetterq> grid;
     private int _userId { get; set; } = 0;
     protected override void OnInitialized()
     {
         _userId = UserContext.UserProfile.Id;
     }
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.TsaileBetterq>> Qry()
+    private DataGridHelper<AutoCAC.Models.TsaileBetterq> GridModel = new()
     {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.TsaileBetterqs
+        QueryFactory = db => db.TsaileBetterqs
             .Where(x => x.Status == TsaileTicketStatus.Complete.ToString())
             .Include(x => x.Patient)
             .OrderByDescending(x => x.CompletedDateTime)
-            .AsQueryable();
-    }
+            .AsQueryable(),
+        AddButtonDefault = true,
+        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+    };
 
     IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
     {
@@ -71,7 +69,7 @@
             {
                 await row.ReverseStatusAndSaveAsync(DbFactory, _userId);
                 NotificationService.Success($"Status updated to {row.Status}");
-                await grid?.ForceReload();
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
@@ -87,7 +85,7 @@
                 {
                     await row.UpdateStatusAsync(DbFactory, TsaileTicketStatus.Deleted.ToString(), _userId);
                     NotificationService.Success($"Moved to Trash");
-                    await grid?.ForceReload();
+                    await GridModel.ReloadAsync();
                 }
             }
         },
@@ -103,7 +101,7 @@
                 if (newStatus == null) return;
                 await row?.UpdateStatusAsync(DbFactory, newStatus, _userId);
                 NotificationService.Success($"Status updated to {row?.Status}");
-                await grid?.ForceReload();
+                await GridModel.ReloadAsync();
             }
         },
     };

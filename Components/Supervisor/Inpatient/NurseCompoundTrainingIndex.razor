@@ -1,7 +1,7 @@
 ﻿@page "/supervisor/inpatient/NurseCompoundTraining"
 @using AutoCAC.Models
 @inject DialogService DialogService
-<DataGridEditable TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync" QueryFactory="@Qry()">
+<DataGridEditable TItem="NurseCompoundTraining" AddAction="AddNurseTrainingAsync" GridModel="GridModel">
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserName" Title="Username" />
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserNameNavigation.LastName" Title="Last Name" />
     <RadzenDataGridColumn TItem="NurseCompoundTraining" Property="StaffUserNameNavigation.FirstName" Title="First name" />
@@ -96,11 +96,10 @@
 
     private static DateOnly? FromDateTime(DateTime? dt) =>
         dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.NurseCompoundTraining>> Qry()
+    private DataGridHelper<AutoCAC.Models.NurseCompoundTraining> GridModel = new()
     {
-        return db => db.NurseCompoundTrainings
+        QueryFactory = db => db.NurseCompoundTrainings
             .Include(x => x.StaffUserNameNavigation)
-            .AsNoTracking();
-    }
+            .AsNoTracking()
+    };
 }

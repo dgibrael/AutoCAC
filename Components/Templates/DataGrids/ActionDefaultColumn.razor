@@ -40,7 +40,7 @@
 
 @code {
     /// Reference to the parent grid so we can refresh/paginate after delete.
-    [Parameter] public RadzenDataGrid<TItem> Grid { get; set; }
+    [Parameter] public DataGridHelper<TItem> GridModel { get; set; }
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     /// Given the row item, produce the edit URL (e.g., m => $"/menus/edit/{m.Id}").
     [Parameter] public Func<TItem, string> EditUrl { get; set; }
@@ -77,7 +77,7 @@
 
         await DbFactory.DeleteItemAsync(item);
 
-        if (Grid is not null)
-            await Grid.FirstPage(true);
+        if (GridModel is not null)
+            await GridModel.ReloadAsync();
     }
 }

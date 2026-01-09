@@ -12,10 +12,7 @@
 @implements IDisposable
 <RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete"  />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
-<DataGridVanilla TItem="TsaileBetterqDto" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid" 
-                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })" CellRender="CellFormat"
-                 CustomChoices="@(new Dictionary<string, IEnumerable<object>> { ["Status"] = Enum.GetNames<TsaileTicketStatus>() })">
-                 >
+<DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat">
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
@@ -38,6 +35,38 @@
 
 @code {
     private DataGridVanilla<TsaileBetterqDto> grid;
+    private DataGridHelper<AutoCAC.Models.TsaileBetterqDto> GridModel = new()
+    {
+        QueryFactory = db => db.TsaileBetterqs
+            .Where(x => x.CompletedDateTime == null)
+            .Include(x => x.Patient)
+            .Select(x => new TsaileBetterqDto
+            {
+                Id = x.Id,
+                CreatedDateTime = x.CreatedDateTime,
+
+                // 👇 THIS IS THE KEY LINE
+                WaitTime = EF.Functions.DateDiffMinute(
+                    x.CreatedDateTime,
+                    DateTime.Now
+                ),
+
+                Status = x.Status,
+                Waiting = x.Waiting,
+                NeedsCounseling = x.NeedsCounseling,
+                ControlledSubstance = x.ControlledSubstance,
+                LockedDateTime = x.LockedDateTime,
+                LastModifiedDateTime = x.LastModifiedDateTime,
+                CalledDateTime = x.CalledDateTime,
+                Efdt = x.Efdt,
+                PatientName = x.Patient.Name,
+                ChartNumber = x.Patient.ChartNumber
+            }),
+        AddButtonDefault = true,
+        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" },
+        CustomChoices = new Dictionary<string, IEnumerable<object>>
+        { ["Status"] = Enum.GetNames<TsaileTicketStatus>() }
+    };
     private int _userId { get; set; } = 0;
     protected override void OnInitialized()
     {
@@ -74,37 +103,6 @@
             StateHasChanged();
         });
     }
-
-    private Func<mainContext, IQueryable<TsaileBetterqDto>> Qry()
-    {
-        return db => db.TsaileBetterqs
-            .Where(x => x.CompletedDateTime == null)
-            .Include(x => x.Patient)
-            .Select(x => new TsaileBetterqDto
-            {
-                Id = x.Id,
-                CreatedDateTime = x.CreatedDateTime,
-
-                // 👇 THIS IS THE KEY LINE
-                WaitTime = EF.Functions.DateDiffMinute(
-                    x.CreatedDateTime,
-                    DateTime.Now
-                ),
-
-                Status = x.Status,
-                Waiting = x.Waiting,
-                NeedsCounseling = x.NeedsCounseling,
-                ControlledSubstance = x.ControlledSubstance,
-                LockedDateTime = x.LockedDateTime,
-                LastModifiedDateTime = x.LastModifiedDateTime,
-                CalledDateTime = x.CalledDateTime,
-                Efdt = x.Efdt,
-                PatientName = x.Patient.Name,
-                ChartNumber = x.Patient.ChartNumber
-            });
-    }
-
-
     IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterqDto row) => new[]
     {
         new SplitButtonItem

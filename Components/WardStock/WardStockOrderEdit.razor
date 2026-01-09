@@ -20,10 +20,8 @@
 	else
 	{
 		<h3>@($"Order for {pageItem?.Location?.LocationName}; Current Status: {pageItem?.Status}")</h3>
-		<DataGridEditable TItem="WardstockOrderitem" QueryFactory="Qry" AddAction="AddItemClick"
-			DisableDeletePredicate="@(x => UserType != UserTypes.super)" AllowFiltering="false"
-			AllowSorting="false" AllowGrouping="false" AllowColumnReorder="false"
-			>
+		<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" AddAction="AddItemClick"
+			DisableDeletePredicate="@(x => UserType != UserTypes.super)" >
 			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Drug.Name" 
 			Title="Drug"/>
 			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyOrdered" Title="QtyOrdered"
@@ -103,6 +101,21 @@
 		unauthorized
 	}
 	private UserTypes UserType { get; set; }
+	private DataGridHelper<AutoCAC.Models.WardstockOrderitem> GridModel = new()
+		{
+			AllowFiltering = false,
+			AllowSorting = false,
+			AllowGrouping = false,
+			AllowColumnReorder = false
+		};
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db => db.WardstockOrderitems
+				.Where(x => x.OrderId == Id)
+				.Include(x => x.Item)
+					.ThenInclude(x => x.Drug)
+				.AsQueryable();
+	}  
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (!firstRender) return;
@@ -150,16 +163,6 @@
 							oi.OrderId == Id &&
 							oi.ItemId == wi.Id))
 					.Select(wi => wi.Drug);
-
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockOrderitem>> Qry =>
-		db =>
-		{
-			return db.WardstockOrderitems
-				.Where(x => x.OrderId == Id)
-				.Include(x => x.Item)
-					.ThenInclude(x => x.Drug)
-				.AsQueryable();
-		};
 
 	private async Task BeforePrint()
 	{

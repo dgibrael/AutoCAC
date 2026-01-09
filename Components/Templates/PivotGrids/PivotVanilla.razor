@@ -8,41 +8,42 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 
-<LoadingContent IsLoading="@(Helper is null)">
+<LoadingContent IsLoading="@(GridModel is null)">
     <RadzenSplitButton Text="Save Template" Icon="save"
                        Click="@(item => SaveGridSettingsClick(item))"
                        ButtonStyle="ButtonStyle.Base">
         <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
         <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
     </RadzenSplitButton>
-    <SearchTemplateDropown DataGridName="@Helper.PageName" @ref="templateDropdown"
-                           SelectedTemplateChanged="OnTemplatePicked" InitialValue="InitialTemplate"
+    <SearchTemplateDropown DataGridName="@GridModel.PageName" @ref="templateDropdown"
+                           SelectedTemplateChanged="OnTemplatePicked" InitialValue="GridModel.InitialTemplate"
                            Placeholder="Load Saved Template..." />
-    <RadzenPivotDataGrid @ref=Grid IsLoading="@IsLoading" Data=@Helper.Data Count="@Helper.Count" LoadData="@LoadData" TItem="TItem"
+    <RadzenPivotDataGrid @ref=Grid IsLoading="@IsLoading" Data=@GridModel.Data Count="@GridModel.Count" 
+                         LoadData="@LoadData" TItem="TItem"
                          AllowPaging="true" PageSize="20" PageSizeOptions="pageSizes" @key="pivotKey"
                          AllowFieldsPicking="true" AllowFiltering="true" AllowSorting="true"
                          ShowColumnsTotals="true" ShowRowsTotals="true" AllowDrillDown="true" FieldsPickerExpanded="true"
                          GridLines="Radzen.DataGridGridLines.Default" AllowAlternatingRows="true">
         <Columns>
-            @if (Helper?.PivotSettings == null)
+            @if (GridModel?.PivotSettings == null)
             {
                 foreach (var p in typeof(TItem).GetProperties())
                 {
                     <RadzenPivotColumn Property="@p.Name" Title="@p.Name" />
                 }
             }
-            else if (Helper.PivotSettings?.ColumnFields.Any() == true)
+            else if (GridModel.PivotSettings?.ColumnFields.Any() == true)
             {
-                foreach (var c in Helper.PivotSettings.ColumnFields)
+                foreach (var c in GridModel.PivotSettings.ColumnFields)
                 {
                     <RadzenPivotColumn Property="@c" Title="@c" />
                 }
             }
         </Columns>
         <Rows>
-            @if (Helper?.PivotSettings != null && Helper.PivotSettings?.RowFields.Any() == true)
+            @if (GridModel?.PivotSettings != null && GridModel.PivotSettings?.RowFields.Any() == true)
             {
-                foreach (var r in Helper.PivotSettings.RowFields)
+                foreach (var r in GridModel.PivotSettings.RowFields)
                 {
                     <RadzenPivotRow Property="@r" Title="@r" />
                 }
@@ -50,9 +51,9 @@
         </Rows>
 
         <Aggregates>
-            @if (Helper?.PivotSettings != null && Helper.PivotSettings?.Aggregates.Any() == true)
+            @if (GridModel?.PivotSettings != null && GridModel.PivotSettings?.Aggregates.Any() == true)
             {
-                foreach (var agg in Helper.PivotSettings.Aggregates)
+                foreach (var agg in GridModel.PivotSettings.Aggregates)
                 {
                     <RadzenPivotAggregate Property="@agg?.Property"
                                           Title="@agg?.Title" 
@@ -65,15 +66,8 @@
 </LoadingContent>
 
 @code {
-    [Parameter] public Func<AutoCAC.Models.mainContext, IQueryable<TItem>> QueryFactory { get; set; }
-    [Parameter] public string[] SearchColumns { get; set; }
-    [Parameter] public string DataGridName { get; set; } = null;
-    [Parameter] public bool IgnoreFilter { get; set; } = false;
-    [Parameter] public bool UseClientSideData { get; set; } = false;
-    [Parameter] public string InitialSearchText { get; set; } = "";
-    [Parameter] public DataGridTemplate InitialTemplate { get; set; }
+    [Parameter] public DataGridHelper<TItem> GridModel { get; set; } = new();
     int pivotKey = 0;
-    public DataGridHelper<TItem> Helper;
     RadzenPivotDataGrid<TItem> Grid;
     private int[] pageSizes = { 5, 10, 20, 30, 50 };
     private bool IsLoading = true;
@@ -82,11 +76,15 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-        {            
-            DataGridName ??= typeof(TItem).Name + "Pivot";
-            Helper = new DataGridHelper<TItem>(DbFactory, UserContext.Username, QueryFactory
-                                                , SearchColumns, DataGridName, IgnoreFilter
-                                                , UseClientSideData, InitialSearchText, pivotTable: true
+        {
+            GridModel.DataGridName = string.IsNullOrEmpty(GridModel?.DataGridName) ||
+                                        GridModel.DataGridName == typeof(TItem).Name ?
+                                        typeof(TItem).Name + "Pivot" : GridModel.DataGridName;
+            GridModel.IsPivotTable = true;
+            GridModel.Initialize(
+                DbFactory,
+                UserContext.Username,
+                reloadAsync: () => InvokeAsync(() => Grid.FirstPage(true))
             );
             await InvokeAsync(StateHasChanged);
             return;
@@ -111,7 +109,7 @@
         IsLoading = true;
         try
         {
-            await Helper.LoadAsync(args);
+            await GridModel.LoadAsync(args);
         }
         catch (Exception ex)
         {
@@ -126,7 +124,7 @@
 
     public async Task SaveGridSettingsClick(RadzenSplitButtonItem item)
     {
-        var isPublic = Helper.LoadedTemplate?.IsShared == true;
+        var isPublic = GridModel.LoadedTemplate?.IsShared == true;
         // Override default if the user explicitly selected a value
         if (item?.Value != null)
         {
@@ -136,27 +134,27 @@
             else if (string.Equals(value, "private", StringComparison.OrdinalIgnoreCase))
                 isPublic = false;
         }
-        var templates = await Helper.GetTemplatesAsync();
+        var templates = await GridModel.GetTemplatesAsync();
         var templateNames = templates.Select(x => x.TemplateName);
         var templateName = await DialogService.AutoCompleteDialogAsync(
-            Helper.LoadedTemplate?.TemplateName,
+            GridModel.LoadedTemplate?.TemplateName,
             templateNames,
             isPublic ? "Save Public Search Template" : "Save Search Template (Private)"
         );
         if (string.IsNullOrWhiteSpace(templateName))
             return;
-        await Helper.SaveTemplate(templateName, isPublic, Grid);
+        await GridModel.SaveTemplate(templateName, isPublic, Grid);
         var savedas = isPublic ? "public" : "private";
         NotificationService.Success($"Settings successfully saved as {savedas} template");
-        await templateDropdown.LoadTemplates(Helper.LoadedTemplate);
+        await templateDropdown.LoadTemplates(GridModel.LoadedTemplate);
     }
 
     public async Task OnTemplatePicked(DataGridTemplate tmpl)
     {
-        Helper.LoadedTemplate = tmpl;
+        GridModel.LoadedTemplate = tmpl;
         if (tmpl == null) return;
         var json = tmpl?.DataGridSettings;
-        Helper.PivotSettings = string.IsNullOrWhiteSpace(json)
+        GridModel.PivotSettings = string.IsNullOrWhiteSpace(json)
             ? null
             : JsonSerializer.Deserialize<PivotGridSettings>(json);
         pivotKey++;

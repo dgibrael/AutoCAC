@@ -1,3 +1,11 @@
 ﻿@using AutoCAC.Components.Templates.DataGrids
 
-<DataGridDialog TItem="AutoCAC.Models.Patient" SearchColumns="@(new[] { "ChartNumber", "Name" })" IncludeColumns="@(new[] { "ChartNumber", "Name" })" />
+<DataGridDialog TItem="AutoCAC.Models.Patient" GridModel="GridModel" />
+
+@code{
+    private DataGridHelper<AutoCAC.Models.Patient> GridModel = new()
+    {
+        SearchColumns = new[] { "ChartNumber", "Name" },
+        IncludeColumns = new[] { "ChartNumber", "Name" }
+    };
+}

@@ -5,7 +5,7 @@
 @inject NavigationManager Nav
 @inject DialogService DialogService
 @inject NotificationService Notifications
-<DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" QueryFactory="@Qry()" @ref="grid" AddButtonClick="@AddBtnClick">
+<DataGridVanilla TItem="AutoCAC.Models.WardstockLocation" GridModel="GridModel" AddButtonClick="AddBtnClick">
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="LocationName" Title="LocationName" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.WardstockLocation" Property="InactiveDate" Title="InactiveDate" />
     <ActionColumn TItem="AutoCAC.Models.WardstockLocation" Context="data">
@@ -21,19 +21,18 @@
 </DataGridVanilla>
 
 @code {
-    private DataGridVanilla<WardstockLocation> grid;
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockLocation>> Qry()
-    {
+    private DataGridHelper<WardstockLocation> GridModel = new()
+        {
         //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.WardstockLocations
-            .OrderBy(x => x.LocationName)
-            .AsQueryable().AsNoTracking();
-    }
+            QueryFactory = db => db.WardstockLocations
+                .OrderBy(x => x.LocationName)
+                .AsQueryable().AsNoTracking()
+        };
     private async Task ToggleActivated(AutoCAC.Models.WardstockLocation location)
     {
         location.InactiveDate = location.InactiveDate == null ? DateOnly.FromDateTime(DateTime.Now) : null;
         await DbFactory.UpdateItemAsync(location);
-        await grid.ForceReload();
+        await GridModel.ReloadAsync();
     }
 
     private async Task AddBtnClick()

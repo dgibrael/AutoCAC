@@ -9,8 +9,7 @@
 @inject NavigationManager Nav
 <RadzenLink Text="Go to Main Que" Path="tsaile" Icon="home" />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
-<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" QueryFactory="@Qry()" AddButtonDefault="true" @ref="grid"
-                 SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })">
+<DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" GridModel="GridModel" >
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
@@ -30,7 +29,6 @@
 </DataGridVanilla>
 
 @code {
-    private DataGridVanilla<AutoCAC.Models.TsaileBetterq> grid;
     private int _userId { get; set; } = 0;
     private bool _isSuper = false;
     protected override void OnInitialized()
@@ -38,16 +36,16 @@
         _userId = UserContext.UserProfile.Id;
         _isSuper = UserContext.IsInGroupOrSuperuser("PharmacistSupervisor");
     }
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.TsaileBetterq>> Qry()
+    private DataGridHelper<AutoCAC.Models.TsaileBetterq> GridModel = new()
     {
-        //make sure to add QueryFactory="@Qry()" to datagrid params
-        return db => db.TsaileBetterqs
+        QueryFactory = db => db.TsaileBetterqs
             .Where(x => x.Status == TsaileTicketStatus.Deleted.ToString())
             .Include(x => x.Patient)
             .OrderByDescending(x => x.CompletedDateTime)
-            .AsQueryable();
-    }
+            .AsQueryable(),
+        AddButtonDefault = true,
+        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+    };
 
     IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
     {
@@ -77,7 +75,7 @@
                 {
                     await DbFactory.DeleteItemAsync(row);
                     NotificationService.Success($"Successfully deleted");
-                    await grid?.ForceReload();
+                    await GridModel.ReloadAsync();
                 }
             }
         },
@@ -93,7 +91,7 @@
                 if (newStatus == null) return;
                 await row?.UpdateStatusAsync(DbFactory, newStatus, _userId);
                 NotificationService.Success($"Status updated to {row?.Status}");
-                await grid?.ForceReload();
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
@@ -115,7 +113,7 @@
                 if (newStatus == null) return;
                 await row?.UpdateStatusAsync(DbFactory, newStatus, _userId);
                 NotificationService.Success("Undo delete successful");
-                await grid?.ForceReload();
+                await GridModel.ReloadAsync();
             }
         }
     };

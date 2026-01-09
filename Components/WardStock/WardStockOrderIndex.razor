@@ -17,7 +17,7 @@
     						 		})" />
 </AuthVanilla>
 
-<DataGridVanilla TItem="AutoCAC.Models.WardstockDto" QueryFactory="@Qry()" AddButtonClick="@AddBtnClick" @ref="grid">
+<DataGridVanilla TItem="AutoCAC.Models.WardstockDto" GridModel="GridModel" AddButtonClick="@AddBtnClick">
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
 	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LocationName" Title="Location"
@@ -40,30 +40,21 @@
 	private bool _isPharmacy;
 	private bool _isSupervisor;
 	private HashSet<int> _myLocations;
-	private DataGridVanilla<WardstockDto> grid;
-	protected override async Task OnInitializedAsync()
+	private DataGridHelper<AutoCAC.Models.WardstockDto> GridModel = new();
+	protected override void OnInitialized()
 	{
-		_isSupervisor = UserContext.IsInGroupOrSuperuser("PharmacyTechSupervisor", "PharmacistSupervisor");
-		_isPharmacy = UserContext.IsInGroup("PharmacyTech", "Pharmacist");
-		_userId = UserContext.UserProfile.Id;
-		await using var db = await DbFactory.CreateDbContextAsync();
-		_myLocations = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.LocationId).ToHashSetAsync<int>();
-	}
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.WardstockDto>> Qry()
-	{
-		//make sure to add QueryFactory="@Qry()" to datagrid params
-		return db =>
+		GridModel.QueryFactory = db =>
 			db.WardstockOrders
 			.Include(x => x.Location)
 			.Select(x => new WardstockDto
-				{
-					Id = x.Id,
-					LastModifiedDateTime = x.LastModifiedDateTime,
-					LocationId = x.LocationId,
-					LocationName = x.Location.LocationName,
-					OrderDateTime = x.OrderDateTime,
-					Status = x.Status
-				}
+			{
+				Id = x.Id,
+				LastModifiedDateTime = x.LastModifiedDateTime,
+				LocationId = x.LocationId,
+				LocationName = x.Location.LocationName,
+				OrderDateTime = x.OrderDateTime,
+				Status = x.Status
+			}
 			)
 			.Where(x =>
 				_isSupervisor ||
@@ -73,7 +64,14 @@
 			.OrderBy(x => x.LastModifiedDateTime)
 			.AsQueryable().AsNoTracking();
 	}
-
+	protected override async Task OnInitializedAsync()
+	{
+		_isSupervisor = UserContext.IsInGroupOrSuperuser("PharmacyTechSupervisor", "PharmacistSupervisor");
+		_isPharmacy = UserContext.IsInGroup("PharmacyTech", "Pharmacist");
+		_userId = UserContext.UserProfile.Id;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		_myLocations = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.LocationId).ToHashSetAsync<int>();
+	}
 	private async Task AddBtnClick()
 	{
 		var locCount = _myLocations.Count;
@@ -122,6 +120,6 @@
 		var confirm = await DialogService.Confirm("Are you sure you want to delete?");
 		if (confirm != true) return;
 		var itemId = await DbFactory.DeleteByPkAsync<WardstockOrder>(item.Id);
-		await grid.Grid.FirstPage(true);
+		await GridModel.ReloadAsync();
 	}
 }

@@ -14,11 +14,7 @@
 }
 else
 {		
-	<DataGridVanilla TItem="VwUserNameMismatch" 
-		SearchColumns="@(new[] { "Username", "RpmslastName", "AppLastName", "RpmsfirstName", "AppFirstName" })"
-		QueryFactory="@Qry()">
-
-	</DataGridVanilla>
+	<DataGridVanilla TItem="VwUserNameMismatch" GridModel="GridModel"/>
 }
 
 @code{
@@ -52,11 +48,11 @@ else
 
 		}
 	}
-	private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.VwUserNameMismatch>> Qry()
-	{
-		//make sure to add QueryFactory="@Qry()" to datagrid params
-		return db => db.VwUserNameMismatches
+    private DataGridHelper<AutoCAC.Models.VwUserNameMismatch> GridModel = new()
+    {
+        SearchColumns = new[] { "Username", "RpmslastName", "AppLastName", "RpmsfirstName", "AppFirstName" },
+		QueryFactory = db => db.VwUserNameMismatches
 			.OrderBy(x => x.PossibleMatches)
-				.ThenBy(x => x.Username);
-	}
+				.ThenBy(x => x.Username)
+    };
 }

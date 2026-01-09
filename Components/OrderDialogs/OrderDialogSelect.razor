@@ -8,9 +8,7 @@
 
 <RadzenStack>
     <RadzenHeading Size="H5" Text="Select Order Dialog to insert or enter a description in the field at the bottom" />
-    <DataGridVanilla @ref="grid" TItem="AutoCAC.Models.OrderDialog" SearchColumns="@(new[] { "Responses", "DisplayText", "Name" })"
-    InitialSearchText="@SearchText"
-    >
+    <DataGridVanilla TItem="AutoCAC.Models.OrderDialog" GridModel="GridModel">
         <ChildContent>
             <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="Display Name" 
             WhiteSpace="WhiteSpace.Wrap" />
@@ -79,18 +77,17 @@
 </RadzenStack>
 
 @code {
-    private DataGridVanilla<AutoCAC.Models.OrderDialog> grid;
     [Parameter] public string SearchText { get; set; }
     [Parameter] public PlaceholderField placeholderField { get; set; }
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.OrderDialog>> Qry()
+    private DataGridHelper<AutoCAC.Models.OrderDialog> GridModel = new()
     {
-        return db =>
-        {
-            return db.OrderDialogs.AsQueryable().AsNoTracking();
-        };
+        SearchColumns = new[] { "Responses", "DisplayText", "Name" },
+        QueryFactory = db => db.OrderDialogs.AsQueryable().AsNoTracking()
+    };
+    protected override void OnInitialized()
+    {
+        GridModel.InitialSearchText = SearchText;
     }
-
     private void SelectDialog(OrderDialog selected)
     {
         DialogService.Close(selected);

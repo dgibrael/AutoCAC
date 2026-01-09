@@ -11,9 +11,7 @@
 
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
-    <DataGridVanilla TItem="PiVerification" @ref="grid" QueryFactory="@Qry()"
-        SearchColumns="@(new[] { "Patient.Name", "Patient.ChartNumber" })"
-    AddButtonDefault="false">
+    <DataGridVanilla TItem="PiVerification" GridModel="GridModel">
         <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
         <ChildContent>
             <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
@@ -35,16 +33,17 @@
 
 @code {
     [Parameter][SupplyParameterFromQuery(Name = "dataGridTemplateId")] public int? TemplateId { get; set; }
-    private DataGridVanilla<PiVerification> grid;
     private string currentUsername;
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.PiVerification>> Qry()
+    private DataGridHelper<AutoCAC.Models.PiVerification> GridModel = new()
     {
-        return db => db.PiVerifications
+        QueryFactory = db => db.PiVerifications
                 .Include(x => x.Patient)
                 .Include(x => x.PiVerificationComments)
-                .AsNoTracking();
-    }
+                .AsNoTracking(),
+        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" },
+        AddButtonDefault = false
+    };
 
     protected override void OnInitialized()
     {
@@ -114,7 +113,7 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                await grid.ForceReload();
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
@@ -131,7 +130,7 @@
                 row.LastModified = DateTime.Now;
                 await DbFactory.UpdateItemAsync(row);
                 NotificationService.Success($"Status updated to {newStatus}");
-                await grid.ForceReload();
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
@@ -148,7 +147,7 @@
                 {
                     await DbFactory.DeleteItemAsync(row);
                     NotificationService.Success($"Deleted");
-                    await grid.ForceReload();
+                    await GridModel.ReloadAsync();
                 }
             }
         }

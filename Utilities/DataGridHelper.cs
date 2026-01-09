@@ -3,6 +3,7 @@ using AutoCAC.Extensions;
 using AutoCAC.Models;
 using AutoCAC.Utilities;
 using ClosedXML.Excel;
+using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using Radzen;
@@ -10,92 +11,206 @@ using Radzen.Blazor;
 using System.Linq;
 using System.Linq.Dynamic.Core;
 using System.Text.Json;
+
 namespace AutoCAC;
 
 public sealed class DataGridHelper<T> where T : class
 {
-    private readonly IDbContextFactory<AutoCAC.Models.mainContext> _db;
-    private static readonly Func<AutoCAC.Models.mainContext, IQueryable<T>> DefaultQuery =
+    private IDbContextFactory<mainContext> _db;
+
+    private static readonly Func<mainContext, IQueryable<T>> DefaultQuery =
         db => db.Set<T>().AsQueryable().AsNoTracking();
 
     private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
     private ColumnFilterChoices<T> _filterChoices;
 
-    // configuration
-    public Func<AutoCAC.Models.mainContext, IQueryable<T>> Source { get; }
-    public bool IgnoreFilter { get; }
-    public string[] SearchColumns { get; set; }
+    // -------------------------
+    // Init + reload wiring
+    // -------------------------
+    public bool IsInitialized { get; private set; }
 
-    // state
+    private Func<Task> _reloadAsync;
+    private bool _reloadPending;
+
+    public void Initialize(IDbContextFactory<mainContext> dbFactory, string username, Func<Task> reloadAsync)
+    {
+        // always refresh these (safe + predictable)
+        _db = dbFactory;
+        UserName = username;
+
+        if (!IsInitialized)
+        {
+            // one-time init
+            SearchText = InitialSearchText ?? string.Empty;
+            ShouldCount = true;
+            IsInitialized = true;
+        }
+
+        // attach/replace reload handler (single-owner model)
+        _reloadAsync = reloadAsync;
+
+        // if a reload was requested before handler existed, run once now
+        if (_reloadPending)
+        {
+            _reloadPending = false;
+            _ = SafeReloadAsync();
+        }
+    }
+
+    public void DetachReloadHandler()
+    {
+        _reloadAsync = null;
+    }
+
+    public void Reload()
+        => _ = ReloadAsync();
+
+    public Task ReloadAsync()
+    {
+        ShouldCount = true;
+        if (_reloadAsync is null)
+        {
+            _reloadPending = true;
+            return Task.CompletedTask;
+        }
+
+        return SafeReloadAsync();
+    }
+
+    private async Task SafeReloadAsync()
+    {
+        try
+        {
+            await _reloadAsync();
+        }
+        catch
+        {
+            // swallow or log
+        }
+    }
+
+    private void EnsureInitialized()
+    {
+        if (!IsInitialized || _db is null)
+            throw new InvalidOperationException("DataGridHelper is not initialized. Call Helper.Initialize(dbFactory, username, reloadAsync) first.");
+    }
+
+    // -------------------------
+    // Former DataGridVanilla parameters (now Helper properties)
+    // -------------------------
+    public string DataGridName { get; set; }
+
+    public string AddButtonUrl { get; set; }
+    public bool AddButtonDefault { get; set; } = false;
+
+    public bool ActionColumnDefault { get; set; } = false;
+
+    public IEnumerable<string> ExcludeColumns { get; set; } = new List<string>();
+    public IEnumerable<string> IncludeColumns { get; set; }
+
+    public string[] SearchColumns { get; set; }
+    public Func<mainContext, IQueryable<T>> QueryFactory { get; set; }
+
+    public bool UseClientSideData { get; set; } = false;
+    public bool IgnoreFilter { get; set; } = false;
+
+    public DataGridTemplate InitialTemplate { get; set; }
+    public string InitialSearchText { get; set; } = "";
+
+    public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
+
+    public string PrintHeader { get; set; }
+
+    public bool AllowGrouping { get; set; } = true;
+    public bool AllowSorting { get; set; } = true;
+    public bool AllowFiltering { get; set; } = true;
+    public bool AllowColumnReorder { get; set; } = true;
+    public bool AllowColumnPicking { get; set; } = true;
+
+    // -------------------------
+    // Existing helper state/output (kept close to your current code)
+    // -------------------------
     private string _lastFilter;
     private string _lastSearchText;
+
     public string SearchText { get; set; }
     public bool? ShouldCount { get; set; }
-    public Func<AutoCAC.Models.mainContext, IQueryable<T>> LastBuilder { get; private set; }
+    public Func<mainContext, IQueryable<T>> LastBuilder { get; private set; }
 
-    // output
     public IEnumerable<T> Data { get; set; }
     public int Count { get; set; }
 
-    // grid UI state
     public DataGridSettings Settings { get; set; }
-    public PivotGridSettings PivotSettings { get; set;  }
-    private string _dataGridName;
-    public string PageName =>
-        !string.IsNullOrWhiteSpace(_dataGridName)
-            ? _dataGridName!
-            : typeof(T).Name;
+    public PivotGridSettings PivotSettings { get; set; }
 
     public DataGridTemplate LoadedTemplate { get; set; }
     public string UserName { get; set; }
-    public bool UseClientSideData { get; set; } = false;
+
     private List<T> _cache;
-    private bool IsPivotTable { get; set; }
-    public DataGridHelper(
-        IDbContextFactory<AutoCAC.Models.mainContext> db,
-        string username,
-        Func<AutoCAC.Models.mainContext, IQueryable<T>> source = null,
-        string[] searchColumns = null,
-        string dataGridName = null,
-        bool ignoreFilter = false,
-        bool useClientSideData = false,
-        string initialSearchText = "",
-        bool pivotTable = false,
-        IReadOnlyDictionary<string, IEnumerable<object>> customColumnChoices = null
-        )
+    public bool IsPivotTable { get; set; }
+
+    public string PageName =>
+        !string.IsNullOrWhiteSpace(DataGridName)
+            ? DataGridName!
+            : typeof(T).Name;
+
+    // Parameterless constructor so DataGridVanilla can default to new()
+    public DataGridHelper()
     {
-        _db = db;
-        UserName = username;
-        Source = source ?? DefaultQuery;
-        IgnoreFilter = ignoreFilter;
-        SearchColumns = searchColumns;
-        Data = null;
         ShouldCount = true;
-        _dataGridName = dataGridName;
-        UseClientSideData = useClientSideData;
-        SearchText = initialSearchText;
-        IsPivotTable = pivotTable;
-        CustomColumnChoices = customColumnChoices
-            ?? new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
+        SearchColumns = Array.Empty<string>();
+        CustomChoices = new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
     }
 
-    public void SetQuickFilter(string text)
+    // -------------------------
+    // Query mutation API (caller changes QueryFactory, helper handles invalidation + reload)
+    // -------------------------
+    public void SetQueryFactory(Func<mainContext, IQueryable<T>> queryFactory, bool clearClientCache = true, bool requestReload = true)
+    {
+        QueryFactory = queryFactory;
+
+        // invalidate derived state
+        ShouldCount = true;
+        _lastFilter = null;
+        _lastSearchText = null;
+        LastBuilder = null;
+
+        if (clearClientCache)
+            _cache = null;
+
+        if (requestReload)
+            Reload();
+    }
+
+    public async Task SetQuickFilterAsync(string text = null)
     {
         SearchText = text ?? string.Empty;
-        ShouldCount = true;
+        await ReloadAsync();
     }
 
+    // -------------------------
+    // Data loading
+    // -------------------------
     public async Task LoadAsync(LoadDataArgs args, CancellationToken ct = default)
     {
+        EnsureInitialized();
+
         if (UseClientSideData)
         {
             await LoadClientSideAsync(args, ct);
             return;
         }
+
         await using var ctx = await _db.CreateDbContextAsync(ct);
-        IQueryable<T> query = Source(ctx).AsNoTracking();
-        if (!string.IsNullOrEmpty(args.Filter) && !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
+
+        var source = QueryFactory ?? DefaultQuery;
+        IQueryable<T> query = source(ctx).AsNoTracking();
+
+        if (!string.IsNullOrEmpty(args.Filter) &&
+            !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
+        {
             query = query.Where(args.Filter);
+        }
 
         if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
             query = query.QuickSearch(SearchText, SearchColumns);
@@ -110,6 +225,7 @@ public sealed class DataGridHelper<T> where T : class
 
         if (!string.IsNullOrEmpty(args.OrderBy))
             query = query.OrderBy(_config, args.OrderBy);
+
         if (args.Skip.HasValue) query = query.Skip(args.Skip.Value);
         if (args.Top.HasValue) query = query.Take(args.Top.Value);
 
@@ -117,27 +233,31 @@ public sealed class DataGridHelper<T> where T : class
 
         LastBuilder = c =>
         {
-            var q = Source(c).AsNoTracking();
+            var q = (QueryFactory ?? DefaultQuery)(c).AsNoTracking();
+
             if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
                 q = q.QuickSearch(SearchText, SearchColumns);
+
             if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
                 q = q.Where(args.Filter);
+
             return q;
         };
 
         ShouldCount = null;
     }
-    public IReadOnlyDictionary<string, IEnumerable<object>> CustomColumnChoices { get; set; }
-        = new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
+
     public async Task LoadColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
     {
+        EnsureInitialized();
+
         args.Top = null;
         args.Skip = null;
 
         var propertyName = args.Column.GetFilterProperty();
 
         // CUSTOM CHOICES
-        if (CustomColumnChoices.TryGetValue(propertyName, out var values))
+        if (CustomChoices != null && CustomChoices.TryGetValue(propertyName, out var values))
         {
             args.Data = ObjectFactoryHelpers.CreateStubs<T>(propertyName, values);
             args.Count = values.Count();
@@ -145,20 +265,25 @@ public sealed class DataGridHelper<T> where T : class
         }
 
         await using var ctx = await _db.CreateDbContextAsync();
-        var query = Source(ctx).AsNoTracking();
+        var query = (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking();
 
         _filterChoices ??= new ColumnFilterChoices<T>();
         await _filterChoices.GetColumnFilterDataAsync(args, query);
     }
 
+    // -------------------------
+    // Export
+    // -------------------------
     public async Task DownloadCsvAsync(IJSRuntime js, int hardLimit = 100000, CancellationToken ct = default)
     {
+        EnsureInitialized();
+
         if (Count > hardLimit)
             throw new InvalidOperationException("Data set too large to download. Filter first.");
 
         await using var ctx = await _db.CreateDbContextAsync(ct);
-        var query = (LastBuilder ?? Source)(ctx);
-        
+        var query = (LastBuilder ?? (QueryFactory ?? DefaultQuery))(ctx);
+
         var visibleProps = Settings != null && !IsPivotTable
             ? Settings.Columns
                 .Where(c => c.Visible)
@@ -171,17 +296,24 @@ public sealed class DataGridHelper<T> where T : class
         await query.DownloadAsCsvAsync(new LoadDataArgs(), js, includeProperties: visibleProps);
     }
 
+    // -------------------------
+    // Templates
+    // -------------------------
     public async Task<List<DataGridTemplate>> GetTemplatesAsync()
     {
+        EnsureInitialized();
+
         await using var db = await _db.CreateDbContextAsync();
         return await db.DataGridTemplates
-                    .AsNoTracking()
-                    .Where(t => t.DataGridName == PageName && t.CreatedBy == UserName)
-                    .ToListAsync();
+            .AsNoTracking()
+            .Where(t => t.DataGridName == PageName && t.CreatedBy == UserName)
+            .ToListAsync();
     }
 
     public async Task SaveTemplate(string templateName, bool isPublic, RadzenPivotDataGrid<T> pivot = null)
     {
+        EnsureInitialized();
+
         await using var db = await _db.CreateDbContextAsync();
         string json;
 
@@ -213,6 +345,7 @@ public sealed class DataGridHelper<T> where T : class
         {
             json = JsonSerializer.Serialize(Settings);
         }
+
         LoadedTemplate = await db.UpsertDataGridTemplate(templateName, PageName, UserName, json, isPublic);
     }
 
@@ -227,29 +360,32 @@ public sealed class DataGridHelper<T> where T : class
             Settings = null;
             return;
         }
-        Console.WriteLine(json);
+
         if (IsPivotTable)
             PivotSettings = JsonSerializer.Deserialize<PivotGridSettings>(json);
         else
             Settings = JsonSerializer.Deserialize<DataGridSettings>(json);
     }
 
+    // -------------------------
+    // Client-side mode
+    // -------------------------
     private async Task LoadClientSideAsync(LoadDataArgs args, CancellationToken ct)
     {
+        EnsureInitialized();
+
         // Load full data set if we don't have it yet
         if (_cache == null)
         {
             await using var ctx = await _db.CreateDbContextAsync(ct);
-            _cache = await Source(ctx).AsNoTracking().ToListAsync(ct);
+            _cache = await (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking().ToListAsync(ct);
         }
 
         IEnumerable<T> query = _cache;
 
         // Apply search
-        if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns.Length > 0)
-        {
+        if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
             query = query.AsQueryable().QuickSearch(SearchText, SearchColumns);
-        }
 
         // Apply dynamic filter expression
         if (!string.IsNullOrEmpty(args.Filter) &&
@@ -275,7 +411,7 @@ public sealed class DataGridHelper<T> where T : class
         {
             IQueryable<T> q = _cache.AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns.Length > 0)
+            if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
                 q = q.QuickSearch(SearchText, SearchColumns);
 
             if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)

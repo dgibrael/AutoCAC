@@ -6,8 +6,7 @@
 @inject NavigationManager NavigationManager
 <PageTitle>Search Template Settings</PageTitle>
 <RadzenLink Path="/settings" Icon="arrow_back" Text="Back to Settings Home"/>
-<DataGridEditable TItem="DataGridTemplate" DefaultAddButton="false" QueryFactory="@Qry()"
-                  DataGridName="DataGridTemplate">
+<DataGridEditable TItem="DataGridTemplate" DefaultAddButton="false" GridModel="GridModel">
     <ChildContent>
         <RadzenDataGridColumn TItem="DataGridTemplate" Property="TemplateName" Title="Template Name">
             <EditTemplate Context="r">
@@ -24,9 +23,10 @@
 </DataGridEditable>
 
 @code {
-    private Func<AutoCAC.Models.mainContext, IQueryable<AutoCAC.Models.DataGridTemplate>> Qry()
+    private DataGridHelper<DataGridTemplate> GridModel = new();
+    protected override void OnInitialized()
     {
-        return db => db.DataGridTemplates
+        GridModel.QueryFactory = db => db.DataGridTemplates
               .AsNoTracking()
               .Where(x => x.CreatedBy == UserContext.Username);
     }

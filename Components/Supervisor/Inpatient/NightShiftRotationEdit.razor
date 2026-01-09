@@ -8,7 +8,7 @@
 <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
 Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
 
-<DataGridEditable TItem="NightShiftRotation" QueryFactory="@QueryFactory()"
+<DataGridEditable TItem="NightShiftRotation" GridModel="GridModel"
                     AddAction="AddRotationAsync">
     <RadzenDataGridColumn TItem="NightShiftRotation" Property="StaffUserName" Title="Staff User" />
 
@@ -33,10 +33,10 @@ Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
 
 @code {
     [Parameter] public string SelectedUsername { get; set; }
-
-    private Func<AutoCAC.Models.mainContext, IQueryable<NightShiftRotation>> QueryFactory()
+    private DataGridHelper<AutoCAC.Models.NightShiftRotation> GridModel = new();
+    protected override void OnInitialized()
     {
-        return db =>
+        GridModel.QueryFactory = db =>
         {
             var qry = db.NightShiftRotations
                 .AsNoTracking()
