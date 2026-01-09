@@ -16,7 +16,7 @@ public sealed class DataGridHelper<T> where T : class
 {
     private readonly IDbContextFactory<AutoCAC.Models.mainContext> _db;
     private static readonly Func<AutoCAC.Models.mainContext, IQueryable<T>> DefaultQuery =
-        db => db.Set<T>().AsQueryable();
+        db => db.Set<T>().AsQueryable().AsNoTracking();
 
     private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
     private ColumnFilterChoices<T> _filterChoices;

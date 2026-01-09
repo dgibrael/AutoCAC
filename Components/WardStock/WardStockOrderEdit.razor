@@ -48,13 +48,12 @@
 			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="Lot" Title="Lot" 
 							  />
 		</DataGridEditable>
-		<PrintContent PrintOnly="false">
 			<ChatTemplate TItem="WardstockComment" LoadData="LoadCommentsAsync" GetUser="@(x => x.AuthUser.Username)"  
 					GetMessage="@(x => x.Comment)" GetTimestamp="@(x => x.CreatedAt)" GetMessageId="@(x => x.Id.ToString())"
 					CreateMessage="CreateComment"
 			/>
-		</PrintContent>
 		<PrintContent>
+			<h4>@($"Order for {pageItem?.Location?.LocationName}")</h4>
 			@if (orderedItems != null)
 			{
 				<RadzenDataGrid TItem="WardstockOrderitem" Data="orderedItems" >
@@ -65,13 +64,27 @@
 					</Columns>
 				</RadzenDataGrid>
 			}
+			<h5>Comments:</h5>
+			@if (comments != null)
+			{
+				foreach(var c in comments)
+				{
+					<p><span>@c?.Comment</span>
+						<i><small>@($@"{
+								(!string.IsNullOrWhiteSpace(c?.AuthUser?.LastName) ?
+									$"{c?.AuthUser?.LastName}, {c?.AuthUser?.FirstName}" :
+									c?.AuthUser?.Username)} @")</small><small>@c?.CreatedAt</small></i>
+					</p>
+				}
+			}
+
 		</PrintContent>
 		@if(UserType == UserTypes.super)
 		{
 			<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" Click="@OnSendBack" Icon="undo" />
 		}
 		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check" Disabled="@(pageItem?.IsLastStatus == true)" />
-		<PrintButton BeforePrint="GetOrderedItems" />
+		<PrintButton BeforePrint="BeforePrint" />
 	}
 </LoadingContent>
 <BackLink />
@@ -81,6 +94,7 @@
 	private WardstockOrder pageItem;
 	private List<AutoCAC.Models.WardstockItem> allAllowedItems { get; set; }
 	private IEnumerable<WardstockOrderitem> orderedItems;
+	private IEnumerable<WardstockComment> comments;
 	private enum UserTypes
 	{
 		super,
@@ -147,7 +161,7 @@
 				.AsQueryable();
 		};
 
-	private async Task GetOrderedItems()
+	private async Task BeforePrint()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
 		orderedItems = await db.WardstockOrderitems
@@ -155,6 +169,11 @@
 				.Include(x => x.Item)
 					.ThenInclude(x => x.Drug)
 				.ToListAsync();
+		comments = await db.WardstockComments
+					.Where(x => x.WardstockOrderId == Id)
+					.Include(x => x.AuthUser)
+					.ToListAsync();
+
 	}
 
 	private async Task<WardstockOrderitem> AddItemClick()

@@ -87,7 +87,7 @@
     {
         return db =>
         {
-            return db.OrderDialogs.AsQueryable();
+            return db.OrderDialogs.AsQueryable().AsNoTracking();
         };
     }
 

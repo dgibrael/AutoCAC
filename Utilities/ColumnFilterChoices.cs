@@ -108,7 +108,7 @@ namespace AutoCAC.Utilities
                 prop.SetValue(stub, val);
                 list.Add(stub);
             }
-            var finalQuery = list.AsQueryable();
+            var finalQuery = list.AsQueryable().AsNoTracking();
             // --- END CHANGED SECTION ---
 
             if (top == -1)

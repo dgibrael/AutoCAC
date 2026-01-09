@@ -37,6 +37,7 @@ namespace AutoCAC.Services
 
             await using var db = await _dbFactory.CreateDbContextAsync();
             AllRestrictedPages = await db.RestrictedPages
+                                    .AsNoTracking()
                                     .Include(x => x.RestrictedPageGroups)
                                         .ThenInclude(x => x.AuthGroup)
                                     .ToListAsync();
@@ -106,13 +107,13 @@ namespace AutoCAC.Services
                     UserLoaded = true;
                     return;
                 }
-                Username = CurrentUser?.Identity?.Name?.Replace("\\", "_")?.ToLower();
+                Username = CurrentUser?.Identity?.Name?.Replace("\\", "_");
                 await using var db = await _dbFactory.CreateDbContextAsync();
 
                 // Try to find existing profile
                 UserProfile = await db.AuthUsers
                     .Include(u => u.AuthUserGroups).ThenInclude(ug => ug.Group)
-                    .FirstOrDefaultAsync(u => u.Username.ToLower() == Username);
+                    .FirstOrDefaultAsync(u => u.Username == Username);
                 GetPersonInfoFromClaimsOrAd();
                 // If not found, create it
                 if (UserProfile == null)

@@ -27,7 +27,7 @@
         //make sure to add QueryFactory="@Qry()" to datagrid params
         return db => db.WardstockLocations
             .OrderBy(x => x.LocationName)
-            .AsQueryable();
+            .AsQueryable().AsNoTracking();
     }
     private async Task ToggleActivated(AutoCAC.Models.WardstockLocation location)
     {

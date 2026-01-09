@@ -71,7 +71,7 @@
 				(_myLocations != null && _myLocations.Contains(x.LocationId))
 			)
 			.OrderBy(x => x.LastModifiedDateTime)
-			.AsQueryable();
+			.AsQueryable().AsNoTracking();
 	}
 
 	private async Task AddBtnClick()
