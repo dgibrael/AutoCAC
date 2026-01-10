@@ -110,8 +110,9 @@
         </RadzenStack>
     </RadzenSidebar>
 </RadzenLayout>
-    @code {
+@code {
     bool sidebarExpanded = true;    
+    bool rpmsLoadCanceled = false;
     private bool? _canAccess;
     private bool initialLoad = true;
     protected override async Task OnParametersSetAsync()
@@ -132,26 +133,32 @@
         {
             await RunOnNav();
             // create a .NET object reference for THIS circuit's TerminalInterop
-            _terminalRef = DotNetObjectReference.Create(TerminalInterop);
-
-            // hand it to JS
-            try
-            {
-                _terminalRef = DotNetObjectReference.Create(TerminalInterop);
-
-                await JS.InvokeVoidAsync("setRPMSDotNetRef", _terminalRef);
-                await JS.InvokeVoidAsync("reinitRPMSXterm");
-            }
-            catch (JSDisconnectedException)
-            {
-                // Happens during prerender OR if user navigated away
-                // Let hydration re-run firstRender and try again
-            }
+            await LoadRPMSXterm();
             StateHasChanged();
         }
         else
         {
             initialLoad = false;
+        }
+    }
+
+    private async Task LoadRPMSXterm()
+    {
+        _terminalRef = DotNetObjectReference.Create(TerminalInterop);
+
+        // hand it to JS
+        try
+        {
+            _terminalRef = DotNetObjectReference.Create(TerminalInterop);
+
+            await JS.InvokeVoidAsync("setRPMSDotNetRef", _terminalRef);
+            await JS.InvokeVoidAsync("reinitRPMSXterm");
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException || ex is TaskCanceledException)
+        {
+            // Happens during prerender OR if user navigated away
+            // Let hydration re-run firstRender and try again
+            rpmsLoadCanceled = true;
         }
     }
 
@@ -161,6 +168,10 @@
         await UserContext.EnsureInitializedAsync();
         await UserContext.LoadAllowedPages();
         _canAccess = UserContext.CanAccess(NavigationManager.GetRelativeUrl());
+        if (rpmsLoadCanceled)
+        {
+            await LoadRPMSXterm();
+        }
     }
 
 }

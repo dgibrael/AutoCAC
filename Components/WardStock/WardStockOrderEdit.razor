@@ -20,36 +20,49 @@
 	else
 	{
 		<h3>@($"Order for {pageItem?.Location?.LocationName}; Current Status: {pageItem?.Status}")</h3>
-		<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" AddAction="AddItemClick"
-			DisableDeletePredicate="@(x => UserType != UserTypes.super)" >
-			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Drug.Name" 
-			Title="Drug"/>
-			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyOrdered" Title="QtyOrdered"
-								  >
-				<EditTemplate Context="item">
-					<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered"
-								   Disabled="@(UserType == UserTypes.tech || pageItem?.StatusEnum != WardstockOrderStatus.New)"
-								   Min="0" Max="(decimal?)item?.Item?.Par ?? 0" Style="width: 100%" />
-				</EditTemplate>
-			</RadzenDataGridColumn>
-			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyFilled" Title="QtyFilled"
-								  >
-				<EditTemplate Context="item">
-					<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled"
-								   Disabled="@(UserType == UserTypes.nurse || 
-									(pageItem.StatusEnum is not (
-										WardstockOrderStatus.Submitted 
-										or WardstockOrderStatus.Filled or WardstockOrderStatus.Checked)))"
-								   Min="0" Style="width: 100%" />
-				</EditTemplate>
-			</RadzenDataGridColumn>
-			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="Lot" Title="Lot" 
-							  />
-		</DataGridEditable>
-			<ChatTemplate TItem="WardstockComment" LoadData="LoadCommentsAsync" GetUser="@(x => x.AuthUser.Username)"  
-					GetMessage="@(x => x.Comment)" GetTimestamp="@(x => x.CreatedAt)" GetMessageId="@(x => x.Id.ToString())"
-					CreateMessage="CreateComment"
-			/>
+		<RadzenRow>
+			<RadzenColumn Size="7">
+				<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" AddAction="AddItemClick"
+					DisableDeletePredicate="@(x => UserType != UserTypes.super)" 
+					DisableEditPredicate="@(x => SubmitDisabled)"
+				>
+					<HeaderContent><h3>Items</h3></HeaderContent>
+					<ChildContent>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Drug.Name" 
+						Title="Drug"/>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyOrdered" Title="QtyOrdered"
+											  Width="100px">
+							<EditTemplate Context="item">
+								<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered"
+											   Disabled="@(UserType == UserTypes.tech || pageItem?.StatusEnum != WardstockOrderStatus.New)"
+											   Min="0" Max="(decimal?)item?.Item?.Par ?? 0" Style="width: 100%" />
+							</EditTemplate>
+						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyFilled" Title="QtyFilled"
+											  Width="100px">
+							<EditTemplate Context="item">
+								<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled"
+											   Disabled="@(UserType == UserTypes.nurse || 
+												(pageItem.StatusEnum is not (
+													WardstockOrderStatus.Submitted 
+													or WardstockOrderStatus.Filled or WardstockOrderStatus.Checked)))"
+											   Min="0" Style="width: 100%" />
+							</EditTemplate>
+						</RadzenDataGridColumn>
+					</ChildContent>
+				</DataGridEditable>
+			</RadzenColumn>
+		<RadzenColumn Size="5">
+			<CommentTemplate TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
+		</RadzenColumn>
+		</RadzenRow>
+		@if(UserType == UserTypes.super)
+		{
+			<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" Click="@OnSendBack" Icon="undo" />
+		}
+		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check"
+			Disabled="SubmitDisabled" />
+		<PrintButton BeforePrint="BeforePrint" />
 		<PrintContent>
 			<h4>@($"Order for {pageItem?.Location?.LocationName}")</h4>
 			@if (orderedItems != null)
@@ -77,12 +90,6 @@
 			}
 
 		</PrintContent>
-		@if(UserType == UserTypes.super)
-		{
-			<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" Click="@OnSendBack" Icon="undo" />
-		}
-		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check" Disabled="@(pageItem?.IsLastStatus == true)" />
-		<PrintButton BeforePrint="BeforePrint" />
 	}
 </LoadingContent>
 <BackLink />
@@ -101,7 +108,13 @@
 		unauthorized
 	}
 	private UserTypes UserType { get; set; }
-	private DataGridHelper<AutoCAC.Models.WardstockOrderitem> GridModel = new()
+	private ChatTemplate<WardstockComment> ChatBox;
+	private bool SubmitDisabled =>
+		(pageItem?.IsLastStatus == true) ||
+		(pageItem.StatusEnum > WardstockOrderStatus.New && UserType == UserTypes.nurse) ||
+		(pageItem.StatusEnum == WardstockOrderStatus.New && UserType == UserTypes.tech);
+
+	private DataGridHelper<AutoCAC.Models.WardstockOrderitem> GridModel = new()	
 		{
 			AllowFiltering = false,
 			AllowSorting = false,
@@ -239,6 +252,7 @@
 
 	private async Task OnSubmit()
 	{
+		await ChatBox.SendUnsubmitted();
 		pageItem.SendForward();
 		await DbFactory.UpdateItemAsync(pageItem);
 		var activity = new WardstockActivitylog
@@ -252,15 +266,27 @@
 		Nav.NavigateToRelative(fromParent: true);
 	}
 
-	private async Task<IEnumerable<WardstockComment>> LoadCommentsAsync()
-	{
-		await using var db = await DbFactory.CreateDbContextAsync();
-		return await db.WardstockComments
-			.Where(x => x.WardstockOrderId == Id)
-			.Include(x => x.AuthUser)
-			.OrderBy(x => x.CreatedAt)
-			.ToListAsync();
-	}
+    private IQueryable<CommentModel> CommentQueryFactory(mainContext db) =>
+        db.WardstockComments
+          .Where(x => x.WardstockOrderId == Id)
+          .Include(x => x.AuthUser)
+          .OrderBy(x => x.CreatedAt)
+          .Select(x => new CommentModel
+          {
+              Id = x.Id,
+              AuthUser = x.AuthUser,
+              CreatedAt = x.CreatedAt,
+              Text = x.Comment
+          });
+
+    private WardstockComment MapComment(CommentModel m) => new WardstockComment
+    {
+        Id = m.Id,
+        WardstockOrderId = Id,
+        Comment = m.Text,
+        CreatedAt = m.CreatedAt,
+        AuthUserId = m.AuthUser.Id
+    };
 
 	private WardstockComment CreateComment(string content)
 	{

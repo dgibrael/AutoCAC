@@ -19,13 +19,9 @@
 @using AutoCAC.Components.Templates
 
 <LoadingContent IsLoading="@(GridModel?.IsInitialized != true)">
-    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.End">
-        @if (GridModel?.SearchColumns != null)
-        {
-            <RadzenColumn Size="4">
-                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="GridModel.ReloadAsync" />
-            </RadzenColumn>
-        }
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start"
+    Wrap="FlexWrap.Wrap">
+        @HeaderContent
         @if (!string.IsNullOrEmpty(GridModel?.AddButtonUrl) || AddButtonClick.HasDelegate)
         {
             <RadzenButton Icon="add_circle_outline"
@@ -34,8 +30,6 @@
                           Click="@OnAddClickInternal"
                           Variant="Variant.Flat" />
         }
-
-        @HeaderContent
 
         <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
 
@@ -49,6 +43,12 @@
         <SearchTemplateDropown DataGridName="@GridModel.PageName" @ref="templateDropdown"
                                SelectedTemplateChanged="OnTemplatePicked" InitialValue="GridModel.InitialTemplate"
                                Placeholder="Load Saved Template..." />
+        @if (GridModel?.SearchColumns != null)
+        {
+            <RadzenColumn Size="4">
+                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="GridModel.ReloadAsync" />
+            </RadzenColumn>
+        }
     </RadzenStack>
 
     <RadzenDataGrid @ref="Grid"

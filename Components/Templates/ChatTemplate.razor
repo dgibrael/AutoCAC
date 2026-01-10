@@ -3,6 +3,7 @@
 @inject IDbContextFactory<mainContext> Db
 @inject UserContextService UserContext
 @inject DialogService DialogService
+@inject IJSRuntime JS
 @typeparam TItem where TItem : class
 
 <RadzenChat @ref="_chat"
@@ -14,6 +15,7 @@
             ShowUserNames="true"
             ShowClearButton="false"
             MessageSent="@OnMessageSent" 
+            id="@ElementId"
             >
     <MessageTemplate Context="m">
         <div class="rz-chat-message @(m.IsUser ? "rz-chat-message-user" : "rz-chat-message-participant")">
@@ -52,8 +54,8 @@
     [Parameter, EditorRequired] public Func<TItem, string> GetMessageId { get; set; }
     [Parameter, EditorRequired] public Func<string, TItem> CreateMessage { get; set; }
     [Parameter] public string Title { get; set; } = "Comments";
+    [Parameter] public string ElementId { get; set; } = "ChatBoxId";
     [Parameter] public EventCallback AfterDelete { get; set; }
-
     private readonly List<ChatUser> _users = new();
     private readonly List<ChatMessage> _messages = new();
     private string _currentUsername = "";
@@ -65,8 +67,17 @@
         await RefreshDataAsync();
     }
 
-    public async Task RefreshDataAsync()
+    public async Task SendUnsubmitted()
     {
+        var draftTxt = await JS.GetChatDraftText(ElementId);
+        if (!string.IsNullOrWhiteSpace(draftTxt))
+        {
+            await _chat.SendMessage(draftTxt, _currentUsername);
+        }
+    }
+
+    public async Task RefreshDataAsync()
+    { 
         if (LoadData is null) return;
 
         var data = await LoadData();

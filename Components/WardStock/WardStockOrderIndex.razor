@@ -79,7 +79,7 @@
 		var newOrder = new WardstockOrder
 			{
 				LastModifiedDateTime = DateTime.Now,
-				Status = "Create",
+				StatusEnum = WardstockOrderStatus.New,
 				OrderDateTime = DateTime.Now
 			};
 		int selectedLoc;

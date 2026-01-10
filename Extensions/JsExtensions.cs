@@ -69,5 +69,7 @@ namespace AutoCAC.Extensions
         {
             return await js.InvokeAsync<int>("getWindowHeight");
         }
+        public static ValueTask<string> GetChatDraftText(this IJSRuntime js, string elementId)
+            => js.InvokeAsync<string>("GetChatDraftText", elementId);
     }
 }

@@ -256,3 +256,14 @@ window.blazorPrintDialog = {
     }
 };
 
+window.GetChatDraftText = function (elementId) {
+    const root = document.getElementById(elementId);
+    if (!root) return "";
+
+    // Most likely a <textarea>, but this works for input too.
+    const el = root.querySelector(".rz-chat-textarea");
+    if (!el) return "";
+
+    // For textarea/input, the current text is in .value (not textContent)
+    return el.value || "";
+};

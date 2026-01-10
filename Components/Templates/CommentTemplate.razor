@@ -1,0 +1,106 @@
+﻿@using AutoCAC.Services
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> Db
+@inject UserContextService UserContext
+@inject DialogService DialogService
+
+@typeparam TItem where TItem : class
+
+<h4>@Title</h4>
+<div class="rz-chat">
+    <RadzenDataList TItem="CommentModel" LoadData="LoadData" Data="data" @ref="dataList" AllowPaging="false"
+        IsLoading="IsLoading" >
+        <Template Context="m">
+            @{
+                bool isCurUser = m.IsCurrentUser(UserContext?.UserProfile?.Id);
+            }
+            <RadzenStack Orientation="Orientation.Vertical"
+                         AlignItems="@(isCurUser ? AlignItems.End : AlignItems.Start)"
+                class="@($"rz-chat-message {(isCurUser ? 
+                "rz-chat-message-user" : "rz-chat-message-participant")}")"
+                >
+                <RadzenRow class="rz-my-0">
+                    @if (!isCurUser)
+                    {
+                        <div class="rz-chat-message-participant-name">
+                            @(
+                                                !string.IsNullOrWhiteSpace(m?.AuthUser?.LastName) ?
+                                                m?.AuthUser.Username :
+                                                $"{m?.AuthUser?.LastName}, {m?.AuthUser?.FirstName}")
+                        </div>
+                    }
+                    <div class="rz-chat-message-time">@m.CreatedAt.ToString("MM/dd/yyyy HH:mm")</div>
+                    @if (isCurUser)
+                    {
+                        <RadzenButton Icon="delete"
+                                      Size="ButtonSize.ExtraSmall"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      ButtonType="ButtonType.Button" Variant="Variant.Text"
+                                      Click="@(async () => await DeleteMessageAsync(m.Id))" />
+                    }
+                </RadzenRow>
+                <RadzenRow class="rz-my-0">
+                    <p class="rz-chat-message-text rz-my-0"
+                        style="
+                        white-space: pre-wrap;
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                        max-width: 100%;">
+                        @m.Text
+                    </p>
+                </RadzenRow>
+            </RadzenStack>
+        </Template>
+    </RadzenDataList>
+</div>
+<RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-5">
+    <RadzenRow>
+        <RadzenColumn Size="10">
+            <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" 
+            Placeholder="Type comment here (Press enter or click arrow to submit)...." />
+        </RadzenColumn>
+        <RadzenColumn Size="1">
+            <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenTemplateForm>
+@code {
+    [Parameter, EditorRequired] public Func<mainContext, IQueryable<CommentModel>> CommentQueryFactory { get; set; }
+    [Parameter, EditorRequired] public Func<CommentModel, TItem> MapToEntity { get; set; }
+    [Parameter] public string Title { get; set; } = "Comments";
+    private RadzenDataList<CommentModel> dataList;
+    private string _newMsg;
+    private IEnumerable<CommentModel> data;
+    private bool IsLoading;
+    private async Task LoadData(LoadDataArgs args)
+    {
+        IsLoading = true;
+        await using var db = await Db.CreateDbContextAsync();
+        data = await CommentQueryFactory(db).AsNoTracking().ToListAsync();
+        IsLoading = false;
+    }
+
+    private async Task AddMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMsg)) return;
+        var newComment = new CommentModel()
+        {
+            CreatedAt = DateTime.Now,
+            Text = _newMsg,
+            AuthUser = UserContext.UserProfile
+        };
+
+        var newItem = MapToEntity.Invoke(newComment);
+        await Db.AddItemAsync(newItem);
+        _newMsg = null;
+        await dataList.Reload();
+    }
+
+    private async Task DeleteMessageAsync(long id)
+    {
+        var ok = await DialogService.DeleteConfirm(customMessage: "Delete this message?");
+        if (ok != true) return;
+        await Db.DeleteByPkAsync<TItem>(id);
+        await dataList.Reload();
+    }
+}
