@@ -158,8 +158,6 @@ public sealed class DataGridHelper<T> where T : class
     public DataGridHelper()
     {
         ShouldCount = true;
-        SearchColumns = Array.Empty<string>();
-        CustomChoices = new Dictionary<string, IEnumerable<object>>(StringComparer.OrdinalIgnoreCase);
     }
 
     // -------------------------

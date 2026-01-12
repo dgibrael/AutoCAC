@@ -18,21 +18,27 @@
 </AuthVanilla>
 
 <DataGridVanilla TItem="AutoCAC.Models.WardstockDto" GridModel="GridModel" AddButtonClick="@AddBtnClick">
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LocationName" Title="Location"
-						  FilterMode="FilterMode.CheckBoxList" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="OrderDateTime" Title="OrderDateTime" />
-	<ActionColumn TItem="AutoCAC.Models.WardstockDto" Context="row">
-		<RadzenButton Icon="edit"
-					  ButtonStyle="ButtonStyle.Primary"
-					  Variant="Variant.Text"
-					  Click="@(() => Nav.NavigateToRelative(row.Id.ToString()))" />
-		<RadzenButton Icon="delete"
-					  ButtonStyle="ButtonStyle.Danger"
-					  Variant="Variant.Text" Disabled="!_isSupervisor"
-					  Click="@(() => OnDeleteAsync(row))" />
-	</ActionColumn>
+	<ChildContent>
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LastModifiedDateTime" Title="LastModifiedDateTime" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="LocationName" Title="Location"
+							  FilterMode="FilterMode.CheckBoxList" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="OrderDateTime" Title="OrderDateTime" />
+		<ActionColumn TItem="AutoCAC.Models.WardstockDto" Context="row">
+			<RadzenButton Icon="edit"
+						  ButtonStyle="ButtonStyle.Primary"
+						  Variant="Variant.Text"
+						  Click="@(() => Nav.NavigateToRelative(row.Id.ToString()))" />
+			<RadzenButton Icon="delete"
+						  ButtonStyle="ButtonStyle.Danger"
+						  Variant="Variant.Text" Disabled="!_isSupervisor"
+						  Click="@(() => OnDeleteAsync(row))" />
+
+		</ActionColumn>
+	</ChildContent>
+	<ExpandContentView Context="row">
+		<CommentRead LoadComments="@(() => ViewActivityAsync(row))" />
+	</ExpandContentView>
 </DataGridVanilla>
 
 @code {
@@ -61,7 +67,7 @@
 				(_isPharmacy && x.Status != "New") ||
 				(_myLocations != null && _myLocations.Contains(x.LocationId))
 			)
-			.OrderBy(x => x.LastModifiedDateTime)
+			.OrderBy(x => x.OrderDateTime)
 			.AsQueryable().AsNoTracking();
 	}
 	protected override async Task OnInitializedAsync()
@@ -121,5 +127,19 @@
 		if (confirm != true) return;
 		var itemId = await DbFactory.DeleteByPkAsync<WardstockOrder>(item.Id);
 		await GridModel.ReloadAsync();
+	}
+	private async Task<IEnumerable<CommentModel>> ViewActivityAsync(WardstockDto item)
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		return await db.WardstockActivitylogs
+							.Where(x => x.WardstockOrderId == item.Id)
+							.OrderByDescending(x => x.ActivityAt)
+							.Select(x => new CommentModel
+								{
+									Text = x.Remarks,
+									CreatedAt = x.ActivityAt,
+									AuthUser = x.AuthUser
+								})
+							.ToListAsync();
 	}
 }

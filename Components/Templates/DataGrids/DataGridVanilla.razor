@@ -76,7 +76,8 @@
                     Group="OnGroup"
                     RowEdit="RowEdit"
                     RowDoubleClick="RowDoubleClick"
-                    RowSelect="RowSelect"
+                    RowSelect="RowSelect" RowExpand="RowExpand"
+                    ExpandMode="DataGridExpandMode.Single"
                     ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
                     Context="row"
                     EmptyTemplate="EmptyTemplate"
@@ -156,6 +157,7 @@
     [Parameter] public RenderFragment HeaderContent { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
     [Parameter] public EventCallback<TItem> RowSelect { get; set; }
+    [Parameter] public EventCallback<TItem> RowExpand { get; set; }
     [Parameter] public EventCallback<DataGridRowMouseEventArgs<TItem>> RowDoubleClick { get; set; }
     [Parameter] public EventCallback<TItem> RowEdit { get; set; }
     [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
@@ -309,4 +311,6 @@
         var nextSize = pageOptions.Next(PageSize);
         PageSize = nextSize;
     }
+
+
 }

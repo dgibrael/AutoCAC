@@ -1,0 +1,58 @@
+﻿@using AutoCAC.Models
+@using AutoCAC.Components.Templates
+
+<LoadingContent IsLoading="isLoading">
+    @if(comments == null || !comments.Any())
+    {
+        <span>None</span>
+    }
+    else
+    {
+        <ul>
+            @foreach(var x in comments)
+            {                
+                <li>
+                    <span>@x?.Text</span> <small><i>@DisplayUser(x.AuthUser)</i> <strong><time>@x?.CreatedAt</time></strong></small>
+                </li>
+            }
+        </ul>
+    }
+</LoadingContent>
+
+@code {
+    [Parameter, EditorRequired]
+    public Func<Task<IEnumerable<CommentModel>>> LoadComments { get; set; }
+
+    private bool isLoading = true;
+    private IEnumerable<CommentModel> comments;
+
+    protected override void OnInitialized()
+    {
+        isLoading = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                comments = await LoadComments();
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private static string DisplayUser(AuthUser user)
+    {
+        if (user == null) return "";
+        return string.IsNullOrWhiteSpace(user.LastName)
+            ? user.Username
+            : $"{user.LastName}, {user.FirstName}";
+    }
+}
+

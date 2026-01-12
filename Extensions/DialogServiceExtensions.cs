@@ -283,6 +283,32 @@ namespace AutoCAC.Extensions
 
             return result as TItem;
         }
+        public static async Task ViewComments(
+            this DialogService dialogService,
+            IEnumerable<CommentModel> Comments,
+            string title = "Comments"
+            )
+        {
+            var parameters = new Dictionary<string, object>()
+            {
+                ["Comments"] = Comments
+            };
+            var options = new DialogOptions
+            {
+                Width = "75%",
+                CloseDialogOnOverlayClick = true,
+                Resizable = true,
+                Draggable = true,
+                ShowClose = true,
+                ShowTitle = true,
+            };
+
+            await dialogService.OpenAsync<CommentRead>(
+                title: title,
+                parameters: parameters,
+                options: options
+                );
+        }
     }
 }
 

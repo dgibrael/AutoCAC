@@ -210,11 +210,13 @@
 									.FirstOrDefaultAsync();
 		if (existingOpenOrder is not null)
 		{
-			NotificationService.Notify(detail: $@"there is already an open order for {selectedDrug.Name}
+			var goToExisting = await DialogService.YesNoDialog($@"there is already an open order for {selectedDrug.Name}
 										(current status: {existingOpenOrder.Order.Status}).
-										Click here to go to order.",
-										click: x => Nav.NavigateToRelative(existingOpenOrder.Id.ToString(), fromParent: true)
-			);
+										Click Open to go to order.", "Order Already Exists", "Open");
+			if (goToExisting == true)
+			{
+				Nav.NavigateToRelative(existingOpenOrder.Id.ToString(), fromParent: true);
+			};
 			return null;
 		}
 		return new WardstockOrderitem
