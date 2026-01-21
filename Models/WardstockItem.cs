@@ -9,15 +9,17 @@ public partial class WardstockItem
 {
     public int Id { get; set; }
 
-    public int DrugId { get; set; }
+    public int? DrugId { get; set; }
 
     public int LocationId { get; set; }
 
     public double Par { get; set; }
 
-    public string? DisplayName { get; set; }
+    public string DisplayName { get; set; } = null!;
 
-    public virtual Drug Drug { get; set; } = null!;
+    public string Category { get; set; } = null!;
+
+    public virtual Drug? Drug { get; set; }
 
     public virtual WardstockLocation Location { get; set; } = null!;
 

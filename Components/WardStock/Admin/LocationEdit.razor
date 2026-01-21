@@ -22,7 +22,18 @@
 		}
 	</RadzenTemplateForm>
 	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" GridModel="GridModel">
-		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Drug.Name" Title="Drug" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="DisplayName" Title="Display Name">
+			<EditTemplate Context="row" >
+				<RadzenTextBox @bind-Value="row.DisplayName" Name="rowDisplayName"/>
+				<RadzenRequiredValidator Component="rowDisplayName" />
+			</EditTemplate>
+		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Category" Title="Category">
+			<EditTemplate Context="row">
+				<RadzenTextBox @bind-Value="row.Category" Name="rowCategory" />
+				<RadzenRequiredValidator Component="rowCategory" />
+			</EditTemplate>
+		</RadzenDataGridColumn>
 		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Par" Title="Par">
 			<EditTemplate Context="row">
 				<RadzenNumeric @bind-Value="row.Par"  />
@@ -78,15 +89,20 @@
 	private async Task<WardstockItem> SelectNewDrug()
 	{
 		await LoadPageItem();
-		var curSelected = pageItem.WardstockItems.Select(x => x.Drug.Id).ToHashSet();
-		var selected = await DialogService.DrugSelectDialogAsync(x => !curSelected.Contains(x.Id));
-		return new WardstockItem
+		var newItem = new WardstockItem{ Par = 0, Category = "SUPPLIES" };
+		var isDrug = await DialogService.YesNoDialog("Is this a Drug or non-drug item?", "Item Type", "Drug", "Non-drug");
+		if (isDrug == true)
+		{			
+			var curSelected = pageItem.WardstockItems.Where(x => x.Drug != null).Select(x => x.DrugId).ToHashSet();
+			var selected = await DialogService.DrugSelectDialogAsync(x => !curSelected.Contains(x.Id));
+			if (selected != null)
 			{
-				LocationId = Id,
-				DrugId = selected.Id,
-				Drug = selected,
-				Par = 0
-			};
-
+				newItem.DrugId = selected.Id;
+				newItem.Drug = selected;
+				newItem.Category = "Oral";
+				newItem.DisplayName = selected.Name;
+			}
+		}
+		return newItem;
 	}
 }

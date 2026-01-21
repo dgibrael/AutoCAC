@@ -11,7 +11,7 @@
 @inject DialogService DialogService
 @using AutoCAC.Components.Templates.Buttons
 
-<BackLink />
+<a href="javascript:history.back()">Back</a>
 <LoadingContent IsLoading="@(!pageLoaded)">
 	@if(UserType == UserTypes.unauthorized)
 	{
@@ -19,22 +19,26 @@
 	}
 	else
 	{
-		<h3>@($"Order for {pageItem?.Location?.LocationName}; Current Status: {pageItem?.Status}")</h3>
+		<h3>@($"Order for {currentOrder?.Location?.LocationName}; Current Status: {currentOrder?.Status}; Original Order DateTime: {currentOrder?.OrderDateTime}")</h3>
 		<RadzenRow>
 			<RadzenColumn Size="7">
-				<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" AddAction="AddItemClick"
-					DisableDeletePredicate="@(x => UserType != UserTypes.super)" 
+				<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" 
+					AddAction="@(UserType != UserTypes.super && currentOrder.StatusEnum > WardstockOrderStatus.New ? 
+									null : AddItemClick)"
+					DisableDeletePredicate="@(x => UserType != UserTypes.super)"
 					DisableEditPredicate="@(x => SubmitDisabled)"
 				>
 					<HeaderContent><h3>Items</h3></HeaderContent>
 					<ChildContent>
-						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Drug.Name" 
-						Title="Drug"/>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.DisplayName" 
+						Title="Item"/>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="WardstockItem.Item.Par" 
+						Title="Par" Width="100px"/>
 						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="QtyOrdered" Title="QtyOrdered"
 											  Width="100px">
 							<EditTemplate Context="item">
 								<RadzenNumeric TValue="double?" @bind-Value="@item.QtyOrdered"
-											   Disabled="@(UserType == UserTypes.tech || pageItem?.StatusEnum != WardstockOrderStatus.New)"
+											   Disabled="@(UserType == UserTypes.tech || currentOrder?.StatusEnum != WardstockOrderStatus.New)"
 											   Min="0" Max="(decimal?)item?.Item?.Par ?? 0" Style="width: 100%" />
 							</EditTemplate>
 						</RadzenDataGridColumn>
@@ -43,7 +47,7 @@
 							<EditTemplate Context="item">
 								<RadzenNumeric TValue="double?" @bind-Value="@item.QtyFilled"
 											   Disabled="@(UserType == UserTypes.nurse || 
-												(pageItem.StatusEnum is not (
+												(currentOrder.StatusEnum is not (
 													WardstockOrderStatus.Submitted 
 													or WardstockOrderStatus.Filled or WardstockOrderStatus.Checked)))"
 											   Min="0" Style="width: 100%" />
@@ -60,18 +64,26 @@
 		{
 			<RadzenButton ButtonStyle="ButtonStyle.Warning" Text="Send Back" Click="@OnSendBack" Icon="undo" />
 		}
-		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check"
-			Disabled="SubmitDisabled" />
+		<RadzenButton Text="Submit" Click="@OnSubmit" Icon="check" Disabled="SubmitDisabled" />
 		<PrintButton BeforePrint="BeforePrint" />
 		<PrintContent>
-			<h4>@($"Order for {pageItem?.Location?.LocationName}")</h4>
-			@if (orderedItems != null)
+			<h4>@($"Order for {currentOrder?.Location?.LocationName}")</h4>
+			@if (currentOrder.IsFirstStatus)
+			{
+				<RadzenDataGrid TItem="WardstockItem" Data="allAllowedItems" >
+					<Columns>
+						<RadzenDataGridColumn Property="DisplayName" Title="Item" Width="250px"/>
+						<RadzenDataGridColumn Property="Par" Title="Par" Width="100px" />
+					</Columns>
+				</RadzenDataGrid>
+			}
+			else if (orderedItems != null)
 			{
 				<RadzenDataGrid TItem="WardstockOrderitem" Data="orderedItems" >
 					<Columns>
-						<RadzenDataGridColumn Property="Item.Drug.Name" Title="Drug" />
-						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" />
-						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" />
+						<RadzenDataGridColumn Property="Item.DisplayName" Title="Item" Width="250px"/>
+						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" Width="100px" />
+						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" Width="100px"/>
 					</Columns>
 				</RadzenDataGrid>
 			}
@@ -92,11 +104,12 @@
 		</PrintContent>
 	}
 </LoadingContent>
-<BackLink />
-	@code {
+<a href="javascript:history.back()">Back</a>
+
+@code {
 	[Parameter] public long Id { get; set; }
 	private bool pageLoaded = false;
-	private WardstockOrder pageItem;
+	private WardstockOrder currentOrder;
 	private List<AutoCAC.Models.WardstockItem> allAllowedItems { get; set; }
 	private IEnumerable<WardstockOrderitem> orderedItems;
 	private IEnumerable<WardstockComment> comments;
@@ -108,11 +121,10 @@
 		unauthorized
 	}
 	private UserTypes UserType { get; set; }
-	private ChatTemplate<WardstockComment> ChatBox;
 	private bool SubmitDisabled =>
-		(pageItem?.IsLastStatus == true) ||
-		(pageItem.StatusEnum > WardstockOrderStatus.New && UserType == UserTypes.nurse) ||
-		(pageItem.StatusEnum == WardstockOrderStatus.New && UserType == UserTypes.tech);
+		(currentOrder?.IsLastStatus == true) ||
+		(currentOrder.StatusEnum > WardstockOrderStatus.New && UserType == UserTypes.nurse) ||
+		(currentOrder.StatusEnum == WardstockOrderStatus.New && UserType == UserTypes.tech);
 
 	private DataGridHelper<AutoCAC.Models.WardstockOrderitem> GridModel = new()	
 		{
@@ -126,7 +138,6 @@
 		GridModel.QueryFactory = db => db.WardstockOrderitems
 				.Where(x => x.OrderId == Id)
 				.Include(x => x.Item)
-					.ThenInclude(x => x.Drug)
 				.AsQueryable();
 	}  
 	protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -135,8 +146,9 @@
 		await using var db = await DbFactory.CreateDbContextAsync();
 		await LoadPageItem(db);
 		allAllowedItems = await db.WardstockItems
-							.Include(x => x.Drug)
-							.Where(x => x.LocationId == pageItem.LocationId).ToListAsync();
+							.Where(x => x.LocationId == currentOrder.LocationId)
+							.OrderBy(x => x.DisplayName)
+							.ToListAsync();
 		if (UserContext.IsInGroupOrSuperuser("PharmacyTechSupervisor", "PharmacistSupervisor"))
 		{
 			UserType = UserTypes.super;
@@ -147,7 +159,7 @@
 		}
 		else
 		{
-			var userLocations = await db.WardstockUserlocations.AnyAsync(x => x.LocationId == pageItem.LocationId && x.AuthUserId == UserContext.UserProfile.Id);
+			var userLocations = await db.WardstockUserlocations.AnyAsync(x => x.LocationId == currentOrder.LocationId && x.AuthUserId == UserContext.UserProfile.Id);
 			if (userLocations) UserType = UserTypes.nurse;
 			else UserType = UserTypes.unauthorized;
 		}
@@ -157,7 +169,7 @@
 
 	private async Task LoadPageItem(mainContext db)
 	{
-		pageItem = await db.WardstockOrders
+		currentOrder = await db.WardstockOrders
 					.Include(x => x.Location)
 					.FirstOrDefaultAsync(x => x.Id == Id);
 	}
@@ -167,24 +179,27 @@
 		await using var db = await DbFactory.CreateDbContextAsync();
 		await LoadPageItem(db);
 	}
-	private Func<mainContext, IQueryable<Drug>> DrugQry =>
+	private Func<mainContext, IQueryable<WardstockItem>> ItemChoiceQry =>
 		db =>
 			db.WardstockItems
 					.Where(wi =>
-						wi.LocationId == pageItem.LocationId &&
+						wi.LocationId == currentOrder.LocationId &&
 						!db.WardstockOrderitems.Any(oi =>
 							oi.OrderId == Id &&
 							oi.ItemId == wi.Id))
-					.Select(wi => wi.Drug);
+					.OrderBy(x => x.DisplayName)
+					;
 
 	private async Task BeforePrint()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
-		orderedItems = await db.WardstockOrderitems
-				.Where(x => x.OrderId == Id)
-				.Include(x => x.Item)
-					.ThenInclude(x => x.Drug)
-				.ToListAsync();
+		if (!currentOrder.IsFirstStatus)
+		{			
+			orderedItems = await db.WardstockOrderitems
+					.Where(x => x.OrderId == Id)
+					.Include(x => x.Item)
+					.ToListAsync();
+		}
 		comments = await db.WardstockComments
 					.Where(x => x.WardstockOrderId == Id)
 					.Include(x => x.AuthUser)
@@ -194,12 +209,11 @@
 
 	private async Task<WardstockOrderitem> AddItemClick()
 	{
-		var selectedDrug = await DialogService.DataGridSelectAsync<Drug>(
-						DrugQry, new[] { "Name" }
-						, searchColumns: new[] { "Name"}
+		var selectedItem = await DialogService.DataGridSelectAsync<WardstockItem>(
+						ItemChoiceQry, new[] { "DisplayName" }
+						, searchColumns: new[] { "DisplayName"}
 						);
-		if (selectedDrug == null) return null;
-		var selectedItem = allAllowedItems.FirstOrDefault(x => x.DrugId == selectedDrug.Id);
+		if (selectedItem == null) return null;
 		await using var db = await DbFactory.CreateDbContextAsync();
 		var existingOpenOrder = await db.WardstockOrderitems
 									.Include(x => x.Order)
@@ -210,12 +224,12 @@
 									.FirstOrDefaultAsync();
 		if (existingOpenOrder is not null)
 		{
-			var goToExisting = await DialogService.YesNoDialog($@"there is already an open order for {selectedDrug.Name}
+			var goToExisting = await DialogService.YesNoDialog($@"there is already an open order for {selectedItem.DisplayName}
 										(current status: {existingOpenOrder.Order.Status}).
 										Click Open to go to order.", "Order Already Exists", "Open");
 			if (goToExisting == true)
 			{
-				Nav.NavigateToRelative(existingOpenOrder.Id.ToString(), fromParent: true);
+				Nav.NavigateToRelative(existingOpenOrder.OrderId.ToString(), fromParent: true);
 			};
 			return null;
 		}
@@ -229,24 +243,24 @@
 
 	private async Task OnSendBack()
 	{
-		if (pageItem.StatusEnum == WardstockOrderStatus.New) return;
-		pageItem.SendBack();
+		if (currentOrder.StatusEnum == WardstockOrderStatus.New) return;
+		currentOrder.SendBack();
 		try
 		{			
-			await DbFactory.UpdateItemAsync(pageItem);
+			await DbFactory.UpdateItemAsync(currentOrder);
 		}
 		catch
 		{
 			NotificationService.Error();
 			return;
 		}
-		NotificationService.Success($"Successfully updated status to {pageItem.Status}");
+		NotificationService.Success($"Successfully updated status to {currentOrder.Status}");
 		var activity = new WardstockActivitylog
 		{
 			AuthUserId = UserContext.UserProfile.Id,
 			WardstockOrderId = Id,
 			ActivityAt = DateTime.Now,
-			Remarks = $"Status Changed to {pageItem.Status}"
+			Remarks = $"Status Changed to {currentOrder.Status}"
 		};
 		await DbFactory.UpdateItemAsync(activity);
 		StateHasChanged();
@@ -254,15 +268,15 @@
 
 	private async Task OnSubmit()
 	{
-		await ChatBox.SendUnsubmitted();
-		pageItem.SendForward();
-		await DbFactory.UpdateItemAsync(pageItem);
+		//await ChatBox.SendUnsubmitted();
+		currentOrder.SendForward();
+		await DbFactory.UpdateItemAsync(currentOrder);
 		var activity = new WardstockActivitylog
 			{
 				AuthUserId = UserContext.UserProfile.Id,
 				WardstockOrderId = Id,
 				ActivityAt = DateTime.Now,
-				Remarks = $"Status Changed to {pageItem.Status}"
+				Remarks = $"Status Changed to {currentOrder.Status}"
 			};
 		await DbFactory.UpdateItemAsync(activity);
 		Nav.NavigateToRelative(fromParent: true);

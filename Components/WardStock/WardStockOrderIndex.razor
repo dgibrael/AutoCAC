@@ -81,7 +81,11 @@
 	private async Task AddBtnClick()
 	{
 		var locCount = _myLocations.Count;
-		if (locCount == 0) return;
+		if (locCount == 0)
+		{
+			NotificationService.Error("You don't have any assigned locations. Contact an admin for location assignment");
+			return;
+		}
 		var newOrder = new WardstockOrder
 			{
 				LastModifiedDateTime = DateTime.Now,
@@ -97,14 +101,15 @@
 		else
 		{
 			await using var db = await DbFactory.CreateDbContextAsync();
-			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId)
+			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId && x.Location.InactiveDate == null)
 							.Select(x => x.Location.LocationName)
 							.Order()
 							.ToHashSetAsync();
 			var selectedName = await DialogService.ListDialogAsync(locNames);
 			if (selectedName != null)
 			{
-				var selectedLocFull = await db.WardstockUserlocations.FirstOrDefaultAsync(x => x.AuthUserId == _userId && x.Location.LocationName == selectedName);
+				var selectedLocFull = await db.WardstockUserlocations
+										.FirstOrDefaultAsync(x => x.AuthUserId == _userId && x.Location.LocationName == selectedName);
 				selectedLoc = selectedLocFull.LocationId;
 				newOrder.LocationId = selectedLoc;
 			}

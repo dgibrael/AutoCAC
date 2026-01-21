@@ -3,30 +3,34 @@
 @inject IDbContextFactory<mainContext> Db
 @inject UserContextService UserContext
 @inject DialogService DialogService
-
+@inject NavigationManager Nav
 @typeparam TItem where TItem : class
+@using Microsoft.AspNetCore.Components.Routing
 
+@if (ConfirmIfUnsubmitted && HasDraft)
+{
+    <NavigationLock OnBeforeInternalNavigation="ConfirmLeave" ConfirmExternalNavigation="true" />
+}
 <h4>@Title</h4>
 <div class="rz-chat">
     <RadzenDataList TItem="CommentModel" LoadData="LoadData" Data="data" @ref="dataList" AllowPaging="false"
-        IsLoading="IsLoading" >
+                    IsLoading="IsLoading">
         <Template Context="m">
             @{
                 bool isCurUser = m.IsCurrentUser(UserContext?.UserProfile?.Id);
             }
             <RadzenStack Orientation="Orientation.Vertical"
                          AlignItems="@(isCurUser ? AlignItems.End : AlignItems.Start)"
-                class="@($"rz-chat-message {(isCurUser ? 
-                "rz-chat-message-user" : "rz-chat-message-participant")}")"
-                >
+                         class="@($"rz-chat-message {(isCurUser ?
+                                         "rz-chat-message-user" : "rz-chat-message-participant")}")">
                 <RadzenRow class="rz-my-0">
                     @if (!isCurUser)
                     {
                         <div class="rz-chat-message-participant-name">
                             @(
-                                                !string.IsNullOrWhiteSpace(m?.AuthUser?.LastName) ?
-                                                m?.AuthUser.Username :
-                                                $"{m?.AuthUser?.LastName}, {m?.AuthUser?.FirstName}")
+                                                    !string.IsNullOrWhiteSpace(m?.AuthUser?.LastName) ?
+                                                    m?.AuthUser.Username :
+                                                    $"{m?.AuthUser?.LastName}, {m?.AuthUser?.FirstName}")
                         </div>
                     }
                     <div class="rz-chat-message-time">@m.CreatedAt.ToString("MM/dd/yyyy HH:mm")</div>
@@ -41,7 +45,7 @@
                 </RadzenRow>
                 <RadzenRow class="rz-my-0">
                     <p class="rz-chat-message-text rz-my-0"
-                        style="
+                       style="
                         white-space: pre-wrap;
                         overflow-wrap: anywhere;
                         word-break: break-word;
@@ -56,8 +60,8 @@
 <RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-5">
     <RadzenRow>
         <RadzenColumn Size="10">
-            <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" 
-            Placeholder="Type comment here (Press enter or click arrow to submit)...." />
+            <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
+                           Placeholder="Type comment here (Press enter or click arrow to submit)...." />
         </RadzenColumn>
         <RadzenColumn Size="1">
             <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
@@ -68,6 +72,8 @@
     [Parameter, EditorRequired] public Func<mainContext, IQueryable<CommentModel>> CommentQueryFactory { get; set; }
     [Parameter, EditorRequired] public Func<CommentModel, TItem> MapToEntity { get; set; }
     [Parameter] public string Title { get; set; } = "Comments";
+    [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
+    private bool HasDraft = false;
     private RadzenDataList<CommentModel> dataList;
     private string _newMsg;
     private IEnumerable<CommentModel> data;
@@ -93,6 +99,7 @@
         var newItem = MapToEntity.Invoke(newComment);
         await Db.AddItemAsync(newItem);
         _newMsg = null;
+        HasDraft = false;
         await dataList.Reload();
     }
 
@@ -102,5 +109,35 @@
         if (ok != true) return;
         await Db.DeleteByPkAsync<TItem>(id);
         await dataList.Reload();
+    }
+
+    private async Task ConfirmLeave(LocationChangingContext context)
+    {
+        if (!HasDraft) return;
+
+        // Stop navigation while we ask
+        context.PreventNavigation();
+
+        var save = await DialogService.YesNoDialog(
+            "You have an unsubmitted comment, submit now?",
+            "Comment not saved",
+            "Save",
+            "Discard");
+
+        if (save == true)
+        {
+            await AddMessage();
+        }
+        else
+        {
+            HasDraft = false;
+        }
+        // Continue navigation after handling
+        Nav.NavigateTo(context.TargetLocation);
+    }
+
+    private void OnMsgInput(ChangeEventArgs e)
+    {
+        HasDraft = !string.IsNullOrWhiteSpace(e?.Value?.ToString());
     }
 }

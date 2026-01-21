@@ -9,7 +9,7 @@ public partial class WardstockActivitylog
 {
     public int Id { get; set; }
 
-    public int? AuthUserId { get; set; }
+    public int AuthUserId { get; set; }
 
     public DateTime ActivityAt { get; set; }
 
@@ -17,7 +17,7 @@ public partial class WardstockActivitylog
 
     public long WardstockOrderId { get; set; }
 
-    public virtual AuthUser? AuthUser { get; set; }
+    public virtual AuthUser AuthUser { get; set; } = null!;
 
     public virtual WardstockOrder WardstockOrder { get; set; } = null!;
 }

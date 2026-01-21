@@ -43,7 +43,7 @@ namespace AutoCAC.Extensions
                 Severity = NotificationSeverity.Error,
                 Summary = "Error",
                 Detail = msg,
-                Duration = 5000
+                Duration = 10000
             });
         }
         /// <summary>

@@ -821,7 +821,6 @@ public partial class mainContext : DbContext
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.WardstockActivitylogs)
                 .HasForeignKey(d => d.AuthUserId)
-                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_wardstock_activitylog_auth_user");
 
             entity.HasOne(d => d.WardstockOrder).WithMany(p => p.WardstockActivitylogs)
@@ -858,13 +857,15 @@ public partial class mainContext : DbContext
             entity.ToTable("wardstock_item");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Category)
+                .HasMaxLength(250)
+                .IsUnicode(false);
             entity.Property(e => e.DisplayName).HasMaxLength(255);
             entity.Property(e => e.DrugId).HasColumnName("Drug_id");
             entity.Property(e => e.LocationId).HasColumnName("Location_id");
 
             entity.HasOne(d => d.Drug).WithMany(p => p.WardstockItems)
                 .HasForeignKey(d => d.DrugId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_wardstock_item_Drug_id");
 
             entity.HasOne(d => d.Location).WithMany(p => p.WardstockItems)

@@ -221,21 +221,47 @@ window.blazorPrintDialog = {
         const style = document.createElement("style");
         style.id = "blazor-print-style";
         style.textContent = `
-@media print {
-  body > *:not(#${dialog.id}) { display: none !important; }
+        @media print {
+          /* Only print the dialog */
+          body > *:not(#${dialog.id}) { display: none !important; }
 
-  dialog#${dialog.id} {
-    display: block !important;
-    position: static !important;
-    border: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
+          dialog#${dialog.id} {
+            display: block !important;
+            position: static !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
 
-  dialog#${dialog.id}::backdrop { display: none !important; }
-}`;
+          dialog#${dialog.id}::backdrop { display: none !important; }
+
+          /* ✅ Key part: remove scroll containers so content can paginate */
+          dialog#${dialog.id},
+          dialog#${dialog.id} * {
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+          }
+
+          /* Tables: repeat header on each page (works in most browsers) */
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+
+          /* Long code/text blocks should wrap instead of overflowing */
+          pre, code {
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+          }
+
+          /* If you have sticky headers/positioned stuff, neutralize for print */
+          .sticky, [style*="position: sticky"] {
+            position: static !important;
+          }
+        }
+        `;
+
         document.head.appendChild(style);
 
         const cleanup = () => {
