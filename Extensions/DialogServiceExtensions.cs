@@ -3,6 +3,7 @@ using AutoCAC.Components.Templates.DataGrids;
 using AutoCAC.Components.Templates.DrugSearch;
 using AutoCAC.Components.Templates.PatientSearch;
 using AutoCAC.Components.Templates.StaffSearch;
+using AutoCAC.Components.Templates.Forms;
 using AutoCAC.Models;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Components;
@@ -308,6 +309,40 @@ namespace AutoCAC.Extensions
                 parameters: parameters,
                 options: options
                 );
+        }
+
+        public static async Task<TItem> OpenFormAsync<TItem>(
+            this DialogService dialogService,
+            RenderFragment<TItem> childContent,
+            TItem data,
+            string title = "",
+            bool saveToDb = true
+            )
+            where TItem : class, new()
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                ["ChildContent"] = childContent,
+                ["Item"] = data,
+                ["SaveToDb"] = saveToDb
+                // Item intentionally omitted; your component will create one when Item is null
+            };
+            var options = new DialogOptions
+            {
+                Width = "75%",
+                CloseDialogOnOverlayClick = true,
+                Resizable = true,
+                Draggable = true,
+                ShowClose = true,
+                ShowTitle = true,
+            };
+            var result = await dialogService.OpenAsync<VanillaDialogForm<TItem>>(
+                title: title,
+                parameters: parameters,
+                options: options
+                );
+
+            return result is TItem typed ? typed : null;
         }
     }
 }

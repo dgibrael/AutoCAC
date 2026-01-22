@@ -1,0 +1,91 @@
+﻿@typeparam TItem where TItem : class
+@using AutoCAC.Models
+@inject NotificationService Notifications
+@inject IDbContextFactory<mainContext> DbFactory
+
+<LoadingContent IsLoading="isLoading">
+    <RadzenTemplateForm TItem="TItem"
+                        Data="@data"
+                        Submit="@OnSubmitInternal">
+        @ChildContent(IsReadOnly)
+        @if (_isEditing)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal"
+                         JustifyContent="JustifyContent.Start"
+                         Visible="@(!DisableEdit)"
+                         class="rz-my-2">
+                <RadzenButton Click="@(() => SetEditModeAsync(false))"
+                                ButtonType="ButtonType.Button"
+                                Text="Cancel"
+                                Size="ButtonSize.Medium"
+                                ButtonStyle="ButtonStyle.Base" />
+
+                <RadzenButton ButtonType="ButtonType.Submit"
+                                Text="@SaveBtnText" Disabled="DisableEdit"
+                                ButtonStyle="ButtonStyle.Primary" />
+            </RadzenStack>
+        }
+        else
+        {
+            <RadzenButton Click="@(() => SetEditModeAsync(true))"
+                            ButtonType="ButtonType.Button"
+                            Text="Edit" Disabled="DisableEdit"
+                            Size="ButtonSize.Medium"
+                            ButtonStyle="ButtonStyle.Primary" class="rz-my-2" />
+        }
+    </RadzenTemplateForm>
+</LoadingContent>
+
+@code {
+    [Parameter, EditorRequired] public Func<mainContext, IQueryable<TItem>> QueryFactory { get; set; }
+    /// <summary>
+    /// Template content for the editor.
+    /// The template <c>Context</c> value is a <see cref="bool" />:
+    /// <c>true</c> => read-only (editing disabled), <c>false</c> => editable.
+    /// </summary>
+    [Parameter, EditorRequired] public RenderFragment<bool> ChildContent { get; set; }
+    [Parameter] public EventCallback<TItem> Submit { get; set; }
+    [Parameter] public bool DisableEdit { get; set; } = false;
+    [Parameter] public string SaveBtnText { get; set; } = "Save";
+    private TItem data { get; set; }
+    private bool isLoading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDataAsync();
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private bool _isEditing;
+    private bool IsReadOnly => !_isEditing || DisableEdit;
+    private async Task SetEditModeAsync(bool editing)
+    {
+        if (_isEditing == editing) return;
+        _isEditing = editing;
+        await LoadDataAsync();
+    }
+    private async Task OnSubmitInternal(TItem item)
+    {
+        if (IsReadOnly) return;
+        if (Submit.HasDelegate) await Submit.InvokeAsync(item);
+        else await DbFactory.UpdateItemAsync<TItem>(data);
+        Notifications.Success("Successfully saved");
+        await SetEditModeAsync(false);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        IQueryable<TItem> q = QueryFactory(db);
+        q = q.AsNoTracking();
+        data = await q.SingleOrDefaultAsync();
+        isLoading = false;
+        StateHasChanged();
+    }
+}

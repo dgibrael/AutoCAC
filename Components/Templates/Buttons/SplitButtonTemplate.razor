@@ -24,7 +24,7 @@
     bool _isBusy;
     [Parameter] public Func<Task> DefaultAction { get; set; }
     [Parameter] public string DefaultButtonValue { get; set; }
-    [Parameter] public string ButtonText { get; set; } = "Edit";
+    [Parameter] public string ButtonText { get; set; } = "";
     [Parameter] public string TooltipText { get; set; } = null;
     [Parameter] public IEnumerable<SplitButtonItem> Buttons { get; set; }
     [Parameter] public string MainIcon { get; set; } = null;
@@ -32,6 +32,11 @@
 
     protected override void OnParametersSet()
     {
+        if (string.IsNullOrWhiteSpace(ButtonText))
+        {
+            ButtonText = string.IsNullOrWhiteSpace(DefaultButtonValue) ? "Edit"
+            : Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Text;
+        }
         // Priority: explicit DefaultAction > DefaultButtonValue match > null
         _resolvedDefaultAction = DefaultAction
             ?? (string.IsNullOrWhiteSpace(DefaultButtonValue)

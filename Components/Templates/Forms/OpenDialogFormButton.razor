@@ -1,0 +1,21 @@
+﻿@typeparam TItem where TItem : class, new()
+@inject DialogService DialogService
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+<RadzenButton Text="@ButtonText" Click="@Open" />
+
+@code {
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+    [Parameter] public EventCallback<TItem> OnSubmitted { get; set; }
+    [Parameter] public EventCallback<TItem> OnClose { get; set; }
+    [Parameter] public TItem Data { get; set; }
+    [Parameter] public string ButtonText { get; set; } = "Edit Attributes";
+    [Parameter] public string Title { get; set; } = "Edit Attributes";
+    private async Task Open()
+    {
+        var saveToDb = !OnSubmitted.HasDelegate;
+        var result = await DialogService.OpenFormAsync<TItem>(ChildContent, Data, Title, saveToDb);
+        await OnSubmitted.InvokeAsync(result);
+        await OnClose.InvokeAsync(result);
+    }
+}

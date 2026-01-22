@@ -11,51 +11,84 @@
 @inject NotificationService Notifications
 @inject DialogService DialogService
 
-
+<BackLink />
 <LoadingContent IsLoading="@(item == null)">
 	<h3>@($"Ticket for {item?.Patient?.Name} ({item?.Patient?.ChartNumber})")</h3>
 	<p>@($"Current status: {item?.Status}")</p>
-	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
+	@if(item?.Waiting == true)
+	{
+		<p class="rz-color-warning">Waiter</p>
+	}
+	else
+	{
+		<p>Non-Waiter</p>
+	}
+	@if (item?.ControlledSubstance == true)
+	{
+		<p class="rz-color-warning">Order Has Controlled Substances</p>
+	}
+	else
+	{
+		<p>No Controlled Substances in order</p>
+	}
+	@if (item?.NeedsCounseling == true)
+	{
+		<p class="rz-color-warning">Needs Counseling (new or changed medication)</p>
+	}
+	else
+	{
+		<p>Refill only</p>
+	}
+	<OpenDialogFormButton TItem="TsaileBetterq" Data="item" Title="Edit Attributes" Context="x" OnClose="LoadAndStateHasChanged" >
 		<VanillaFormField Label="Waiter">
-			<RadzenCheckBox @bind-Value="item.Waiting" />
+			<RadzenCheckBox @bind-Value="x.Waiting"/>
 		</VanillaFormField>
 		<VanillaFormField Label="Controlled Substance">
-			<RadzenCheckBox @bind-Value="item.ControlledSubstance" />
+			<RadzenCheckBox @bind-Value="x.ControlledSubstance"/>
 		</VanillaFormField>
 		<VanillaFormField Label="Needs Counseling">
-			<RadzenCheckBox @bind-Value="item.NeedsCounseling" />
+			<RadzenCheckBox @bind-Value="x.NeedsCounseling"/>
 		</VanillaFormField>
-		<StandardButtons />
-	</RadzenTemplateForm>
-	<ChatTemplate TItem="TsaileComment"
-		Title="Comments"
-		LoadData="LoadCommentsAsync"
-		GetMessageId="@(c => c.Id.ToString())"
-		GetUser="@(c => c.AuthUser.Username)"
-		GetMessage="@(c => c.Remarks)"
-		GetTimestamp="@(c => c.CreatedAt)"
-		CreateMessage="@CreateComment" />
-	<SplitButtonTemplate Buttons="@BuildButtons()" ButtonText="Additional Options" />
+	</OpenDialogFormButton>
+	<CommentTemplate TItem="TsaileComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment" />
+	<SplitButtonTemplate Buttons="@BuildButtons()" 
+			DefaultButtonValue="@(item?.StatusEnum == TsaileTicketStatus.Complete ? "Back" : "Submit")" />
 </LoadingContent>
-
 @code{
 	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; }
 	private int _userId { get; set; } = 0;
+	string defaultButtonValue;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
 			await LoadItem();
+			defaultButtonValue = item?.StatusEnum switch
+			{
+				TsaileTicketStatus.Complete => "Back",
+				_ => "Submit"
+			};
 			_userId = UserContext.UserProfile.Id;
 			StateHasChanged();
 		}
 	}
-	private async Task OnSubmit()
+	private async Task SaveAndSubmit()
 	{
 		await item.AdvanceStatusAndSaveAsync(DbFactory, _userId);
-		Notifications.Success("Successfully created ticket");
+		Notifications.Success("Successfully saved ticket");
 		Nav.NavigateToRelative(fromParent: true);
+	}
+
+	private async Task SaveAttributes(TsaileBetterq dialogData)
+	{
+		if (dialogData != null)
+		{
+			await DbFactory.UpdateItemAsync<TsaileBetterq>(dialogData);
+			Notifications.Success("Successfully saved attributes");
+		}
+		await LoadItem();
+		StateHasChanged();
 	}
 
 	private async Task LoadItem()
@@ -64,47 +97,40 @@
 		item = await db.TsaileBetterqs.Include(x => x.Patient).FirstOrDefaultAsync(x => x.Id == Id);
 	}
 
-	private async Task<IEnumerable<TsaileComment>> LoadCommentsAsync()
+	private async Task LoadAndStateHasChanged()
 	{
-		await using var db = DbFactory.CreateDbContext();
-		return await db.TsaileComments
-			.Where(x => x.TsaileBetterqId == Id)
-			.Include(x => x.AuthUser)
-			.OrderBy(x => x.CreatedAt)
-			.ToListAsync();
+		await LoadItem();
+		StateHasChanged();
 	}
 
-	private TsaileComment CreateComment(string content)
+	private IQueryable<CommentModel> CommentQueryFactory(mainContext db) =>
+		db.TsaileComments
+		  .Where(x => x.TsaileBetterqId == Id)
+		  .Include(x => x.AuthUser)
+		  .OrderBy(x => x.CreatedAt)
+		  .Select(x => new CommentModel
+		  {
+			  Id = x.Id,
+			  AuthUser = x.AuthUser,
+			  CreatedAt = x.CreatedAt,
+			  Text = x.Remarks
+		  });
+
+	private TsaileComment MapComment(CommentModel m) => new TsaileComment
 	{
-		return new TsaileComment
-		{
-			TsaileBetterqId = Id,
-			Remarks = content,
-			CreatedAt = DateTime.Now,
-			AuthUserId = _userId
-		};
-	}
+		Id = (int)m.Id,
+		TsaileBetterqId = Id,
+		Remarks = m.Text,
+		CreatedAt = m.CreatedAt,
+		AuthUserId = m.AuthUser.Id
+	};
 
 	IEnumerable<SplitButtonItem> BuildButtons() => new[]
 	{
 		new SplitButtonItem
 		{
-			Text = "Save Changes",
-			Value = "Save",
-			Icon = "save",
-			IconColor = Colors.Success,
-			Action = async () =>
-			{
-				await DbFactory.UpdateItemAsync(item);
-				Notifications.Success($"Successfully saved changes");
-				await LoadItem();
-				StateHasChanged();
-			}
-		},
-		new SplitButtonItem
-		{
-			Text = "Save and Move Forward",
-			Value = "Forward",
+			Text = "Submit",
+			Value = "Submit",
 			Icon = "arrow_forward",
 			IconColor = Colors.Success,
 			Disabled = () => item?.Status == TsaileTicketStatus.Complete.ToString(),
@@ -118,7 +144,7 @@
 		},
 		new SplitButtonItem
 		{
-			Text = "Save and Move Back",
+			Text = "Move Back",
 			Value = "Back",
 			Icon = "arrow_back",
 			IconColor = Colors.WarningLight,
@@ -133,7 +159,7 @@
 		},
 		new SplitButtonItem
 		{
-			Text = "Save and Change Status",
+			Text = "Change Status",
 			Value = "ChangeStatus",
 			Icon = "edit",
 			IconColor = Colors.Info,
@@ -158,8 +184,8 @@
 				var confirm = await DialogService.DeleteConfirm("Ticket");
 				if (confirm == true)
 				{
-					await DbFactory.DeleteItemAsync(item);
-					Notifications.Success($"Deleted");
+					await item?.UpdateStatusAsync(DbFactory, TsaileTicketStatus.Deleted.ToString(), _userId);
+					Notifications.Success($"Sent to Deleted table (admin can permanently delete from there)");
 					Nav.NavigateToRelative(fromParent: true);
 				}
 			}

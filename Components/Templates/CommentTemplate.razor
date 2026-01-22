@@ -61,7 +61,7 @@
     <RadzenRow>
         <RadzenColumn Size="10">
             <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
-                           Placeholder="Type comment here (Press enter or click arrow to submit)...." />
+                            Placeholder="Type comment here (Press enter or click arrow to submit)...." />
         </RadzenColumn>
         <RadzenColumn Size="1">
             <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
@@ -75,7 +75,7 @@
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
     private bool HasDraft = false;
     private RadzenDataList<CommentModel> dataList;
-    private string _newMsg;
+    private string _newMsg = "";
     private IEnumerable<CommentModel> data;
     private bool IsLoading;
     private async Task LoadData(LoadDataArgs args)

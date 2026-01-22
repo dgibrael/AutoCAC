@@ -12,7 +12,7 @@
 @implements IDisposable
 <RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete"  />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
-<DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat">
+<DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat" RowDoubleClick="@(e => Nav.NavigateToRelative(e.Data.Id.ToString()))">
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
@@ -78,7 +78,7 @@
     {
         return row?.StatusEnum != null && row?.StatusEnum is
                                                 (TsaileTicketStatus.Filling or TsaileTicketStatus.Verifying or
-                                                TsaileTicketStatus.ReadyForPickup);
+                                                TsaileTicketStatus.ReadyForPickup or TsaileTicketStatus.Screening);
     }
 
     void CellFormat(DataGridCellRenderEventArgs<TsaileBetterqDto> args)
@@ -128,11 +128,12 @@
             {
                 var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
         {
-            Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already Completed"
+            Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
                     : $"Move to {row?.StatusEnum.Next()}",
             Value = "Forward",
             Icon = "forward",
@@ -143,6 +144,7 @@
 
                 var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
+                await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
@@ -158,6 +160,7 @@
                 {
                     await DbFactory.UpdateStatusAsync(row.Id, TsaileTicketStatus.Deleted.ToString(), _userId);
                     NotificationService.Success($"Moved to Trash");
+                    await GridModel.ReloadAsync();
                 }
             }
         },
@@ -173,7 +176,7 @@
                 if (newStatus == null) return;
                 var ticket = await DbFactory?.UpdateStatusAsync(row.Id, newStatus, _userId);
                 NotificationService.Success($"Status updated to {ticket?.Status}");
-                StateHasChanged();
+                await GridModel.ReloadAsync();
             }
         },
     };

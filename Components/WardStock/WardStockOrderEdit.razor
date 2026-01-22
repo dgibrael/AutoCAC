@@ -106,7 +106,7 @@
 </LoadingContent>
 <a href="javascript:history.back()">Back</a>
 
-@code {
+	@code {
 	[Parameter] public long Id { get; set; }
 	private bool pageLoaded = false;
 	private WardstockOrder currentOrder;
@@ -243,7 +243,7 @@
 
 	private async Task OnSendBack()
 	{
-		if (currentOrder.StatusEnum == WardstockOrderStatus.New) return;
+		if (currentOrder.IsFirstStatus) return;
 		currentOrder.SendBack();
 		try
 		{			
@@ -255,6 +255,13 @@
 			return;
 		}
 		NotificationService.Success($"Successfully updated status to {currentOrder.Status}");
+		if (currentOrder.IsFirstStatus)
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			await db.WardstockOrderitems
+			.Where(x => x.OrderId == Id)
+			.ExecuteUpdateAsync(s => s.SetProperty(x => x.QtyFilled, 0));
+		}
 		var activity = new WardstockActivitylog
 		{
 			AuthUserId = UserContext.UserProfile.Id,
@@ -262,7 +269,7 @@
 			ActivityAt = DateTime.Now,
 			Remarks = $"Status Changed to {currentOrder.Status}"
 		};
-		await DbFactory.UpdateItemAsync(activity);
+		await DbFactory.AddItemAsync(activity);
 		StateHasChanged();
 	}
 
@@ -278,7 +285,7 @@
 				ActivityAt = DateTime.Now,
 				Remarks = $"Status Changed to {currentOrder.Status}"
 			};
-		await DbFactory.UpdateItemAsync(activity);
+		await DbFactory.AddItemAsync(activity);
 		Nav.NavigateToRelative(fromParent: true);
 	}
 

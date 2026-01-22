@@ -89,7 +89,7 @@
 	private async Task<WardstockItem> SelectNewDrug()
 	{
 		await LoadPageItem();
-		var newItem = new WardstockItem{ Par = 0, Category = "SUPPLIES" };
+		var newItem = new WardstockItem{ Par = 0, Category = "SUPPLIES", LocationId = Id };
 		var isDrug = await DialogService.YesNoDialog("Is this a Drug or non-drug item?", "Item Type", "Drug", "Non-drug");
 		if (isDrug == true)
 		{			
