@@ -1,14 +1,16 @@
 ﻿@inject DialogService DialogService
 
 <RadzenTemplateForm TItem="string" Data="@_value" Submit="() => DialogService.Close(_value)">
-    <RadzenAutoComplete Data="Suggestions"
-                        @bind-Value="_value" @ref="_autocomplete"
-                        Placeholder="@Placeholder"
-                        FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
-                        OpenOnFocus="@(string.IsNullOrEmpty(InitialValue))"
-                        Style="width:100%;" />
+    <RadzenRow>
+        <RadzenAutoComplete Data="Suggestions"
+                            @bind-Value="_value" @ref="_autocomplete"
+                            Placeholder="@Placeholder"
+                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                            OpenOnFocus="@(string.IsNullOrEmpty(InitialValue))"
+                            Style="width:100%;" />
+    </RadzenRow>
 
-    <div class="mt-3 flex justify-end gap-2">
+    <RadzenRow>
         <RadzenButton Text="Cancel" ButtonType="ButtonType.Button"
                       ButtonStyle="ButtonStyle.Light"
                       Click="() => DialogService.Close(null)" />
@@ -16,7 +18,7 @@
                       ButtonStyle="ButtonStyle.Primary"
                       Disabled="@string.IsNullOrWhiteSpace(_value)"
                       ButtonType="ButtonType.Submit" />
-    </div>
+    </RadzenRow>
 </RadzenTemplateForm>
 
 @code {
@@ -29,7 +31,7 @@
     {
         if (firstRender)
         {
-            _value = InitialValue;
+            _value = InitialValue ?? "";
             StateHasChanged();
         }
     }

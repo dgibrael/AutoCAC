@@ -40,7 +40,7 @@
                                       Size="ButtonSize.ExtraSmall"
                                       ButtonStyle="ButtonStyle.Danger"
                                       ButtonType="ButtonType.Button" Variant="Variant.Text"
-                                      Click="@(async () => await DeleteMessageAsync(m.Id))" />
+                                      Click="@(async () => await DeleteMessageAsync(m))" />
                     }
                 </RadzenRow>
                 <RadzenRow class="rz-my-0">
@@ -103,11 +103,12 @@
         await dataList.Reload();
     }
 
-    private async Task DeleteMessageAsync(long id)
+    private async Task DeleteMessageAsync(CommentModel comment)
     {
         var ok = await DialogService.DeleteConfirm(customMessage: "Delete this message?");
         if (ok != true) return;
-        await Db.DeleteByPkAsync<TItem>(id);
+        var entityObject = MapToEntity(comment);
+        await Db.DeleteItemAsync(entityObject);
         await dataList.Reload();
     }
 

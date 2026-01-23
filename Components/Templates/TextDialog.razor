@@ -46,7 +46,7 @@
 
     protected override void OnInitialized()
     {
-        Value = InitialValue;
+        Value = InitialValue ?? "";
     }
 
     private void OnOk()
