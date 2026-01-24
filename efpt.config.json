@@ -47,6 +47,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[LookupValue]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[MenuBuild]",
          "ObjectType": 0
       },

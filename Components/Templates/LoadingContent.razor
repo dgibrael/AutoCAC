@@ -1,8 +1,17 @@
-﻿@if (IsLoading)
+﻿@using AutoCAC.Components.Templates.Buttons
+@if (IsLoading)
 {
-    <span>Loading...</span>
-    <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" 
-    AriaLabel="Loading"/>
+    if (NotFoundMessage != null)
+    {
+        <p>@NotFoundMessage</p>
+        <BackLink />
+    }
+    else
+    {        
+        <span>Loading...</span>
+        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" 
+        AriaLabel="Loading"/>
+    }
 }
 else
 {
@@ -15,4 +24,5 @@ else
     [Parameter] public EventCallback<bool> LoadingCompleteChanged { get; set; }
 
     [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string NotFoundMessage { get; set; }
 }

@@ -29,7 +29,11 @@ public partial class TsaileBetterq
 
     public int PatientId { get; set; }
 
-    public bool NeedsCounseling { get; set; }
+    public string BatchTo { get; set; } = null!;
+
+    public int? LockedById { get; set; }
+
+    public virtual AuthUser? LockedBy { get; set; }
 
     public virtual TsailePatient Patient { get; set; } = null!;
 

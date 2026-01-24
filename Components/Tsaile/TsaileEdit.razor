@@ -2,6 +2,7 @@
 
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Templates.Printing
 @using AutoCAC.Components.Tsaile
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
@@ -10,35 +11,32 @@
 @inject NavigationManager Nav
 @inject NotificationService Notifications
 @inject DialogService DialogService
+@inject LookupValueService Lookup
+@implements IAsyncDisposable
+<LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
+	<BackLink />
+	<PrintContent PrintOnly="false">
+		@if (item?.Waiting == true)
+		{
+			<h2 class="rz-color-warning">Waiter</h2>
+		}
+		else
+		{
+			<h2>Non-Waiter</h2>
+		}
 
-<BackLink />
-<LoadingContent IsLoading="@(item == null)">
-	<h3>@($"Ticket for {item?.Patient?.Name} ({item?.Patient?.ChartNumber})")</h3>
-	<p>@($"Current status: {item?.Status}")</p>
-	@if(item?.Waiting == true)
-	{
-		<p class="rz-color-warning">Waiter</p>
-	}
-	else
-	{
-		<p>Non-Waiter</p>
-	}
-	@if (item?.ControlledSubstance == true)
-	{
-		<p class="rz-color-warning">Order Has Controlled Substances</p>
-	}
-	else
-	{
-		<p>No Controlled Substances in order</p>
-	}
-	@if (item?.NeedsCounseling == true)
-	{
-		<p class="rz-color-warning">Needs Counseling (new or changed medication)</p>
-	}
-	else
-	{
-		<p>Refill only</p>
-	}
+		<h2>@item?.BatchTo</h2>
+		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber})")</h3>
+		@if (item?.ControlledSubstance == true)
+		{
+			<h5 class="rz-color-warning">Order Has Controlled Substances</h5>
+		}
+		else
+		{
+			<h5>No Controlled Substances in order</h5>
+		}
+	</PrintContent>
+	<h5>@($"Current status: {item?.Status}")</h5>
 	<OpenDialogFormButton TItem="TsaileBetterq" Data="item" Title="Edit Attributes" Context="x" OnClose="LoadAndStateHasChanged" >
 		<VanillaFormField Label="Waiter">
 			<RadzenCheckBox @bind-Value="x.Waiting"/>
@@ -46,30 +44,57 @@
 		<VanillaFormField Label="Controlled Substance">
 			<RadzenCheckBox @bind-Value="x.ControlledSubstance"/>
 		</VanillaFormField>
-		<VanillaFormField Label="Needs Counseling">
-			<RadzenCheckBox @bind-Value="x.NeedsCounseling"/>
+		<VanillaFormField Label="Batch To">
+			<RadzenDropDown @bind-Value="x.BatchTo" Data="_batchChoices" />
+		</VanillaFormField>
+		<VanillaFormField Label="Earliest Fill Date">
+			<RadzenDatePicker @bind-Value="x.Efdt" ShowTime="false" />
 		</VanillaFormField>
 	</OpenDialogFormButton>
-	<CommentTemplate TItem="TsaileComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment" />
-	<SplitButtonTemplate Buttons="@BuildButtons()" 
-			DefaultButtonValue="@(item?.StatusEnum == TsaileTicketStatus.Complete ? "Back" : "Submit")" />
+	<CommentTemplate TItem="TsaileComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment" Print="true" />
+	<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start">
+		<SplitButtonTemplate Buttons="@BuildButtons()" 
+				DefaultButtonValue="@(item?.StatusEnum == TsaileTicketStatus.Complete ? "Back" : "Submit")" />
+		<PrintButton />
+	</RadzenStack>
 </LoadingContent>
-@code{
+	@code{
 	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; }
 	private int _userId { get; set; } = 0;
-	string defaultButtonValue;
+	private string _notFoundMsg;
+	private string[] _batchChoices;
+	private bool _lockedByMe;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
+			_batchChoices = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
 			await LoadItem();
-			defaultButtonValue = item?.StatusEnum switch
+			if (item == null)
 			{
-				TsaileTicketStatus.Complete => "Back",
-				_ => "Submit"
-			};
+				_notFoundMsg = "Ticket not found";
+				StateHasChanged();
+				return;
+			}
 			_userId = UserContext.UserProfile.Id;
+			if (item.IsLocked)
+			{
+				string msg;
+				if (item?.LockedById == _userId)
+				{
+					msg = $"You have this ticket open in another session";
+				}
+				else
+				{
+					msg = $"Ticket is locked by {item?.LockedBy?.DisplayName}";
+				}
+				Notifications.Notify(detail: msg);
+				Nav.NavigateToRelative(fromParent: true);
+				return;
+			}
+			await item.LockAsync(DbFactory, _userId);
+			_lockedByMe = true;
 			StateHasChanged();
 		}
 	}
@@ -94,7 +119,10 @@
 	private async Task LoadItem()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
-		item = await db.TsaileBetterqs.Include(x => x.Patient).FirstOrDefaultAsync(x => x.Id == Id);
+		item = await db.TsaileBetterqs
+				.Include(x => x.Patient)
+				.Include(x => x.LockedBy)
+				.FirstOrDefaultAsync(x => x.Id == Id);
 	}
 
 	private async Task LoadAndStateHasChanged()
@@ -105,10 +133,10 @@
 
 	private IQueryable<CommentModel> CommentQueryFactory(mainContext db) =>
 		db.TsaileComments
-		  .Where(x => x.TsaileBetterqId == Id)
-		  .Include(x => x.AuthUser)
-		  .OrderBy(x => x.CreatedAt)
-		  .Select(x => new CommentModel
+				.Where(x => x.TsaileBetterqId == Id)
+				.Include(x => x.AuthUser)
+				.OrderBy(x => x.CreatedAt)
+				.Select(x => new CommentModel
 		  {
 			  Id = x.Id,
 			  AuthUser = x.AuthUser,
@@ -125,11 +153,17 @@
 		AuthUserId = m.AuthUser.Id
 	};
 
+	private async Task OnFillDateChange(DateOnly? newDate, TsaileBetterq row)
+	{
+		if (newDate == null || newDate <= DateOnly.FromDateTime(DateTime.Now)) return;
+
+	}
+
 	IEnumerable<SplitButtonItem> BuildButtons() => new[]
 	{
 		new SplitButtonItem
 		{
-			Text = "Submit",
+			Text = $"Move to {item?.NextStatusEnum.ToString()}",
 			Value = "Submit",
 			Icon = "arrow_forward",
 			IconColor = Colors.Success,
@@ -137,14 +171,13 @@
 			Action = async () =>
 			{
 				await item?.AdvanceStatusAndSaveAsync(DbFactory, _userId);
-				await LoadItem();
 				Notifications.Success($"Status updated to {item?.Status}");
-				StateHasChanged();
+				Nav.NavigateToRelative(fromParent: true);
 			}
 		},
 		new SplitButtonItem
 		{
-			Text = "Move Back",
+			Text = $"Move to {item?.PreviousStatusEnum.ToString()}",
 			Value = "Back",
 			Icon = "arrow_back",
 			IconColor = Colors.WarningLight,
@@ -191,5 +224,32 @@
 			}
 		}
 	};
+
+	public async ValueTask DisposeAsync()
+	{
+		if (!_lockedByMe || Id <= 0 || _userId <= 0)
+			return;
+
+		try
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+
+			var entity = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == Id);
+			if (entity == null)
+				return;
+
+			// IMPORTANT: only unlock if it's still locked by this user
+			if (entity.LockedById == _userId)
+			{
+				entity.LockedById = null;
+				entity.LockedDateTime = null;
+				await db.SaveChangesAsync();
+			}
+		}
+		catch
+		{
+			// swallow or log; don't throw from Dispose
+		}
+	}
 }
 

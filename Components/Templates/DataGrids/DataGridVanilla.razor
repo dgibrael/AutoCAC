@@ -201,7 +201,7 @@
         GridModel.Initialize(
             DbFactory,
             UserContext.Username,
-            reloadAsync: () => InvokeAsync(() => Grid.FirstPage(true))
+            reloadAsync: () => InvokeAsync(() => Grid.Reload())
         );
 
         StateHasChanged();

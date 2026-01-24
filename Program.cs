@@ -50,8 +50,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 builder.Services.AddScoped<RPMSService>();
 builder.Services.AddScoped<TerminalInterop>();
 builder.Services.AddScoped<FtpUploadService>();
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+
 
 var connString = builder.Configuration.GetConnectionString("mainConnection");
 builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
@@ -69,6 +68,7 @@ builder.Services.AddScoped<UserContextService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<CacheService>();
 builder.Services.AddSingleton<TsaileTicketWatcher>();
+builder.Services.AddSingleton<LookupValueService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -87,7 +87,6 @@ app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();

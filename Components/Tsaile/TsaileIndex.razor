@@ -9,27 +9,34 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Nav
 @inject TsaileTicketWatcher Notifier
+@inject LookupValueService Lookup
 @implements IDisposable
 <RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete"  />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
-<DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat" RowDoubleClick="@(e => Nav.NavigateToRelative(e.Data.Id.ToString()))">
+<DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat" 
+        RowDoubleClick="@(e => EditTicket(e.Data))">
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList"/>
-    <BoolColumn TItem="TsaileBetterqDto" Property="ControlledSubstance" Title="ControlledSubstance" ColumnIndex="5"/>
-    <BoolColumn TItem="TsaileBetterqDto" Property="Waiting" Title="Waiting" ColumnIndex="6"/>
-    <BoolColumn TItem="TsaileBetterqDto" Property="NeedsCounseling" Title="Needs Counseling" ColumnIndex="7"/>
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList"/>
+    <BoolColumn TItem="TsaileBetterqDto" Property="Waiting" Title="Waiting" ColumnIndex="5"/>
+    <BoolColumn TItem="TsaileBetterqDto" Property="ControlledSubstance" Title="ControlledSubstance" ColumnIndex="6"/>
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="LastModifiedDateTime" Title="Last Modified" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CreatedDateTime" Title="Created At" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CalledDateTime" Title="Called At" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="LockedDateTime" Title="Locked At" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Efdt" Title="Earliest Fill Date" />
-    <ActionColumn TItem="TsaileBetterqDto" Context="row" Width="250px">
-        <SplitButtonTemplate DefaultButtonValue="@(_forwardAsDefault(row) ? "Forward" : "Edit")"
-            ButtonText="@(_forwardAsDefault(row) ? $"Move to {row?.StatusEnum.Next()}" : "Edit")"
-            MainIcon="@(_forwardAsDefault(row) ? "forward" : "edit")"
-            Buttons="@BuildButtons(row)" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CreatedDateTime" Title="Created At" />
+    <ActionColumn TItem="TsaileBetterqDto" Context="row" Width="200px">
+        @if (row?.IsLocked == true)
+        {
+            <RadzenButton Text="@($"Locked by {row?.LockedBy?.DisplayName}")" 
+            Style="white-space: normal" Size="ButtonSize.Small"
+            Click="GridModel.ReloadAsync" />
+        }
+        else
+        {
+            
+            <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
+        }
     </ActionColumn>
 </DataGridVanilla>
 
@@ -40,6 +47,7 @@
         QueryFactory = db => db.TsaileBetterqs
             .Where(x => x.CompletedDateTime == null)
             .Include(x => x.Patient)
+            .Include(x => x.LockedBy)
             .Select(x => new TsaileBetterqDto
             {
                 Id = x.Id,
@@ -53,33 +61,57 @@
 
                 Status = x.Status,
                 Waiting = x.Waiting,
-                NeedsCounseling = x.NeedsCounseling,
+                BatchTo = x.BatchTo,
                 ControlledSubstance = x.ControlledSubstance,
                 LockedDateTime = x.LockedDateTime,
                 LastModifiedDateTime = x.LastModifiedDateTime,
                 CalledDateTime = x.CalledDateTime,
                 Efdt = x.Efdt,
                 PatientName = x.Patient.Name,
-                ChartNumber = x.Patient.ChartNumber
+                ChartNumber = x.Patient.ChartNumber,
+                LockedBy = x.LockedBy,
+                IsLocked = x.IsLocked
             }),
         AddButtonDefault = true,
-        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" },
-        CustomChoices = new Dictionary<string, IEnumerable<object>>
-        { ["Status"] = Enum.GetNames<TsaileTicketStatus>() }
+        SearchColumns = new[] { "PatientName", "ChartNumber" }
     };
     private int _userId { get; set; } = 0;
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _userId = UserContext.UserProfile.Id;
-        Notifier.QueueChanged += Reload;
+        Notifier.QueueChangedAsync += Reload;
+        var batchOptions = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
+
+        GridModel.CustomChoices = new Dictionary<string, IEnumerable<object>>
+        {
+            ["Status"] = Enum.GetNames<TsaileTicketStatus>(),
+            ["BatchTo"] = batchOptions
+        };
     }
 
-    private bool _forwardAsDefault(TsaileBetterqDto row)
+    private async Task EditTicket(TsaileBetterqDto row)
     {
-        return row?.StatusEnum != null && row?.StatusEnum is
-                                                (TsaileTicketStatus.Filling or TsaileTicketStatus.Verifying or
-                                                TsaileTicketStatus.ReadyForPickup or TsaileTicketStatus.Screening);
+        if (row == null) return;
+        if (row.IsLocked != true) 
+        {
+            Nav.NavigateToRelative(row.Id.ToString());
+            return;
+        };
+        string msg;
+        if (row?.LockedBy?.Id == _userId)
+        {
+            msg = $"You have this ticket open in another session";
+        }
+        else
+        {
+            msg = $"Ticket is locked by {row?.LockedBy?.DisplayName}";
+        }
+        NotificationService.Notify(summary: "Locked", detail: msg);
+        await GridModel.ReloadAsync();
     }
+
+    private Task Reload()
+        => InvokeAsync(GridModel.ReloadAsync);
 
     void CellFormat(DataGridCellRenderEventArgs<TsaileBetterqDto> args)
     {
@@ -95,14 +127,6 @@
         }
     }
 
-    private void Reload()
-    {
-        InvokeAsync(() =>
-        {
-            grid?.Grid?.Reload();
-            StateHasChanged();
-        });
-    }
     IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterqDto row) => new[]
     {
         new SplitButtonItem
@@ -119,7 +143,7 @@
         new SplitButtonItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already at Beginning" 
-                    : $"Move to {row?.StatusEnum.Previous()}",
+                    : $"Move to {row?.StatusEnum.PreviousStatus(row?.BatchTo)}",
             Value = "Back",
             Icon = "undo",
             IconColor = Colors.WarningLight,
@@ -134,7 +158,7 @@
         new SplitButtonItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
-                    : $"Move to {row?.StatusEnum.Next()}",
+                    : $"Move to {row?.StatusEnum.NextStatus(row?.BatchTo)}",
             Value = "Forward",
             Icon = "forward",
             IconColor = Colors.Success,
@@ -182,7 +206,7 @@
     };
     public void Dispose()
     {
-        Notifier.QueueChanged -= Reload;
+        Notifier.QueueChangedAsync -= Reload;
     }
 
 }

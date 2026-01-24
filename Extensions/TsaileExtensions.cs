@@ -67,7 +67,7 @@ namespace AutoCAC.Extensions.Tsaile
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
-            return await db.UpdateStatusAsync(ticket, ticket.StatusEnum.Next().ToString(), userId, ct);
+            return await db.UpdateStatusAsync(ticket, ticket.NextStatusEnum.ToString(), userId, ct);
         }
 
         public static async Task<TsaileBetterq> ReverseStatusAndSaveAsync(
@@ -78,7 +78,7 @@ namespace AutoCAC.Extensions.Tsaile
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
-            return await db.UpdateStatusAsync(ticket, ticket.StatusEnum.Previous().ToString(), userId, ct);        }
+            return await db.UpdateStatusAsync(ticket, ticket.PreviousStatusEnum.ToString(), userId, ct);        }
 
         public static async Task<TsaileBetterq> AddCommentAsync(
             this IDbContextFactory<mainContext> dbFactory,

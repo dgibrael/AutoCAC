@@ -29,18 +29,15 @@
                 <RadzenStack AlignItems="AlignItems.Center" Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" class="rz-px-2">
                     @if (_canAccess is not null)
                     {
-                        var parentPath = NavigationManager.GetPath(fromParent: true).Trim('/');
+                        var parentPath = NavigationManager.GetPath(fromParent: true, includeExistingQry: false);
                         if (parentPath == "")
                         {
-                            if (NavigationManager.GetPath().Trim('/') != "")
-                            {
-                                <RadzenLink Path="" Icon="home" Text="Home" />
-                            }
+                            <RadzenLink Path="" Icon="home" Text="Home" />
                         }
                         else
                         {
                             <RadzenLink Path="@(NavigationManager.GetPath(fromParent: true))" Icon="arrow_upward"
-                                        Text="@($"Back to {NavigationManager.GetPath(fromParent: true).Trim('/')}")" />
+                                        Text="@($"Back to {parentPath}")" />
                         }
                     }
                     <RadzenLink Icon="settings" Path="/settings" />
@@ -112,7 +109,7 @@
     </RadzenSidebar>
 </RadzenLayout>
 @code {
-    bool sidebarExpanded = true;    
+    bool sidebarExpanded = false;    
     bool rpmsLoadCanceled = false;
     private bool? _canAccess;
     private bool initialLoad = true;

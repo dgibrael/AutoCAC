@@ -17,22 +17,25 @@ public enum TsaileTicketStatus
 
 public static class TsaileTicketStatusExtensions
 {
-    public static TsaileTicketStatus Next(this TsaileTicketStatus status)
+    public static TsaileTicketStatus NextStatus(this TsaileTicketStatus status, string batchTo)
     {
         return status switch
         {
+            TsaileTicketStatus.Verifying when batchTo != "Will Call" => TsaileTicketStatus.Complete,
             TsaileTicketStatus.Complete => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
             TsaileTicketStatus.Deleted => TsaileTicketStatus.Screening,
             TsaileTicketStatus.Exception => TsaileTicketStatus.Screening,
+
             _ => status + 1
         };
     }
-    public static TsaileTicketStatus Previous(this TsaileTicketStatus status)
+    public static TsaileTicketStatus PreviousStatus(this TsaileTicketStatus status, string batchTo)
     {
         return status switch
         {
+            TsaileTicketStatus.Complete when batchTo != "Will Call" => TsaileTicketStatus.Verifying,
             TsaileTicketStatus.Screening => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
@@ -48,7 +51,11 @@ public partial class TsaileBetterq
 {
     public TsaileTicketStatus StatusEnum =>
         Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
-
+    public TsaileTicketStatus NextStatusEnum =>
+        StatusEnum.NextStatus(BatchTo);
+    public TsaileTicketStatus PreviousStatusEnum =>
+        StatusEnum.PreviousStatus(BatchTo);
+    public bool IsLocked => LockedDateTime > DateTime.Now.AddMinutes(-10);
     public async Task UpdateStatusAsync(
         IDbContextFactory<mainContext> dbFactory,
         string newStatus,
@@ -81,7 +88,7 @@ public partial class TsaileBetterq
         int userId,
         CancellationToken ct = default)
     {
-        await UpdateStatusAsync(dbFactory, StatusEnum.Next().ToString(), userId, ct);
+        await UpdateStatusAsync(dbFactory, NextStatusEnum.ToString(), userId, ct);
     }
 
     public async Task ReverseStatusAndSaveAsync(
@@ -89,7 +96,7 @@ public partial class TsaileBetterq
         int userId,
         CancellationToken ct = default)
     {
-        await UpdateStatusAsync(dbFactory, StatusEnum.Previous().ToString(), userId, ct);
+        await UpdateStatusAsync(dbFactory, PreviousStatusEnum.ToString(), userId, ct);
     }
 
     public async Task AddCommentAsync(
@@ -126,6 +133,22 @@ public partial class TsaileBetterq
             ChangedTo = Status
         };
         await dbFactory.AddItemAsync(a, ct);
+    }
+    public async Task LockAsync(
+        IDbContextFactory<mainContext> dbFactory,
+        int userId,
+        CancellationToken ct = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+
+        var now = DateTime.Now;
+
+        await db.Set<TsaileBetterq>()
+            .Where(e => e.Id == Id)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(e => e.LockedDateTime, now)
+                .SetProperty(e => e.LockedById, userId),
+                ct);
     }
 
 }

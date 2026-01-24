@@ -9,7 +9,7 @@
 
         public string Status { get; set; }
         public bool Waiting { get; set; }
-        public bool NeedsCounseling { get; set; }
+        public string BatchTo { get; set; }
         public bool ControlledSubstance { get; set; }
 
         public DateTime? LockedDateTime { get; set; }
@@ -18,8 +18,8 @@
         public DateOnly? Efdt { get; set; }
         public string PatientName { get; set; }
         public string ChartNumber { get; set; }
-
-        // Keep enum helper if you need it
+        public AuthUser LockedBy { get; set; }
+        public bool IsLocked { get; set; }
         public TsaileTicketStatus StatusEnum =>
             Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
     }

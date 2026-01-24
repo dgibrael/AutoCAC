@@ -35,6 +35,8 @@ public partial class AuthUser
 
     public virtual ICollection<TsaileActivitylog> TsaileActivitylogs { get; set; } = new List<TsaileActivitylog>();
 
+    public virtual ICollection<TsaileBetterq> TsaileBetterqs { get; set; } = new List<TsaileBetterq>();
+
     public virtual ICollection<TsaileComment> TsaileComments { get; set; } = new List<TsaileComment>();
 
     public virtual ICollection<WardstockActivitylog> WardstockActivitylogs { get; set; } = new List<WardstockActivitylog>();

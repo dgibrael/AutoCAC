@@ -9,6 +9,7 @@
 @inject NavigationManager Nav
 @inject NotificationService Notifications
 @inject DialogService DialogService
+@inject LookupValueService Lookup
 
 @if (selectedPatient == null)
 {
@@ -24,8 +25,11 @@ else
 		<VanillaFormField Label="Controlled Substance">
 			<RadzenCheckBox @bind-Value="item.ControlledSubstance" />
 		</VanillaFormField>
-		<VanillaFormField Label="Needs Counseling">
-			<RadzenCheckBox @bind-Value="item.NeedsCounseling" />
+		<VanillaFormField Label="Batch To">
+			<RadzenDropDown @bind-Value="item.BatchTo" Data="_batchChoices"  />
+		</VanillaFormField>
+		<VanillaFormField Label="Earliest Fill Date">
+			<RadzenDatePicker @bind-Value="item.Efdt" ShowTime="false" />
 		</VanillaFormField>
 		<VanillaFormField Label="Comments">
 			<RadzenTextArea @bind-Value="initialComment" />
@@ -39,6 +43,7 @@ else
 	private TsaileBetterq item { get; set; } = new();
 	private TsailePatient selectedPatient { get; set; }
 	private string initialComment { get; set; }
+	private string[] _batchChoices;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -49,12 +54,26 @@ else
 	private async Task SelectPatient()
 	{
 		selectedPatient = await DialogService.OpenAsync<TsaileSelectPatient>("Select a Patient", options: new DialogOptions{ Width = "80%" });
-		if (selectedPatient == null)
+		if (selectedPatient == null || selectedPatient?.Id == 0)
 		{
 			Nav.NavigateToRelative(fromParent: true);
 			return;
 		}
 		item.PatientId = selectedPatient.Id;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var existingTicket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.PatientId == selectedPatient.Id && x.CompletedDateTime == null);
+		if (existingTicket != null)
+		{
+			var goToExisting = await DialogService.YesNoDialog("Existing Ticket"
+								, $"There's already an open ticket for {selectedPatient.Name}. Go to existing ticket?"
+								, "Go to exising ticket", "Continue creating new ticket");
+			if (goToExisting == true)
+			{
+				Nav.NavigateToRelative(existingTicket.Id.ToString(), fromParent: true);
+				return;
+			}
+		}
+		_batchChoices = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
 		StateHasChanged();
 	}
 	private async Task OnSubmit()

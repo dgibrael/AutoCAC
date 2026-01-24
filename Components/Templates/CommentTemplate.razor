@@ -6,7 +6,7 @@
 @inject NavigationManager Nav
 @typeparam TItem where TItem : class
 @using Microsoft.AspNetCore.Components.Routing
-
+@using AutoCAC.Components.Templates.Printing
 @if (ConfirmIfUnsubmitted && HasDraft)
 {
     <NavigationLock OnBeforeInternalNavigation="ConfirmLeave" ConfirmExternalNavigation="true" />
@@ -68,11 +68,31 @@
         </RadzenColumn>
     </RadzenRow>
 </RadzenTemplateForm>
+@if (Print && data != null)
+{
+    <PrintContent PrintOnly="true">
+        <RadzenCard>
+            <h5 class="rz-mb-1">Comments:</h5>
+            <ul style="list-style-type: none; padding-left: 10px; padding-top: 0px">
+	            @foreach(var c in data)
+	            {
+		            <li><span>@c?.Text</span>
+			            <i><small>@($@"{
+					            (!string.IsNullOrWhiteSpace(c?.AuthUser?.LastName) ?
+						            $"{c?.AuthUser?.LastName}, {c?.AuthUser?.FirstName}" :
+						            c?.AuthUser?.Username)} @")</small><small>@c?.CreatedAt</small></i>
+		            </li>
+	            }
+            </ul>
+        </RadzenCard>
+    </PrintContent>
+}
 @code {
     [Parameter, EditorRequired] public Func<mainContext, IQueryable<CommentModel>> CommentQueryFactory { get; set; }
     [Parameter, EditorRequired] public Func<CommentModel, TItem> MapToEntity { get; set; }
     [Parameter] public string Title { get; set; } = "Comments";
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
+    [Parameter] public bool Print { get; set; } = false;
     private bool HasDraft = false;
     private RadzenDataList<CommentModel> dataList;
     private string _newMsg = "";

@@ -29,6 +29,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<InpatientMedOrder> InpatientMedOrders { get; set; }
 
+    public virtual DbSet<LookupValue> LookupValues { get; set; }
+
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
 
     public virtual DbSet<MenuBuildMetum> MenuBuildMeta { get; set; }
@@ -300,6 +302,25 @@ public partial class mainContext : DbContext
             entity.Property(e => e.StopDateTime).HasColumnType("datetime");
             entity.Property(e => e.VerifiedDateTime).HasColumnType("datetime");
             entity.Property(e => e.VerifyingPharmacist).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<LookupValue>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__LookupVa__3213E83F0BDFEBE5");
+
+            entity.ToTable("LookupValue");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DisplayText)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.OptionSet)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.Value)
+                .HasMaxLength(255)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<MenuBuild>(entity =>
@@ -671,9 +692,18 @@ public partial class mainContext : DbContext
             entity.HasIndex(e => new { e.Status, e.Waiting, e.LastModifiedDateTime }, "IX_tsaile_betterq_ActiveQueue").HasFilter("([CompletedDateTime] IS NULL)");
 
             entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.BatchTo)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasDefaultValue("Refill");
             entity.Property(e => e.Efdt).HasColumnName("EFDT");
-            entity.Property(e => e.NeedsCounseling).HasDefaultValue(true);
+            entity.Property(e => e.LockedById).HasColumnName("LockedBy_id");
             entity.Property(e => e.Status).HasMaxLength(100);
+
+            entity.HasOne(d => d.LockedBy).WithMany(p => p.TsaileBetterqs)
+                .HasForeignKey(d => d.LockedById)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_tsaile_betterq_auth_user");
 
             entity.HasOne(d => d.Patient).WithMany(p => p.TsaileBetterqs)
                 .HasForeignKey(d => d.PatientId)
