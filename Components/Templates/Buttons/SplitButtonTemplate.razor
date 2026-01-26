@@ -6,7 +6,7 @@
 @using AutoCAC.Extensions
 
 <div title="@($"{TooltipText ?? ButtonText} (click arrow for more options)")" style="max-width: 100%;">
-    <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="ButtonStyle.Primary" 
+    <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="@ButtonStyle" 
                        Text="@ButtonText" IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="@MainIcon"
                        Disabled="@Disabled"
                        Style="max-width: 100%; white-space: wrap;">
@@ -30,7 +30,7 @@
     [Parameter] public IEnumerable<SplitButtonItem> Buttons { get; set; }
     [Parameter] public string MainIcon { get; set; } = null;
     [Parameter] public bool Disabled { get; set; } = false;
-
+    [Parameter] public ButtonStyle ButtonStyle { get; set; } = ButtonStyle.Primary;
     private Func<Task> _resolvedDefaultAction;
 
     protected override void OnParametersSet()

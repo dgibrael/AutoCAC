@@ -1,6 +1,9 @@
-﻿<RadzenCard class="rz-dialog" style="min-height: 0; pointer-events: auto;">
+﻿<RadzenCard>
     <RadzenRow>
         <RadzenProgressBarCircular ProgressBarStyle="ProgressBarStyle.Primary" ShowValue="false" Mode="ProgressBarMode.Indeterminate" />
-        <RadzenText Text="Loading..." TextStyle="TextStyle.DisplayH5"/>
+        <RadzenText Text="@LoadMessage" TextStyle="TextStyle.DisplayH5"/>
     </RadzenRow>
 </RadzenCard>
+@code{
+    [Parameter] public string LoadMessage { get; set; } = "Loading...";
+}

@@ -69,6 +69,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<CacheService>();
 builder.Services.AddSingleton<TsaileTicketWatcher>();
 builder.Services.AddSingleton<LookupValueService>();
+builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

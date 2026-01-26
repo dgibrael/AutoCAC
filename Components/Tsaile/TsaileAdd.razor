@@ -72,6 +72,11 @@ else
 				Nav.NavigateToRelative(existingTicket.Id.ToString(), fromParent: true);
 				return;
 			}
+			if (goToExisting == null)
+			{
+				Nav.NavigateToRelative(fromParent: true);
+				return;
+			}
 		}
 		_batchChoices = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
 		StateHasChanged();

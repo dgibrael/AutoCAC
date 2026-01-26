@@ -69,6 +69,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<TsailePatient> TsailePatients { get; set; }
 
+    public virtual DbSet<TsailePatientcomment> TsailePatientcomments { get; set; }
+
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
     public virtual DbSet<VwUserNameMismatch> VwUserNameMismatches { get; set; }
@@ -771,6 +773,26 @@ public partial class mainContext : DbContext
             entity.Property(e => e.WardLocation).IsUnicode(false);
             entity.Property(e => e.WorkPhone).IsUnicode(false);
             entity.Property(e => e.ZipCode).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<TsailePatientcomment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__tsaile_p__3213E83F1ED338DD");
+
+            entity.ToTable("tsaile_patientcomment");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.TsailePatientcomments)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_tsaile_patientcomment_auth_user");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.TsailePatientcomments)
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("FK_tsaile_patientcomment_PatientId");
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

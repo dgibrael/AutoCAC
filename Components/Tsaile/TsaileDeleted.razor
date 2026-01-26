@@ -15,16 +15,12 @@
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
                           FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="NeedsCounseling" Title="NeedsCounseling"
-                          FilterMode="FilterMode.CheckBoxList" />
+    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
                           FilterMode="FilterMode.CheckBoxList" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
     <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
-        <SplitButtonTemplate DefaultButtonValue="Undo"
-                             ButtonText="Undo Delete"
-                             MainIcon="undo"
-                             Buttons="@BuildButtons(row)" />
+        <SplitButtonTemplate DefaultButtonValue="Delete" Buttons="@BuildButtons(row)" ButtonStyle="ButtonStyle.Danger"/>
     </ActionColumn>
 </DataGridVanilla>
 

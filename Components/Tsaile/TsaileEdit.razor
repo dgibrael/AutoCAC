@@ -12,6 +12,7 @@
 @inject NotificationService Notifications
 @inject DialogService DialogService
 @inject LookupValueService Lookup
+@inject IRecordUnlockService UnlockService
 @implements IAsyncDisposable
 <LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
 	<BackLink />
@@ -51,7 +52,14 @@
 			<RadzenDatePicker @bind-Value="x.Efdt" ShowTime="false" />
 		</VanillaFormField>
 	</OpenDialogFormButton>
-	<CommentTemplate TItem="TsaileComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment" Print="true" />
+	<RadzenRow>
+		<RadzenColumn Size="6">
+			<CommentTemplate Title="Ticket Comments" TItem="TsaileComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment" Print="true" />
+		</RadzenColumn>
+		<RadzenColumn Size="6">
+			<CommentTemplate Title="Patient Comments" TItem="TsailePatientcomment" CommentQueryFactory="CommentQueryFactoryPatient" MapToEntity="MapCommentPatient" Print="false" />
+		</RadzenColumn>
+	</RadzenRow>
 	<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start">
 		<SplitButtonTemplate Buttons="@BuildButtons()" 
 				DefaultButtonValue="@(item?.StatusEnum == TsaileTicketStatus.Complete ? "Back" : "Submit")" />
@@ -65,6 +73,8 @@
 	private string _notFoundMsg;
 	private string[] _batchChoices;
 	private bool _lockedByMe;
+	private IDisposable _unlockSubscription;
+	private bool _promptOpen;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -94,6 +104,7 @@
 				return;
 			}
 			await item.LockAsync(DbFactory, _userId);
+			_unlockSubscription = UnlockService.Subscribe(Id, OnUnlockMessageAsync);
 			_lockedByMe = true;
 			StateHasChanged();
 		}
@@ -149,6 +160,27 @@
 		Id = (int)m.Id,
 		TsaileBetterqId = Id,
 		Remarks = m.Text,
+		CreatedAt = m.CreatedAt,
+		AuthUserId = m.AuthUser.Id
+	};
+	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>
+		db.TsailePatientcomments
+				.Where(x => x.PatientId == item.PatientId)
+				.Include(x => x.AuthUser)
+				.OrderBy(x => x.CreatedAt)
+				.Select(x => new CommentModel
+		  {
+			  Id = x.Id,
+			  AuthUser = x.AuthUser,
+			  CreatedAt = x.CreatedAt,
+			  Text = x.Comment
+		  });
+
+	private TsailePatientcomment MapCommentPatient(CommentModel m) => new TsailePatientcomment
+	{
+		Id = m.Id,
+		PatientId = item.PatientId,
+		Comment = m.Text,
 		CreatedAt = m.CreatedAt,
 		AuthUserId = m.AuthUser.Id
 	};
@@ -225,20 +257,76 @@
 		}
 	};
 
+	private async Task OnUnlockMessageAsync(UnlockMessage msg)
+	{
+		// Prove we are alive immediately (so requester doesn't force-unlock instantly)
+		UnlockService.Ack(msg.RecordId);
+
+		// Avoid stacking prompts
+		if (_promptOpen)
+			return;
+
+		_promptOpen = true;
+
+		try
+		{
+			await InvokeAsync(async () =>
+			{
+				var dialogTask = DialogService.YesNoDialog(
+					$"{msg.RequestedByDisplayName} is requesting to unlock this ticket.\n\n" +
+					"If you do nothing, it will auto-unlock in 10 seconds.",
+					"Unlock Request",
+					"Confirm", "Deny");
+				var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+
+				var winner = await Task.WhenAny(dialogTask, timeoutTask);
+
+				bool unlockConfirmed;
+				if (winner == timeoutTask)
+				{
+					unlockConfirmed = true; // auto-unlock
+											// If your dialog service supports closing, close it here (optional)
+											// DialogService.Close(true);  // example if using Radzen DialogService directly
+				}
+				else
+				{
+					var confirmed = await dialogTask; // already completed
+					unlockConfirmed = confirmed == true;
+				}
+
+				UnlockService.Respond(msg.RecordId, unlockConfirmed);
+
+				if (unlockConfirmed)
+				{
+					// Leave edit page. Your DisposeAsync will try to unlock if still locked by you.
+					Nav.NavigateToRelative(fromParent: true);
+				}
+			});
+		}
+		finally
+		{
+			_promptOpen = false;
+		}
+	}
+
 	public async ValueTask DisposeAsync()
 	{
+		try
+		{
+			_unlockSubscription?.Dispose();
+		}
+		catch { }
+
 		if (!_lockedByMe || Id <= 0 || _userId <= 0)
 			return;
 
 		try
 		{
 			await using var db = await DbFactory.CreateDbContextAsync();
-
 			var entity = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == Id);
 			if (entity == null)
 				return;
 
-			// IMPORTANT: only unlock if it's still locked by this user
 			if (entity.LockedById == _userId)
 			{
 				entity.LockedById = null;
@@ -251,5 +339,6 @@
 			// swallow or log; don't throw from Dispose
 		}
 	}
+
 }
 

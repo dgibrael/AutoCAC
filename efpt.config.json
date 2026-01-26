@@ -119,6 +119,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tsaile_patientcomment]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[TsailePatient]",
          "ObjectType": 0
       },

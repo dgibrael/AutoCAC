@@ -97,7 +97,7 @@
             TaskNumber = taskNumber;
 
             // Use the extension: fixed title/options, only pass Work
-            await DialogService.LoadingDialogAsync(RunStatusWatcherAsync);
+            await DialogService.ProgressBarDialog(RunStatusWatcherAsync);
         }
     }
     private async Task RunStatusWatcherAsync(IProgress<double> progress)

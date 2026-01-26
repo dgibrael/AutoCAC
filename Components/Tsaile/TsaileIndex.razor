@@ -10,70 +10,65 @@
 @inject NavigationManager Nav
 @inject TsaileTicketWatcher Notifier
 @inject LookupValueService Lookup
+@inject IRecordUnlockService UnlockService
 @implements IDisposable
 <RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete"  />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
 <DataGridVanilla TItem="TsaileBetterqDto" GridModel="GridModel" CellRender="CellFormat" 
         RowDoubleClick="@(e => EditTicket(e.Data))">
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="WaitTime" Title="Minutes Waited" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="PatientName" Title="Name" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="ChartNumber" Title="Chart #" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Ticket.Patient.Name" Title="Name" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Ticket.Patient.ChartNumber" Title="Chart #" />
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList"/>
     <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList"/>
-    <BoolColumn TItem="TsaileBetterqDto" Property="Waiting" Title="Waiting" ColumnIndex="5"/>
-    <BoolColumn TItem="TsaileBetterqDto" Property="ControlledSubstance" Title="ControlledSubstance" ColumnIndex="6"/>
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="LastModifiedDateTime" Title="Last Modified" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Efdt" Title="Earliest Fill Date" />
-    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="CreatedDateTime" Title="Created At" />
+    <BoolColumn TItem="TsaileBetterqDto" Property="Ticket.Waiting" Title="Waiting" ColumnIndex="5"/>
+    <BoolColumn TItem="TsaileBetterqDto" Property="Ticket.ControlledSubstance" Title="ControlledSubstance" ColumnIndex="6"/>
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Ticket.LastModifiedDateTime" Title="Last Modified" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Ticket.Efdt" Title="Earliest Fill Date" />
+    <RadzenDataGridColumn TItem="TsaileBetterqDto" Property="Ticket.CreatedDateTime" Title="Created At" />
     <ActionColumn TItem="TsaileBetterqDto" Context="row" Width="200px">
-        @if (row?.IsLocked == true)
+        @if (row?.Ticket?.IsLocked == true)
         {
-            <RadzenButton Text="@($"Locked by {row?.LockedBy?.DisplayName}")" 
+            <RadzenButton Text="@($"Locked by {row?.Ticket?.LockedBy?.DisplayName}")"
             Style="white-space: normal" Size="ButtonSize.Small"
-            Click="GridModel.ReloadAsync" />
+                          Click="@(async args => await OnLocked(row))" />
         }
         else
         {
-            
             <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
         }
     </ActionColumn>
 </DataGridVanilla>
 
 @code {
+    public sealed class TsaileBetterqDto
+    {
+        public TsaileBetterq Ticket { get; set; }
+        public int WaitTime { get; set; }
+        public string Status { get; set; }
+        public string BatchTo { get; set; }
+    }
     private DataGridVanilla<TsaileBetterqDto> grid;
-    private DataGridHelper<AutoCAC.Models.TsaileBetterqDto> GridModel = new()
+    private DataGridHelper<TsaileBetterqDto> GridModel = new()
     {
         QueryFactory = db => db.TsaileBetterqs
             .Where(x => x.CompletedDateTime == null)
             .Include(x => x.Patient)
             .Include(x => x.LockedBy)
+            .OrderBy(x => x.CreatedDateTime)
             .Select(x => new TsaileBetterqDto
             {
-                Id = x.Id,
-                CreatedDateTime = x.CreatedDateTime,
-
+                Ticket = x,
+                Status = x.Status,
+                BatchTo = x.BatchTo,
                 // 👇 THIS IS THE KEY LINE
                 WaitTime = EF.Functions.DateDiffMinute(
                     x.CreatedDateTime,
                     DateTime.Now
-                ),
-
-                Status = x.Status,
-                Waiting = x.Waiting,
-                BatchTo = x.BatchTo,
-                ControlledSubstance = x.ControlledSubstance,
-                LockedDateTime = x.LockedDateTime,
-                LastModifiedDateTime = x.LastModifiedDateTime,
-                CalledDateTime = x.CalledDateTime,
-                Efdt = x.Efdt,
-                PatientName = x.Patient.Name,
-                ChartNumber = x.Patient.ChartNumber,
-                LockedBy = x.LockedBy,
-                IsLocked = x.IsLocked
+                )
             }),
         AddButtonDefault = true,
-        SearchColumns = new[] { "PatientName", "ChartNumber" }
+        SearchColumns = new[] { "Ticket.Patient.Name", "Ticket.Patient.ChartNumber" }
     };
     private int _userId { get; set; } = 0;
     protected override async Task OnInitializedAsync()
@@ -92,19 +87,19 @@
     private async Task EditTicket(TsaileBetterqDto row)
     {
         if (row == null) return;
-        if (row.IsLocked != true) 
+        if (row.Ticket.IsLocked != true) 
         {
-            Nav.NavigateToRelative(row.Id.ToString());
+            Nav.NavigateToRelative(row.Ticket.Id.ToString());
             return;
         };
         string msg;
-        if (row?.LockedBy?.Id == _userId)
+        if (row?.Ticket?.LockedBy?.Id == _userId)
         {
             msg = $"You have this ticket open in another session";
         }
         else
         {
-            msg = $"Ticket is locked by {row?.LockedBy?.DisplayName}";
+            msg = $"Ticket is locked by {row?.Ticket?.LockedBy?.DisplayName}";
         }
         NotificationService.Notify(summary: "Locked", detail: msg);
         await GridModel.ReloadAsync();
@@ -115,7 +110,7 @@
 
     void CellFormat(DataGridCellRenderEventArgs<TsaileBetterqDto> args)
     {
-        if (!args.Data.Waiting) return;
+        if (!args.Data.Ticket.Waiting) return;
         switch (args.Data.WaitTime)
         {
             case > 60:
@@ -137,36 +132,36 @@
             IconColor = Colors.Primary,
             Action = async () =>
             {
-                Nav.NavigateToRelative(row.Id.ToString());
+                Nav.NavigateToRelative(row.Ticket.Id.ToString());
             }
         },
         new SplitButtonItem
         {
-            Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already at Beginning" 
-                    : $"Move to {row?.StatusEnum.PreviousStatus(row?.BatchTo)}",
+            Text = row?.Ticket?.StatusEnum == null || row?.Ticket?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already at Beginning"
+                    : $"Move to {row?.Ticket?.PreviousStatusEnum}",
             Value = "Back",
             Icon = "undo",
             IconColor = Colors.WarningLight,
-            Disabled = () => row.Status == TsaileTicketStatus.Screening.ToString(),
+            Disabled = () => row.Ticket.Status == TsaileTicketStatus.Screening.ToString(),
             Action = async () =>
             {
-                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId);
+                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Ticket.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
         },
         new SplitButtonItem
         {
-            Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
-                    : $"Move to {row?.StatusEnum.NextStatus(row?.BatchTo)}",
+            Text = row?.Ticket?.StatusEnum == null || row?.Ticket?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
+                    : $"Move to {row?.Ticket?.NextStatusEnum}",
             Value = "Forward",
             Icon = "forward",
             IconColor = Colors.Success,
-            Disabled = () => row.Status == TsaileTicketStatus.Complete.ToString(),
+            Disabled = () => row.Ticket.Status == TsaileTicketStatus.Complete.ToString(),
             Action = async () =>
             {
 
-                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId);
+                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Ticket.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
@@ -182,7 +177,7 @@
                 var confirm = await DialogService.DeleteConfirm("Ticket");
                 if (confirm == true)
                 {
-                    await DbFactory.UpdateStatusAsync(row.Id, TsaileTicketStatus.Deleted.ToString(), _userId);
+                    await DbFactory.UpdateStatusAsync(row.Ticket.Id, TsaileTicketStatus.Deleted.ToString(), _userId);
                     NotificationService.Success($"Moved to Trash");
                     await GridModel.ReloadAsync();
                 }
@@ -198,12 +193,73 @@
             {
                 string newStatus = await DialogService.ListDialogAsync(Enum.GetNames<TsaileTicketStatus>().ToHashSet());
                 if (newStatus == null) return;
-                var ticket = await DbFactory?.UpdateStatusAsync(row.Id, newStatus, _userId);
+                var ticket = await DbFactory?.UpdateStatusAsync(row.Ticket.Id, newStatus, _userId);
                 NotificationService.Success($"Status updated to {ticket?.Status}");
                 await GridModel.ReloadAsync();
             }
         },
     };
+
+    private readonly HashSet<long> _unlocking = new();
+
+    private async Task ForceUnlockAsync(long recordId)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var entity = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == recordId);
+        if (entity == null)
+            return;
+
+        // force clear lock (covers crashed circuits / hot reload / missed Dispose)
+        if (entity.LockedById != null || entity.LockedDateTime != null)
+        {
+            entity.LockedById = null;
+            entity.LockedDateTime = null;
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private async Task OnLocked(TsaileBetterqDto row)
+    {
+        if (row == null || row.Ticket == null)
+            return;
+
+        long recordId = row.Ticket.Id;
+
+        if (_unlocking.Contains(recordId))
+            return;
+
+        var requestUnlock = await DialogService.YesNoDialog($"This ticket is locked by {row?.Ticket?.LockedBy?.DisplayName}, request unlock?", "Locked");
+        if (requestUnlock != true) return;
+        _unlocking.Add(recordId);
+        try
+        {
+            var requesterName = UserContext.UserProfile.DisplayName;
+            DialogService.ShowLoadingSpinner($"Requesting unlock for ticket {recordId}...");
+            // Service behavior:
+            // - if no subscriber => returns true immediately
+            // - if no ack within 500ms => returns true
+            // - if acked => waits 10s for confirm/deny; timeout => true
+            var unlockConfirmed = await UnlockService.RequestUnlockAsync(recordId, requesterName);
+            DialogService.Close();
+            if (unlockConfirmed)
+            {
+                await ForceUnlockAsync(recordId);
+                Nav.NavigateToRelative(recordId.ToString());
+                return;
+            }
+
+            NotificationService.Notify(summary: "Unlock Denied", detail: "The user denied your unlock request.");
+            await GridModel.ReloadAsync();
+        }
+        finally
+        {
+            _unlocking.Remove(recordId);
+        }
+    }
+
+
+
     public void Dispose()
     {
         Notifier.QueueChangedAsync -= Reload;

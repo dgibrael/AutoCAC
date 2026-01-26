@@ -211,7 +211,7 @@ namespace AutoCAC.Extensions
             return result == false;
         }
 
-        public static async Task LoadingDialogAsync(
+        public static async Task ProgressBarDialog(
             this DialogService dialogService,
             Func<IProgress<double>, Task> work)
         {
@@ -232,7 +232,7 @@ namespace AutoCAC.Extensions
                 options: options);
         }
 
-        public static void ShowLoadingSpinner(this DialogService dialogService)
+        public static void ShowLoadingSpinner(this DialogService dialogService, string LoadMessage = "Loading...")
         {
             var options = new DialogOptions
             {
@@ -241,9 +241,12 @@ namespace AutoCAC.Extensions
                 Draggable = false,
                 Resizable = false
             };
-
             // Fire-and-forget intentionally; suppress CS4014 correctly
-            _ = dialogService.OpenAsync<LoadingDialog>("", options: options);
+            _ = dialogService.OpenAsync<LoadingDialog>("", options: options
+                , parameters: new Dictionary<string, object>
+                {
+                    { "LoadMessage", LoadMessage },
+                });
         }
 
         public static async Task<TItem> DataGridSelectAsync<TItem>(
