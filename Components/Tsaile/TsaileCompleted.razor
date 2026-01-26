@@ -7,8 +7,8 @@
 @inject UserContextService UserContext
 @inject NotificationService NotificationService
 @inject NavigationManager Nav
-<RadzenLink Text="Go to Main Que" Path="tsaile" Icon="home" />
-<RadzenLink Text="Go to Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
+<RadzenLink Text="Main Que" Path="tsaile" Icon="home" />
+<RadzenLink Text="Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
 <DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" GridModel="GridModel">
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
     <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />

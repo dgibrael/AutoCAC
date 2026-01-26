@@ -8,7 +8,7 @@
 <div title="@($"{TooltipText ?? ButtonText} (click arrow for more options)")" style="max-width: 100%;">
     <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="@ButtonStyle" 
                        Text="@ButtonText" IsBusy="@_isBusy" Click="@(btn => OnClick(btn))" Icon="@MainIcon"
-                       Disabled="@Disabled"
+                       Disabled="@Disabled" Size="@ButtonSize"
                        Style="max-width: 100%; white-space: wrap;">
         @foreach (var btn in Buttons)
         {
@@ -31,6 +31,7 @@
     [Parameter] public string MainIcon { get; set; } = null;
     [Parameter] public bool Disabled { get; set; } = false;
     [Parameter] public ButtonStyle ButtonStyle { get; set; } = ButtonStyle.Primary;
+    [Parameter] public ButtonSize ButtonSize { get; set; } = ButtonSize.Medium;
     private Func<Task> _resolvedDefaultAction;
 
     protected override void OnParametersSet()
@@ -39,6 +40,10 @@
         {
             ButtonText = string.IsNullOrWhiteSpace(DefaultButtonValue) ? "Edit"
             : Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Text;
+        }
+        if (MainIcon == null && !string.IsNullOrWhiteSpace(DefaultButtonValue))
+        {
+            MainIcon = Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Icon;
         }
         // Priority: explicit DefaultAction > DefaultButtonValue match > null
         _resolvedDefaultAction = DefaultAction

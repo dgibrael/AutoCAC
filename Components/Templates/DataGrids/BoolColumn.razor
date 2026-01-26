@@ -8,10 +8,11 @@
 @typeparam TItem where TItem : class
 
 <StaticChoiceColumn TItem="TItem" TValue="bool?" Property="@Property" Title="@Title" ColumnIndex="ColumnIndex"           
-    Choices="@(new Dictionary<string, bool?> {["\u00A0"] = null, ["true"] = true, ["false"] = false })"/>
+    Choices="@(new Dictionary<string, bool?> {["\u00A0"] = null, ["true"] = true, ["false"] = false })" Width="@Width"/>
 @code {
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     [Parameter] public string Property { get; set; }
     [Parameter] public string Title { get; set; }
     [Parameter] public int? ColumnIndex { get; set; }
+    [Parameter] public string Width { get; set; }
 }

@@ -17,11 +17,11 @@ public enum TsaileTicketStatus
 
 public static class TsaileTicketStatusExtensions
 {
-    public static TsaileTicketStatus NextStatus(this TsaileTicketStatus status, string batchTo)
+    public static TsaileTicketStatus NextStatus(this TsaileTicketStatus status, bool IncludePickup)
     {
         return status switch
         {
-            TsaileTicketStatus.Verifying when batchTo != "Will Call" => TsaileTicketStatus.Complete,
+            TsaileTicketStatus.Verifying when !IncludePickup => TsaileTicketStatus.Complete,
             TsaileTicketStatus.Complete => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
@@ -31,11 +31,11 @@ public static class TsaileTicketStatusExtensions
             _ => status + 1
         };
     }
-    public static TsaileTicketStatus PreviousStatus(this TsaileTicketStatus status, string batchTo)
+    public static TsaileTicketStatus PreviousStatus(this TsaileTicketStatus status, bool IncludePickup)
     {
         return status switch
         {
-            TsaileTicketStatus.Complete when batchTo != "Will Call" => TsaileTicketStatus.Verifying,
+            TsaileTicketStatus.Complete when !IncludePickup => TsaileTicketStatus.Verifying,
             TsaileTicketStatus.Screening => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
@@ -52,9 +52,9 @@ public partial class TsaileBetterq
     public TsaileTicketStatus StatusEnum =>
         Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
     public TsaileTicketStatus NextStatusEnum =>
-        StatusEnum.NextStatus(BatchTo);
+        StatusEnum.NextStatus(BatchTo == "Will Call" && Waiting);
     public TsaileTicketStatus PreviousStatusEnum =>
-        StatusEnum.PreviousStatus(BatchTo);
+        StatusEnum.PreviousStatus(BatchTo == "Will Call" && Waiting);
     public bool IsLocked => LockedDateTime > DateTime.Now.AddMinutes(-10);
     public async Task UpdateStatusAsync(
         IDbContextFactory<mainContext> dbFactory,

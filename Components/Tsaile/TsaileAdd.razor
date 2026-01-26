@@ -34,7 +34,8 @@ else
 		<VanillaFormField Label="Comments">
 			<RadzenTextArea @bind-Value="initialComment" />
 		</VanillaFormField>
-
+		<CommentTemplate Title="Patient Comments" TItem="TsailePatientcomment" CommentQueryFactory="CommentQueryFactoryPatient"
+						 MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
 		<StandardButtons />
 	</RadzenTemplateForm>
 }
@@ -95,5 +96,26 @@ else
 		Nav.NavigateToRelative(fromParent: true);
 	}
 
+	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>
+		db.TsailePatientcomments
+				.Where(x => x.PatientId == item.PatientId)
+				.Include(x => x.AuthUser)
+				.OrderBy(x => x.CreatedAt)
+				.Select(x => new CommentModel
+				{
+					Id = x.Id,
+					AuthUser = x.AuthUser,
+					CreatedAt = x.CreatedAt,
+					Text = x.Comment
+				});
+
+	private TsailePatientcomment MapCommentPatient(CommentModel m) => new TsailePatientcomment
+	{
+		Id = m.Id,
+		PatientId = item.PatientId,
+		Comment = m.Text,
+		CreatedAt = m.CreatedAt,
+		AuthUserId = m.AuthUser.Id
+	};
 }
 

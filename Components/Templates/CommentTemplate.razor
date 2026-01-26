@@ -26,15 +26,10 @@
                 <RadzenRow class="rz-my-0">
                     @if (!isCurUser)
                     {
-                        <div class="rz-chat-message-participant-name">
-                            @(
-                                                    !string.IsNullOrWhiteSpace(m?.AuthUser?.LastName) ?
-                                                    m?.AuthUser.Username :
-                                                    $"{m?.AuthUser?.LastName}, {m?.AuthUser?.FirstName}")
-                        </div>
+                        <div class="rz-chat-message-participant-name">@m?.AuthUser?.DisplayName</div>
                     }
                     <div class="rz-chat-message-time">@m.CreatedAt.ToString("MM/dd/yyyy HH:mm")</div>
-                    @if (isCurUser)
+                    @if (isCurUser || AllowDeleteAll)
                     {
                         <RadzenButton Icon="delete"
                                       Size="ButtonSize.ExtraSmall"
@@ -93,6 +88,7 @@
     [Parameter] public string Title { get; set; } = "Comments";
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
     [Parameter] public bool Print { get; set; } = false;
+    [Parameter] public bool AllowDeleteAll { get; set; } = false;
     private bool HasDraft = false;
     private RadzenDataList<CommentModel> dataList;
     private string _newMsg = "";

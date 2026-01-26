@@ -8,7 +8,7 @@
 @typeparam TItem where TItem : class
 @typeparam TValue
 <RadzenDataGridColumn TItem="TItem" Property="@Property" Title="@(Title ?? Property)" FilterValue="@CurrentFilter" 
-    OrderIndex="ColumnIndex" @ref="col" Template="Template" EditTemplate="EditTemplate" >
+    OrderIndex="ColumnIndex" @ref="col" Template="Template" EditTemplate="EditTemplate" Width="@Width" >
     <FilterTemplate>
         <RadzenListBox TValue="TValue" @bind-Value="@CurrentFilter" Style="width:100%;" AllowClear="true"
                        TextProperty="Key" ValueProperty="Value" Change="@OnChange"
@@ -22,6 +22,7 @@
     [Parameter, EditorRequired] public string Property { get; set; }
     [Parameter] public string Title { get; set; }
     [Parameter] public int? ColumnIndex { get; set; }
+    [Parameter] public string Width { get; set; }
 
 
     /// <summary>
