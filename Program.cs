@@ -116,6 +116,11 @@ app.Lifetime.ApplicationStopping.Register(() =>
     SqlDependency.Stop(connString);
 });
 
+using (var scope = app.Services.CreateScope())
+{
+    var svc = scope.ServiceProvider.GetRequiredService<LookupValueService>();
+    await svc.LoadAllAsync();
+}
 
 app.Run();
 

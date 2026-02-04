@@ -63,22 +63,43 @@ namespace AutoCAC.Extensions.Tsaile
             this IDbContextFactory<mainContext> dbFactory,
             long ticketId,
             int userId,
+            IReadOnlyList<string> skipVerify,
             CancellationToken ct = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
-            return await db.UpdateStatusAsync(ticket, ticket.NextStatusEnum.ToString(), userId, ct);
+            var nextStatus = ticket.NextStatusEnum;
+            if (ticket.StatusEnum == TsaileTicketStatus.Verifying)
+            {
+                var skipStep = skipVerify.FirstOrDefault(x => ticket.BatchTo == x);
+                if (skipStep != null)
+                {
+                    nextStatus = nextStatus.NextStatus();
+                }
+            }
+            return await db.UpdateStatusAsync(ticket, nextStatus.ToString(), userId, ct);
         }
 
         public static async Task<TsaileBetterq> ReverseStatusAndSaveAsync(
             this IDbContextFactory<mainContext> dbFactory,
             long ticketId,
             int userId,
+            IReadOnlyList<string> skipVerify,
             CancellationToken ct = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
-            return await db.UpdateStatusAsync(ticket, ticket.PreviousStatusEnum.ToString(), userId, ct);        }
+            var prevStatus = ticket.PreviousStatusEnum;
+            if (ticket.StatusEnum == TsaileTicketStatus.Complete)
+            {
+                var skipStep = skipVerify.FirstOrDefault(x => ticket.BatchTo == x);
+                if (skipStep != null)
+                {
+                    prevStatus = prevStatus.PreviousStatus();
+                }
+            }
+            return await db.UpdateStatusAsync(ticket, prevStatus.ToString(), userId, ct);        
+        }
 
         public static async Task<TsaileBetterq> AddCommentAsync(
             this IDbContextFactory<mainContext> dbFactory,

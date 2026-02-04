@@ -15,7 +15,7 @@ namespace AutoCAC.Extensions
             });
         }
 
-        public static void Info(this NotificationService notificationService, string message = "Updating...", string title = "Info")
+        public static void Info(this NotificationService notificationService, string message = "Updating...", string title = "")
         {
             notificationService.Notify(new NotificationMessage
             {

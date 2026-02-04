@@ -1,4 +1,4 @@
-﻿@page "/tsaile/new"
+﻿@page "/tsaile/new/{Id:int}"
 
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Components.Tsaile
@@ -11,12 +11,7 @@
 @inject DialogService DialogService
 @inject LookupValueService Lookup
 
-@if (selectedPatient == null)
-{
-	<span>Select a patient</span>
-}
-else
-{
+<LoadingContent IsLoading="@(selectedPatient == null)" NotFoundMessage="@_notFoundMsg">
 	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.ChartNumber})")</h3>
 	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
 		<VanillaFormField Label="Waiter">
@@ -26,7 +21,8 @@ else
 			<RadzenCheckBox @bind-Value="item.ControlledSubstance" />
 		</VanillaFormField>
 		<VanillaFormField Label="Batch To">
-			<RadzenDropDown @bind-Value="item.BatchTo" Data="_batchChoices"  />
+			<RadzenDropDown @bind-Value="item.BatchTo" Data="_batchChoices" Name="batchToField" />
+			<RadzenRequiredValidator Component="batchToField"  />
 		</VanillaFormField>
 		<VanillaFormField Label="Earliest Fill Date">
 			<RadzenDatePicker @bind-Value="item.Efdt" ShowTime="false" />
@@ -35,16 +31,18 @@ else
 			<RadzenTextArea @bind-Value="initialComment" />
 		</VanillaFormField>
 		<CommentTemplate Title="Patient Comments" TItem="TsailePatientcomment" CommentQueryFactory="CommentQueryFactoryPatient"
-						 MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
+							MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
 		<StandardButtons />
 	</RadzenTemplateForm>
-}
+</LoadingContent>
 
 @code{
+	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; } = new();
 	private TsailePatient selectedPatient { get; set; }
 	private string initialComment { get; set; }
-	private string[] _batchChoices;
+	private IReadOnlyList<string> _batchChoices;
+	private string _notFoundMsg;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -54,15 +52,18 @@ else
 	}
 	private async Task SelectPatient()
 	{
-		selectedPatient = await DialogService.OpenAsync<TsaileSelectPatient>("Select a Patient", options: new DialogOptions{ Width = "80%" });
-		if (selectedPatient == null || selectedPatient?.Id == 0)
+		await using var db = await DbFactory.CreateDbContextAsync();
+		selectedPatient = await db.TsailePatients
+							.Include(x => x.TsaileBetterqs)
+							.FirstOrDefaultAsync(x => x.Id == Id)
+							;
+		if (selectedPatient?.Id == null || selectedPatient.Id == 0)
 		{
-			Nav.NavigateToRelative(fromParent: true);
+			_notFoundMsg = "Patient Not Found";
+			StateHasChanged();
 			return;
 		}
-		item.PatientId = selectedPatient.Id;
-		await using var db = await DbFactory.CreateDbContextAsync();
-		var existingTicket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.PatientId == selectedPatient.Id && x.CompletedDateTime == null);
+		var existingTicket = selectedPatient.TsaileBetterqs.FirstOrDefault(x => x.CompletedDateTime == null);
 		if (existingTicket != null)
 		{
 			var goToExisting = await DialogService.YesNoDialog("Existing Ticket"
@@ -70,16 +71,17 @@ else
 								, "Go to exising ticket", "Continue creating new ticket");
 			if (goToExisting == true)
 			{
-				Nav.NavigateToRelative(existingTicket.Id.ToString(), fromParent: true);
+				Nav.NavigateToWithExistingQry($"/tsaile/ticket/{existingTicket.Id.ToString()}");
 				return;
 			}
 			if (goToExisting == null)
 			{
-				Nav.NavigateToRelative(fromParent: true);
+				Nav.NavigateToWithExistingQry($"/tsaile");
 				return;
 			}
 		}
-		_batchChoices = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
+		_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
+		item.PatientId = Id;
 		StateHasChanged();
 	}
 	private async Task OnSubmit()
@@ -93,7 +95,7 @@ else
 			await item.AddCommentAsync(DbFactory, initialComment, UserContext.UserProfile.Id);
 		}
 		Notifications.Success("Successfully created ticket");
-		Nav.NavigateToRelative(fromParent: true);
+		Nav.NavigateToWithExistingQry("/tsaile");
 	}
 
 	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>

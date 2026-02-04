@@ -17,11 +17,10 @@ public enum TsaileTicketStatus
 
 public static class TsaileTicketStatusExtensions
 {
-    public static TsaileTicketStatus NextStatus(this TsaileTicketStatus status, bool IncludePickup)
+    public static TsaileTicketStatus NextStatus(this TsaileTicketStatus status)
     {
         return status switch
         {
-            TsaileTicketStatus.Verifying when !IncludePickup => TsaileTicketStatus.Complete,
             TsaileTicketStatus.Complete => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
@@ -31,11 +30,10 @@ public static class TsaileTicketStatusExtensions
             _ => status + 1
         };
     }
-    public static TsaileTicketStatus PreviousStatus(this TsaileTicketStatus status, bool IncludePickup)
+    public static TsaileTicketStatus PreviousStatus(this TsaileTicketStatus status)
     {
         return status switch
         {
-            TsaileTicketStatus.Complete when !IncludePickup => TsaileTicketStatus.Verifying,
             TsaileTicketStatus.Screening => status,
             TsaileTicketStatus.SDR => TsaileTicketStatus.Filling,
             TsaileTicketStatus.PA => TsaileTicketStatus.Filling,
@@ -52,9 +50,9 @@ public partial class TsaileBetterq
     public TsaileTicketStatus StatusEnum =>
         Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
     public TsaileTicketStatus NextStatusEnum =>
-        StatusEnum.NextStatus(BatchTo == "Will Call" && Waiting);
+        StatusEnum.NextStatus();
     public TsaileTicketStatus PreviousStatusEnum =>
-        StatusEnum.PreviousStatus(BatchTo == "Will Call" && Waiting);
+        StatusEnum.PreviousStatus();
     public bool IsLocked => LockedDateTime > DateTime.Now.AddMinutes(-10);
     public async Task UpdateStatusAsync(
         IDbContextFactory<mainContext> dbFactory,
@@ -81,22 +79,6 @@ public partial class TsaileBetterq
         await db.UpdateItemAsync(this);
         await db.AddItemAsync(a, ct);
         await db.SaveChangesAsync(ct);
-    }
-
-    public async Task AdvanceStatusAndSaveAsync(
-        IDbContextFactory<mainContext> dbFactory,
-        int userId,
-        CancellationToken ct = default)
-    {
-        await UpdateStatusAsync(dbFactory, NextStatusEnum.ToString(), userId, ct);
-    }
-
-    public async Task ReverseStatusAndSaveAsync(
-        IDbContextFactory<mainContext> dbFactory,
-        int userId,
-        CancellationToken ct = default)
-    {
-        await UpdateStatusAsync(dbFactory, PreviousStatusEnum.ToString(), userId, ct);
     }
 
     public async Task AddCommentAsync(
@@ -134,7 +116,7 @@ public partial class TsaileBetterq
         };
         await dbFactory.AddItemAsync(a, ct);
     }
-    public async Task LockAsync(
+    public async Task<DateTime> LockAsync(
         IDbContextFactory<mainContext> dbFactory,
         int userId,
         CancellationToken ct = default)
@@ -149,6 +131,7 @@ public partial class TsaileBetterq
                 .SetProperty(e => e.LockedDateTime, now)
                 .SetProperty(e => e.LockedById, userId),
                 ct);
+        return now;
     }
 
 }

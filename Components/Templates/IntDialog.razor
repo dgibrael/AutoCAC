@@ -1,0 +1,56 @@
+﻿@using Radzen
+@inject DialogService DialogService
+
+<RadzenTemplateForm TItem="ValueModel" Data="@Model" Submit="OnOk" >
+    @if (!string.IsNullOrWhiteSpace(Header))
+    {
+        <h3 class="text-lg font-semibold">@Header</h3>
+    }
+
+    <RadzenNumeric Name="intInput"
+                   @bind-Value="Model.Value" @ref="_intInput"
+                   Placeholder="@Placeholder"
+                   Max="@Max" Min="@Min"
+                   Style="width:100%" />
+
+
+    <div class="flex justify-end gap-2">
+        <RadzenButton Text="Cancel" 
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="OK" ButtonType="ButtonType.Submit"
+                      ButtonStyle="ButtonStyle.Primary"/>
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public string Header { get; set; } = "Enter Value";
+    [Parameter] public string Placeholder { get; set; }
+    [Parameter] public int? InitialValue { get; set; }
+    [Parameter] public int? Max { get; set; }
+    [Parameter] public int? Min { get; set; } = 0;
+    RadzenNumeric<int?> _intInput;
+
+    public class ValueModel
+    {
+        public int? Value { get; set; }
+    }
+    ValueModel Model = new();
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _intInput.FocusAsync();
+        }
+    }
+    
+    protected override void OnInitialized()
+    {
+        Model.Value = InitialValue;
+    }
+    private void OnOk()
+    {
+        DialogService.Close(Model.Value);
+    }
+}

@@ -81,6 +81,37 @@ namespace AutoCAC.Extensions
             // OK → string (may be ""), Cancel → null
             return result as string;
         }
+        public static async Task<int?> IntPromptAsync(
+            this DialogService dialogService,
+            string title = "Prompt",
+            string header = "Enter Value",
+            int? initial = null,
+            int? max = null,
+            int? min = 0,
+            string placeholder = "",
+            DialogOptions options = null)
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                ["Header"] = header,
+                ["InitialValue"] = initial,
+                ["Placeholder"] = placeholder,
+                ["Max"] = max,
+                ["Min"] = min
+            };
+
+            var result = await dialogService.OpenAsync<Components.Templates.IntDialog>(
+                title,
+                parameters,
+                options ?? new DialogOptions
+                {
+                    Width = "75%",
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
+            return result is int value ? value : (int?)null;
+        }
 
         /// <summary>
         /// Opens a reusable TItem dialog component and returns the saved item, or null if cancelled.

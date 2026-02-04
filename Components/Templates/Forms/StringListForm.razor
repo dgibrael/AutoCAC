@@ -1,0 +1,86 @@
+﻿@using System.Linq
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+<RadzenDataList Data="@rows" TItem="Row">
+    <Template Context="r">
+        <div @key="r">
+            <RadzenTemplateForm Data="r" Submit="@((Row _) => Add())">
+                <RadzenTextBox @bind-Value="r.Value" @ref="r.TextBox" />
+                <RadzenButton Text="x"
+                              ButtonStyle="ButtonStyle.Danger"
+                              Size="ButtonSize.Small"
+                              Click="@(() => Remove(r))" />
+            </RadzenTemplateForm>
+        </div>
+    </Template>
+</RadzenDataList>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start">
+    <RadzenButton Text="Add" Click="@Add" ButtonStyle="ButtonStyle.Success" Icon="add_circle" />
+    <RadzenButton Text="Save" Click="@Save" ButtonStyle="ButtonStyle.Primary" Icon="save" />
+    <RadzenButton Click="@(() => Nav.NavigateToRelative(fromParent: true))" Icon="cancel" Text="Cancel" ButtonStyle="ButtonStyle.Danger" />
+</RadzenStack>
+@code {
+    [Parameter] public List<string> Initial { get; set; }
+    [Parameter] public Func<List<string>, Task> OnSave { get; set; }
+
+    readonly List<Row> rows = new();
+    Row _pendingFocus;
+
+    protected override void OnParametersSet()
+    {
+        rows.Clear();
+
+        if (Initial != null)
+        {
+            foreach (var s in Initial)
+                rows.Add(new Row { Value = s ?? "" });
+        }
+    }
+
+    void Add()
+    {
+        var row = new Row();
+        rows.Add(row);
+        _pendingFocus = row;
+    }
+
+    void Remove(Row r)
+    {
+        rows.Remove(r);
+        if (_pendingFocus == r)
+            _pendingFocus = null;
+    }
+
+    async Task Save()
+    {
+        if (OnSave == null)
+            return;
+
+        var values = rows.Select(x => x.Value ?? "").ToList();
+        try
+        {            
+            await OnSave(values);
+            Notifications.Success("Successfuly Saved");
+        }
+        finally
+        {
+            
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pendingFocus != null && _pendingFocus.TextBox != null)
+        {
+            var row = _pendingFocus;
+            _pendingFocus = null;
+            await row.TextBox.FocusAsync();
+        }
+    }
+
+    public class Row
+    {
+        public string Value { get; set; } = "";
+        public Radzen.Blazor.RadzenTextBox TextBox { get; set; }
+    }
+}

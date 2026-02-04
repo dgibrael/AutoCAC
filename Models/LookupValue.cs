@@ -18,4 +18,6 @@ public partial class LookupValue
     public int SortOrder { get; set; }
 
     public bool IsActive { get; set; }
+
+    public string? Options { get; set; }
 }

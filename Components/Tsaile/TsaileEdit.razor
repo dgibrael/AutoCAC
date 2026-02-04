@@ -1,5 +1,4 @@
-﻿@page "/tsaile/{Id:int}"
-
+﻿@page "/tsaile/ticket/{Id:int}"
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Components.Templates.Buttons
 @using AutoCAC.Components.Templates.Printing
@@ -14,9 +13,11 @@
 @inject LookupValueService Lookup
 @inject IRecordUnlockService UnlockService
 @implements IAsyncDisposable
+@using AutoCAC.Extensions.Tsaile
 <LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
-	<BackLink />
+	<a href="javascript:history.back()">Back</a>
 	<PrintContent PrintOnly="false">
+		<h2>@($"Ticket# {Id}")</h2>
 		@if (item?.Waiting == true)
 		{
 			<h2 class="rz-color-warning">Waiter</h2>
@@ -32,12 +33,12 @@
 		{
 			<h5 class="rz-color-warning">Order Has Controlled Substances</h5>
 		}
-		else
-		{
-			<h5>No Controlled Substances in order</h5>
-		}
 	</PrintContent>
-	<h5>@($"Current status: {item?.Status}")</h5>
+	<h3>@($"Current status: {item?.Status}")</h3>
+	@if (item?.CalledDateTime != null)
+	{
+		<p>@($"Called at {item.CalledDateTime}")</p>
+	}
 	<OpenDialogFormButton TItem="TsaileBetterq" Data="item" Title="Edit Attributes" Context="x" OnClose="LoadAndStateHasChanged" >
 		<VanillaFormField Label="Waiter">
 			<RadzenCheckBox @bind-Value="x.Waiting"/>
@@ -50,6 +51,9 @@
 		</VanillaFormField>
 		<VanillaFormField Label="Earliest Fill Date">
 			<RadzenDatePicker @bind-Value="x.Efdt" ShowTime="false" />
+		</VanillaFormField>
+		<VanillaFormField Label="Called Date and Time">
+			<RadzenDatePicker @bind-Value="x.CalledDateTime" ShowTime="true" />
 		</VanillaFormField>
 	</OpenDialogFormButton>
 	<RadzenRow>
@@ -67,20 +71,21 @@
 		<PrintButton />
 	</RadzenStack>
 </LoadingContent>
-	@code{
+@code{
 	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; }
 	private int _userId { get; set; } = 0;
 	private string _notFoundMsg;
-	private string[] _batchChoices;
+	private IReadOnlyList<string> _batchChoices;
 	private bool _lockedByMe;
 	private IDisposable _unlockSubscription;
 	private bool _promptOpen;
+	DateTime _initialLock;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
-			_batchChoices = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
+			_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);	
 			await LoadItem();
 			if (item == null)
 			{
@@ -101,20 +106,14 @@
 					msg = $"Ticket is locked by {item?.LockedBy?.DisplayName}";
 				}
 				Notifications.Notify(detail: msg);
-				Nav.NavigateToRelative(fromParent: true);
+				Nav.NavigateToWithExistingQry("/tsaile");
 				return;
 			}
-			await item.LockAsync(DbFactory, _userId);
+			_initialLock = await item.LockAsync(DbFactory, _userId);
 			_unlockSubscription = UnlockService.Subscribe(Id, OnUnlockMessageAsync);
 			_lockedByMe = true;
 			StateHasChanged();
 		}
-	}
-	private async Task SaveAndSubmit()
-	{
-		await item.AdvanceStatusAndSaveAsync(DbFactory, _userId);
-		Notifications.Success("Successfully saved ticket");
-		Nav.NavigateToRelative(fromParent: true);
 	}
 
 	private async Task SaveAttributes(TsaileBetterq dialogData)
@@ -196,28 +195,28 @@
 	{
 		new SplitButtonItem
 		{
-			Text = $"Move to {item?.NextStatusEnum.ToString()}",
+			Text = $"Complete {item?.StatusEnum.ToString()}",
 			Value = "Submit",
-			Icon = "arrow_forward",
+			Icon = "forward",
 			IconColor = Colors.Success,
 			Disabled = () => item?.Status == TsaileTicketStatus.Complete.ToString(),
 			Action = async () =>
 			{
-				await item?.AdvanceStatusAndSaveAsync(DbFactory, _userId);
-				Notifications.Success($"Status updated to {item?.Status}");
-				Nav.NavigateToRelative(fromParent: true);
+				await DbFactory.AdvanceStatusAndSaveAsync(item.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+				Notifications.Success("Successfully saved ticket");
+				Nav.NavigateToWithExistingQry("/tsaile/");
 			}
 		},
 		new SplitButtonItem
 		{
-			Text = $"Move to {item?.PreviousStatusEnum.ToString()}",
+			Text = "Move Ticket Back",
 			Value = "Back",
 			Icon = "arrow_back",
 			IconColor = Colors.WarningLight,
 			Disabled = () => item?.Status == TsaileTicketStatus.Screening.ToString(),
 			Action = async () =>
 			{
-				await item?.ReverseStatusAndSaveAsync(DbFactory, _userId);
+				await DbFactory.ReverseStatusAndSaveAsync(item.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
 				await LoadItem();
 				Notifications.Success($"Status updated to {item?.Status}");
 				StateHasChanged();
@@ -241,6 +240,17 @@
 		},
 		new SplitButtonItem
 		{
+			Text = "Patient Profile",
+			Value = "Patient",
+			Icon = "person",
+			IconColor = Colors.Info,
+			Action = async () =>
+			{
+				Nav.NavigateToWithExistingQry($"/tsaile/patient/{item?.PatientId}");
+			}
+		},
+		new SplitButtonItem
+		{
 			Text = "Delete Record",
 			Value = "Delete",
 			Icon = "delete",
@@ -252,7 +262,7 @@
 				{
 					await item?.UpdateStatusAsync(DbFactory, TsaileTicketStatus.Deleted.ToString(), _userId);
 					Notifications.Success($"Sent to Deleted table (admin can permanently delete from there)");
-					Nav.NavigateToRelative(fromParent: true);
+					Nav.NavigateToWithExistingQry("/tsaile/");
 				}
 			}
 		}
@@ -273,26 +283,32 @@
 		{
 			await InvokeAsync(async () =>
 			{
-				var dialogTask = DialogService.YesNoDialog(
-					$"{msg.RequestedByDisplayName} is requesting to unlock this ticket.\n\n" +
-					"If you do nothing, it will auto-unlock in 10 seconds.",
-					"Unlock Request",
-					"Confirm", "Deny");
-				var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-
-				var winner = await Task.WhenAny(dialogTask, timeoutTask);
-
 				bool unlockConfirmed;
-				if (winner == timeoutTask)
+				if (msg.RequestedBy.Id == _userId)
 				{
-					unlockConfirmed = true; // auto-unlock
-											// If your dialog service supports closing, close it here (optional)
-											// DialogService.Close(true);  // example if using Radzen DialogService directly
+					unlockConfirmed = true;
 				}
 				else
-				{
-					var confirmed = await dialogTask; // already completed
-					unlockConfirmed = confirmed == true;
+				{					
+					var dialogTask = DialogService.YesNoDialog(
+						$"{msg?.RequestedBy?.DisplayName} is requesting to unlock this ticket.\n\n" +
+						"If you do nothing, it will auto-unlock in 10 seconds.",
+						"Unlock Request",
+						"Confirm", "Deny");
+					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+
+					var winner = await Task.WhenAny(dialogTask, timeoutTask);
+					if (winner == timeoutTask)
+					{
+						unlockConfirmed = true; // auto-unlock
+												// If your dialog service supports closing, close it here (optional)
+												// DialogService.Close(true);  // example if using Radzen DialogService directly
+					}
+					else
+					{
+						var confirmed = await dialogTask; // already completed
+						unlockConfirmed = confirmed == true;
+					}
 				}
 
 				UnlockService.Respond(msg.RecordId, unlockConfirmed);
@@ -300,7 +316,7 @@
 				if (unlockConfirmed)
 				{
 					// Leave edit page. Your DisposeAsync will try to unlock if still locked by you.
-					Nav.NavigateToRelative(fromParent: true);
+					Nav.NavigateToWithExistingQry("/tsaile");
 				}
 			});
 		}
@@ -328,7 +344,7 @@
 			if (entity == null)
 				return;
 
-			if (entity.LockedById == _userId)
+			if (entity.LockedById == _userId && entity.LockedDateTime == _initialLock)
 			{
 				entity.LockedById = null;
 				entity.LockedDateTime = null;

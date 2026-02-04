@@ -71,7 +71,7 @@
             <ul style="list-style-type: none; padding-left: 10px; padding-top: 0px">
 	            @foreach(var c in data)
 	            {
-		            <li><span>@c?.Text</span>
+		            <li><strong>@c?.Text</strong>
 			            <i><small>@($@"{
 					            (!string.IsNullOrWhiteSpace(c?.AuthUser?.LastName) ?
 						            $"{c?.AuthUser?.LastName}, {c?.AuthUser?.FirstName}" :

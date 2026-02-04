@@ -27,53 +27,75 @@
     <RadzenLink Text="Completed Items" Path="tsaile/completed" Icon="checklist" />
 </RadzenStack>
 <DataGridVanilla TItem="TsaileBetterq" GridModel="GridModel" CellRender="CellFormat" 
-        RowDoubleClick="@(e => EditTicket(e.Data))">
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="CreatedDateTime" Title="Created At" >
-        <HeaderTemplate>
-            <span class="rz-column-title-content rz-text-wrap">@($"Created At{(!IsFutureFills ? " (Minutes Waited)" : "")}")</span>
-        </HeaderTemplate>
-        <Template Context="x">
-            <div class="rz-w-100 rz-text-wrap">
-                <span>@x?.CreatedDateTime</span>
-                @if (x?.CreatedDateTime != null)
-                {                    
-                    if(x.Waiting)
-                    {
-                        <strong>@($" ({(int)Math.Round((DateTime.Now - x.CreatedDateTime).TotalMinutes)})")</strong>
+        RowDoubleClick="@(e => EditTicket(e.Data))" AddButtonClick="NewTicket">
+    <HeaderContent>
+        <RadzenButton Text="Search by Ticket#" Click="TicketSearch" Icon="search"/>
+        <RadzenButton Text="Patient Profile Search" Click="PatientProfileSearch" Icon="person"/>
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="CreatedDateTime" Title="Created At" >
+            <HeaderTemplate>
+                <span class="rz-column-title-content rz-text-wrap">@($"Created At{(!IsFutureFills ? " (Minutes Waited)" : "")}")</span>
+            </HeaderTemplate>
+            <Template Context="x">
+                <div class="rz-w-100 rz-text-wrap">
+                    <span>@x?.CreatedDateTime</span>
+                    @if (x?.CreatedDateTime != null)
+                    {                    
+                        if(x.Waiting)
+                        {
+                            <strong>@($" ({(int)Math.Round((DateTime.Now - x.CreatedDateTime).TotalMinutes)})")</strong>
+                        }
                     }
-                }
-            </div>
-        </Template>
-    </RadzenDataGridColumn>
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="Patient.Name" Title="Name" />
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList"/>
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList"/>
-    <BoolColumn TItem="TsaileBetterq" Property="Waiting" Title="Waiting" ColumnIndex="4" Width="150px"/>
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="Efdt" Title="Earliest Fill Date" />
-    <BoolColumn TItem="TsaileBetterq" Property="ControlledSubstance" Title="CS" ColumnIndex="6"/>
-    <RadzenDataGridColumn TItem="TsaileBetterq" Property="LastModifiedDateTime" Title="Last Modified" />
-    <ActionColumn TItem="TsaileBetterq" Context="row" Width="200px">
-        @if (row?.IsLocked == true)
-        {
-            <RadzenButton Text="@($"Locked by {row?.LockedBy?.DisplayName}")"
-            Style="white-space: normal" Size="ButtonSize.Small" Icon="lock"
-                            Click="@(async args => await OnLocked(row))" />
-        }
-        else
-        {
-            <SplitButtonTemplate DefaultButtonValue="@(row?.StatusEnum == TsaileTicketStatus.Verifying ? "Forward" : "Edit")" 
-            Buttons="@BuildButtons(row)" ButtonSize="ButtonSize.Small" />
-        }
-    </ActionColumn>
+                </div>
+            </Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="Patient.Name" Title="Name" />
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList"/>
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList"/>
+        <BoolColumn TItem="TsaileBetterq" Property="Waiting" Title="Waiting" ColumnIndex="4" Width="150px"/>
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="Efdt" Title="Earliest Fill Date" />
+        <BoolColumn TItem="TsaileBetterq" Property="ControlledSubstance" Title="CS" ColumnIndex="6" Width="100px"/>
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="LastModifiedDateTime" Title="Last Modified" />
+        <RadzenDataGridColumn TItem="TsaileBetterq" Property="CalledDateTime" Title="Called At" />
+        <ActionColumn TItem="TsaileBetterq" Context="row" Width="200px">
+            @if (row?.IsLocked == true)
+            {
+                <RadzenButton Text="@($"Locked by {row?.LockedBy?.DisplayName}")"
+                Style="white-space: normal" Size="ButtonSize.Small" Icon="lock"
+                                Click="@(async args => await OnLocked(row))" />
+            }
+            else
+            {
+                <SplitButtonTemplate DefaultButtonValue="@(row?.StatusEnum is (TsaileTicketStatus.Verifying or TsaileTicketStatus.Filling) ? "Forward" : "Edit")"
+                Buttons="@BuildButtons(row)" ButtonSize="ButtonSize.Small" />
+            }
+        </ActionColumn>
+    </ChildContent>
+    <EmptyTemplate>
+        <p>No ticket found, try one of these:</p>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Stretch">
+            <RadzenButton Text="Search by Ticket#" Click="TicketSearch" Icon="search" Size="ButtonSize.Small" Variant="Variant.Text" />
+            <RadzenButton Text="Patient Profile Search" Click="PatientProfileSearch" Icon="person" Size="ButtonSize.Small" Variant="Variant.Text" />
+            @if (IsFutureFills)
+            {
+                <RadzenLink Text="Main Que" Path="tsaile" Icon="home" />
+            }
+            else
+            {
+                <RadzenLink Text="Future Fills" Path="tsaile/futurefills" Icon="event_upcoming" />
+            }
+            <RadzenLink Text="Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
+            <RadzenLink Text="Completed Items" Path="tsaile/completed" Icon="checklist" />
+        </RadzenStack>
+    </EmptyTemplate>
 </DataGridVanilla>
 
 @code {
     bool IsFutureFills => Nav.GetPath(includeExistingQry: false).Equals("/tsaile/futurefills", StringComparison.OrdinalIgnoreCase);
-    private DataGridVanilla<TsaileBetterq> grid;
     private DataGridHelper<TsaileBetterq> GridModel = new()
     {
-        AddButtonDefault = true,
         SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
     };
     private int _userId { get; set; } = 0;
@@ -92,9 +114,8 @@
             .OrderBy(x => !x.Waiting)
                 .ThenBy(x => x.CreatedDateTime)
             ;
-
         Notifier.QueueChangedAsync += Reload;
-        var batchOptions = await Lookup.GetValuesAsync(LookupValueService.CommonOptionSet.TsaileBatchTo);
+        var batchOptions = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 
         GridModel.CustomChoices = new Dictionary<string, IEnumerable<object>>
         {
@@ -103,12 +124,30 @@
         };
     }
 
+    private async Task PatientProfileSearch()
+    {
+        var selectedPatient = await DialogService.OpenAsync<TsaileSelectPatient>("Select a Patient", options: new DialogOptions { Width = "80%" });
+        if (selectedPatient == null) return;
+        Nav.NavigateToWithExistingQry($"/tsaile/patient/{selectedPatient.Id}");
+    }
+
+    private async Task NewTicket()
+    {
+        var selectedPatient = await DialogService.OpenAsync<TsaileSelectPatient>("Select a Patient", options: new DialogOptions { Width = "80%" });
+        if (selectedPatient == null) return;
+        Nav.NavigateTo($"/tsaile/new/{selectedPatient.Id}");
+    }
+
     private async Task EditTicket(TsaileBetterq row)
     {
-        if (row == null) return;
+        if (row == null)
+        {
+            NotificationService.Info("Ticket not found");
+            return;
+        }
         if (row.IsLocked != true) 
         {
-            Nav.NavigateToRelative(row.Id.ToString());
+            Nav.NavigateToWithExistingQry($"/tsaile/ticket/{row.Id}");
             return;
         };
         string msg;
@@ -152,20 +191,20 @@
             IconColor = Colors.Primary,
             Action = async () =>
             {
-                Nav.NavigateToRelative(row.Id.ToString());
+                Nav.NavigateToWithExistingQry($"/tsaile/ticket/{row.Id}");
             }
         },
         new SplitButtonItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already at Beginning"
-                    : $"Move to {row?.PreviousStatusEnum}",
+                    : $"Move ticket back",
             Value = "Back",
             Icon = "undo",
             IconColor = Colors.WarningLight,
             Disabled = () => row.Status == TsaileTicketStatus.Screening.ToString(),
             Action = async () =>
             {
-                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId);
+                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
@@ -173,7 +212,7 @@
         new SplitButtonItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
-                    : $"Move to {row?.NextStatusEnum}",
+                    : $"Complete {row?.StatusEnum}",
             Value = "Forward",
             Icon = "forward",
             IconColor = Colors.Success,
@@ -181,7 +220,7 @@
             Action = async () =>
             {
 
-                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId);
+                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
@@ -218,6 +257,17 @@
                 await GridModel.ReloadAsync();
             }
         },
+        new SplitButtonItem
+        {
+            Text = "Patient Profile",
+            Value = "Patient",
+            Icon = "person",
+            IconColor = Colors.Info,
+            Action = async () =>
+            {
+                Nav.NavigateToWithExistingQry($"/tsaile/patient/{row.PatientId}");
+            }
+        },
     };
 
     private readonly HashSet<long> _unlocking = new();
@@ -248,24 +298,30 @@
 
         if (_unlocking.Contains(recordId))
             return;
-
-        var requestUnlock = await DialogService.YesNoDialog($"This ticket is locked by {row?.LockedBy?.DisplayName}, request unlock?", "Locked");
+        bool? requestUnlock;
+        if (row?.LockedById == _userId)
+        {
+            requestUnlock = true;
+        }
+        else
+        {
+            requestUnlock = await DialogService.YesNoDialog($"This ticket is locked by {row?.LockedBy?.DisplayName}, request unlock?", "Locked");
+        }
         if (requestUnlock != true) return;
         _unlocking.Add(recordId);
         try
         {
-            var requesterName = UserContext.UserProfile.DisplayName;
             DialogService.ShowLoadingSpinner($"Requesting unlock for ticket {recordId}...");
             // Service behavior:
             // - if no subscriber => returns true immediately
             // - if no ack within 500ms => returns true
             // - if acked => waits 10s for confirm/deny; timeout => true
-            var unlockConfirmed = await UnlockService.RequestUnlockAsync(recordId, requesterName);
+            var unlockConfirmed = await UnlockService.RequestUnlockAsync(recordId, UserContext.UserProfile);
             DialogService.Close();
             if (unlockConfirmed)
             {
                 await ForceUnlockAsync(recordId);
-                Nav.NavigateToRelative(recordId.ToString());
+                Nav.NavigateToWithExistingQry($"/tsaile/ticket/{recordId}");
                 return;
             }
 
@@ -278,7 +334,14 @@
         }
     }
 
-
+    public async Task TicketSearch()
+    {
+        var ticketNum = await DialogService.IntPromptAsync("Ticket Search", "Enter ticket#");
+        if (ticketNum == null) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketNum);
+        await EditTicket(ticket);
+    }
 
     public void Dispose()
     {

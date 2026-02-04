@@ -7,24 +7,31 @@
 @inject UserContextService UserContext
 @inject NotificationService NotificationService
 @inject NavigationManager Nav
+@inject LookupValueService Lookup
+@using AutoCAC.Extensions.Tsaile
 <RadzenLink Text="Main Que" Path="tsaile" Icon="home" />
 <RadzenLink Text="Deleted Items" Path="tsaile/deleted" Icon="folder_delete" />
 <DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" GridModel="GridModel">
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
-                          FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
-                          FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
-    <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
-        <SplitButtonTemplate DefaultButtonValue="Back"
-                             ButtonText="Send Back to Pickup"
-                             MainIcon="undo"
-                             Buttons="@BuildButtons(row)" />
-    </ActionColumn>
+    <HeaderContent>
+        <RadzenButton Text="Search by Ticket#" Click="TicketSearch" Icon="search" />
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Completed At" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
+                              FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
+                              FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
+        <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
+            <SplitButtonTemplate DefaultButtonValue="Back"
+                                 ButtonText="Undo Complete"
+                                 MainIcon="undo"
+                                 Buttons="@BuildButtons(row)" />
+        </ActionColumn>
+    </ChildContent>
 </DataGridVanilla>
 
 @code {
@@ -40,7 +47,6 @@
             .Include(x => x.Patient)
             .OrderByDescending(x => x.CompletedDateTime)
             .AsQueryable(),
-        AddButtonDefault = true,
         SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
     };
 
@@ -54,19 +60,19 @@
             IconColor = Colors.Primary,
             Action = async () =>
             {
-                Nav.NavigateToRelative(row.Id.ToString(), fromParent: true);
+                Nav.NavigateToWithExistingQry($"tsaile/ticket/{row.Id}");
             }
         },
         new SplitButtonItem
         {
-            Text = "Send back to Pickup",
+            Text = "Send ticket back",
             Value = "Back",
             Icon = "undo",
             IconColor = Colors.WarningLight,
             Disabled = () => row.Status == TsaileTicketStatus.ReadyForPickup.ToString(),
             Action = async () =>
             {
-                await row.ReverseStatusAndSaveAsync(DbFactory, _userId);
+                await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
                 NotificationService.Success($"Status updated to {row.Status}");
                 await GridModel.ReloadAsync();
             }
@@ -104,4 +110,10 @@
             }
         },
     };
+    public async Task TicketSearch()
+    {
+        var ticketNum = await DialogService.IntPromptAsync("Ticket Search", "Enter ticket#");
+        if (ticketNum == null) return;
+        Nav.NavigateTo($"/tsaile/ticket/{ticketNum}");
+    }
 }

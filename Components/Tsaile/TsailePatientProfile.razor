@@ -1,0 +1,165 @@
+﻿@page "/tsaile/patient/{Id:int}"
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Templates.Printing
+@using AutoCAC.Components.Tsaile
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Services
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+@inject NotificationService Notifications
+@inject DialogService DialogService
+@inject LookupValueService Lookup
+<LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
+	<a href="javascript:history.back()">Back</a>
+	<h3>@($"Profile for {item?.Name} (HRN: {item?.ChartNumber})")</h3>
+	<RadzenRow>
+		<RadzenColumn Size="6">
+			<DataGridVanilla TItem="TsaileBetterq" GridModel="GridModel" CellRender="CellFormat"
+							 RowDoubleClick="@(e => EditTicket(e.Data))" AddButtonClick="NewTicket">
+				<ChildContent>
+					<RadzenDataGridColumn TItem="TsaileBetterq" Property="CreatedDateTime" Title="Created At"/>
+					<RadzenDataGridColumn TItem="TsaileBetterq" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
+					<RadzenDataGridColumn TItem="TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
+					<BoolColumn TItem="TsaileBetterq" Property="Waiting" Title="Waiting" ColumnIndex="4" Width="150px" />
+					<RadzenDataGridColumn TItem="TsaileBetterq" Property="Efdt" Title="Earliest Fill Date" />
+					<BoolColumn TItem="TsaileBetterq" Property="ControlledSubstance" Title="CS" ColumnIndex="4" Width="100px" />
+					<RadzenDataGridColumn TItem="TsaileBetterq" Property="LastModifiedDateTime" Title="Last Modified" />
+					<ActionColumn TItem="TsaileBetterq" Context="row" Width="200px">
+						<RadzenButton Text="Edit" Click="@(async () => await EditTicket(row))"/>
+					</ActionColumn>
+				</ChildContent>
+			</DataGridVanilla>
+		</RadzenColumn>
+		<RadzenColumn Size="6">
+			<CommentTemplate Title="Patient Comments" TItem="TsailePatientcomment" CommentQueryFactory="CommentQueryFactoryPatient" 
+				MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
+		</RadzenColumn>
+	</RadzenRow>
+</LoadingContent>
+@code{
+	[Parameter] public int Id { get; set; }
+	private TsailePatient item { get; set; }
+	private int _userId { get; set; } = 0;
+	private string _notFoundMsg;
+
+	private DataGridHelper<TsaileBetterq> GridModel = new()
+	{
+		DataGridName = "TsaileBetterqPatientTicket"
+	};
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadItem();
+			if (item == null)
+			{
+				_notFoundMsg = "Patient not found";
+				StateHasChanged();
+				return;
+			}
+			_userId = UserContext.UserProfile.Id;
+			StateHasChanged();
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		_userId = UserContext.UserProfile.Id;
+		GridModel.QueryFactory = db => db.TsaileBetterqs
+			.Where(x => x.PatientId == Id && x.Status != TsaileTicketStatus.Deleted.ToString())
+			.Include(x => x.LockedBy)
+			.OrderBy(x => !x.Waiting)
+				.ThenBy(x => x.CreatedDateTime)
+			;
+		var batchOptions = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
+
+		GridModel.CustomChoices = new Dictionary<string, IEnumerable<object>>
+		{
+			["Status"] = Enum.GetNames<TsaileTicketStatus>(),
+			["BatchTo"] = batchOptions
+		};
+	}
+
+	private async Task LoadItem()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		item = await db.TsailePatients
+				.Include(x => x.TsaileBetterqs)
+				.Include(x => x.TsailePatientcomments)
+				.FirstOrDefaultAsync(x => x.Id == Id);
+	}
+
+	private async Task LoadAndStateHasChanged()
+	{
+		await LoadItem();
+		StateHasChanged();
+	}
+
+	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>
+		db.TsailePatientcomments
+				.Where(x => x.PatientId == Id)
+				.Include(x => x.AuthUser)
+				.OrderBy(x => x.CreatedAt)
+				.Select(x => new CommentModel
+		  {
+			  Id = x.Id,
+			  AuthUser = x.AuthUser,
+			  CreatedAt = x.CreatedAt,
+			  Text = x.Comment
+		  });
+
+	private TsailePatientcomment MapCommentPatient(CommentModel m) => new TsailePatientcomment
+	{
+		Id = m.Id,
+		PatientId = Id,
+		Comment = m.Text,
+		CreatedAt = m.CreatedAt,
+		AuthUserId = m.AuthUser.Id
+	};
+	
+	private async Task NewTicket()
+	{
+		Nav.NavigateTo($"/tsaile/new/{Id}");
+	}
+
+	void CellFormat(DataGridCellRenderEventArgs<TsaileBetterq> args)
+	{
+		if (!args.Data.Waiting || args.Data.CompletedDateTime != null) return;
+		var waitTime = (int)Math.Round((DateTime.Now - args.Data.CreatedDateTime).TotalMinutes);
+		switch (waitTime)
+		{
+			case > 60:
+				args.Attributes.Add("class", "rz-background-color-danger-lighter");
+				break;
+			case > 30:
+				args.Attributes.Add("class", "rz-background-color-warning-lighter");
+				break;
+		}
+	}
+
+	private async Task EditTicket(TsaileBetterq row)
+	{
+		if (row == null) return;
+		if (row.IsLocked != true)
+		{
+			Nav.NavigateToWithExistingQry($"/tsaile/ticket/{row.Id}");
+			return;
+		}
+		;
+		string msg;
+		if (row?.LockedBy?.Id == _userId)
+		{
+			msg = $"You have this ticket open in another session";
+		}
+		else
+		{
+			msg = $"Ticket is locked by {row?.LockedBy?.DisplayName}";
+		}
+		Notifications.Notify(summary: "Locked", detail: msg);
+		await GridModel.ReloadAsync();
+	}
+}
+

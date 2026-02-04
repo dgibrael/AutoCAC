@@ -1,0 +1,67 @@
+﻿@page "/settings/admin/lookupsettings"
+@using AutoCAC.Services
+@using AutoCAC.Components.Templates
+@using AutoCAC.Components.Templates.DataGrids
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject UserContextService User
+@inject IDbContextFactory<mainContext> DbFactory
+@inject LookupValueService Lookup
+@inject NotificationService Notifications
+<PageTitle>Lookup Value Settings</PageTitle>
+
+<DataGridEditable TItem="LookupValue" GridModel="GridModel" AddAction="@(async () => new LookupValue{ IsActive = true })">
+    <HeaderContent>
+        <RadzenButton Text="Update Settings" Click="@RefreshSettings" Icon="refresh" />
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.LookupValue" Property="OptionSet" Title="OptionSet">
+        
+            <EditTemplate Context="x">
+                <RadzenAutoComplete @bind-Value="@x.OptionSet" Data="@Lookup.All.Keys" OpenOnFocus="true"/>
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.LookupValue" Property="Value" Title="Value">
+        
+            <EditTemplate Context="x">
+                <RadzenTextBox @bind-Value="@x.Value" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.LookupValue" Property="DisplayText" Title="DisplayText">
+        
+            <EditTemplate Context="x">
+                <RadzenTextBox @bind-Value="@x.DisplayText" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.LookupValue" Property="SortOrder" Title="SortOrder">
+        
+            <EditTemplate Context="x">
+                <RadzenNumeric @bind-Value="@x.SortOrder" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.LookupValue" Property="IsActive" Title="IsActive">
+        
+            <EditTemplate Context="x">
+                <RadzenCheckBox @bind-Value="@x.IsActive" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+    </ChildContent>
+</DataGridEditable>
+
+@code{
+    DataGridHelper<AutoCAC.Models.LookupValue> GridModel = new()
+    {
+        AllowColumnPicking = false,
+        AllowColumnReorder = false,
+        AllowFiltering = false,
+        AllowGrouping = false,
+        AllowSorting = false,
+        QueryFactory = db => db.LookupValues.OrderBy(x => x.OptionSet).ThenBy(x => x.SortOrder)
+    };
+
+    async Task RefreshSettings()
+    {
+        await Lookup.LoadAllAsync();
+        Notifications.Success("Refreshed settings for all users");
+    }
+}

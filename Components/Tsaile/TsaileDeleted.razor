@@ -39,7 +39,6 @@
             .Include(x => x.Patient)
             .OrderByDescending(x => x.CompletedDateTime)
             .AsQueryable(),
-        AddButtonDefault = true,
         SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
     };
 

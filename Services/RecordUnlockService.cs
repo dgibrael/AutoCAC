@@ -1,5 +1,5 @@
 ﻿using System.Collections.Concurrent;
-
+using AutoCAC.Models;
 namespace AutoCAC.Services;
 
 public interface IRecordUnlockService
@@ -9,7 +9,7 @@ public interface IRecordUnlockService
     // Requester calls this. Returns:
     // - true  => confirmed/auto-confirmed (unlock)
     // - false => denied
-    Task<bool> RequestUnlockAsync(long recordId, string requestedByDisplayName);
+    Task<bool> RequestUnlockAsync(long recordId, AuthUser requestedBy);
 
     // Lock-holder calls immediately when it receives the message (proves it's alive)
     void Ack(long recordId);
@@ -21,7 +21,7 @@ public interface IRecordUnlockService
 public sealed class UnlockMessage
 {
     public long RecordId { get; init; }
-    public string RequestedByDisplayName { get; init; }
+    public AuthUser RequestedBy { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
 }
 
@@ -60,11 +60,9 @@ public sealed class RecordUnlockService : IRecordUnlockService
         });
     }
 
-    public async Task<bool> RequestUnlockAsync(long recordId, string requestedByDisplayName)
+    public async Task<bool> RequestUnlockAsync(long recordId, AuthUser requestedBy)
     {
         if (recordId <= 0) throw new ArgumentOutOfRangeException(nameof(recordId));
-        if (string.IsNullOrWhiteSpace(requestedByDisplayName))
-            requestedByDisplayName = "Unknown";
 
         // Nobody listening => unlock immediately
         if (!_subs.TryGetValue(recordId, out var handler))
@@ -78,7 +76,7 @@ public sealed class RecordUnlockService : IRecordUnlockService
         _ = SafeInvoke(handler, new UnlockMessage
         {
             RecordId = recordId,
-            RequestedByDisplayName = requestedByDisplayName,
+            RequestedBy = requestedBy,
             CreatedAt = DateTimeOffset.UtcNow
         });
 

@@ -33,6 +33,17 @@ namespace AutoCAC.Extensions
             return !string.IsNullOrWhiteSpace(qry) ? qry : "";
         }
 
+        public static void NavigateToWithExistingQry(this NavigationManager navigationManager, string url)
+        {
+            var qry = navigationManager.GetQueryString();
+            var uri = url.TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(qry))
+            {
+                uri += $"?{qry}";
+            }
+            navigationManager.NavigateTo(uri);
+        }
+
         public static Dictionary<string, string> GetQueryDictionary(this NavigationManager navigationManager)
         {
             var uri = navigationManager.ToAbsoluteUri(navigationManager.Uri);
@@ -43,6 +54,19 @@ namespace AutoCAC.Extensions
                 kvp => kvp.Key,
                 kvp => kvp.Value.ToString(),
                 StringComparer.OrdinalIgnoreCase);
+        }
+
+        public static string GetQueryValue(this NavigationManager navigationManager, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return null;
+
+            var dict = navigationManager.GetQueryDictionary();
+
+            if (!dict.TryGetValue(key, out var value))
+                return null;
+
+            return string.IsNullOrWhiteSpace(value) ? null : value;
         }
 
         public static string GetPath(this NavigationManager navigationManager, string suffix = "", bool includeExistingQry = true
