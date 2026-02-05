@@ -71,7 +71,7 @@
 		GridModel.QueryFactory = db => db.TsaileBetterqs
 			.Where(x => x.PatientId == Id && x.Status != TsaileTicketStatus.Deleted.ToString())
 			.Include(x => x.LockedBy)
-			.OrderBy(x => !x.Waiting)
+			.OrderByDescending(x => x.Waiting)
 				.ThenBy(x => x.CreatedDateTime)
 			;
 		var batchOptions = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);

@@ -67,7 +67,7 @@
 				(_isPharmacy && x.Status != "New") ||
 				(_myLocations != null && _myLocations.Contains(x.LocationId))
 			)
-			.OrderBy(x => x.OrderDateTime)
+			.OrderByDescending(x => x.OrderDateTime)
 			.AsQueryable().AsNoTracking();
 	}
 	protected override async Task OnInitializedAsync()

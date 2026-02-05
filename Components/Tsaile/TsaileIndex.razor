@@ -111,7 +111,7 @@
             )
             .Include(x => x.Patient)
             .Include(x => x.LockedBy)
-            .OrderBy(x => !x.Waiting)
+            .OrderByDescending(x => x.Waiting)
                 .ThenBy(x => x.CreatedDateTime)
             ;
         Notifier.QueueChangedAsync += Reload;
