@@ -11,7 +11,7 @@ namespace AutoCAC.Extensions
                 Severity = NotificationSeverity.Success,
                 Summary = title,
                 Detail = message,
-                Duration = 3000
+                Duration = 10000
             });
         }
 
@@ -22,7 +22,7 @@ namespace AutoCAC.Extensions
                 Severity = NotificationSeverity.Info,
                 Summary = title,
                 Detail = message,
-                Duration = 3000
+                Duration = 10000
             });
         }
 
@@ -33,7 +33,7 @@ namespace AutoCAC.Extensions
                 Severity = NotificationSeverity.Error,
                 Summary = ex.GetType().Name,
                 Detail = customMsg ?? $"Something went wrong (error code: {ex.HResult})",
-                Duration = 5000
+                Duration = 10000
             });
         }
         public static void Error(this NotificationService notificationService, string msg = "Something went wrong")

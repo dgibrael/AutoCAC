@@ -11,7 +11,7 @@
 @inject NotificationService Notifications
 @inject DialogService DialogService
 @inject LookupValueService Lookup
-<LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
+<LoadingContent LoadState="@LoadState">
 	<a href="javascript:history.back()">Back</a>
 	<h3>@($"Profile for {item?.Name} (HRN: {item?.ChartNumber})")</h3>
 	<RadzenRow>
@@ -43,7 +43,7 @@
 	private TsailePatient item { get; set; }
 	private int _userId { get; set; } = 0;
 	private string _notFoundMsg;
-
+	LoadStates LoadState = LoadStates.Loading;
 	private DataGridHelper<TsaileBetterq> GridModel = new()
 	{
 		DataGridName = "TsaileBetterqPatientTicket"
@@ -56,11 +56,12 @@
 			await LoadItem();
 			if (item == null)
 			{
-				_notFoundMsg = "Patient not found";
+				LoadState = LoadStates.NotFound;
 				StateHasChanged();
 				return;
 			}
 			_userId = UserContext.UserProfile.Id;
+			LoadState = LoadStates.Loaded;
 			StateHasChanged();
 		}
 	}

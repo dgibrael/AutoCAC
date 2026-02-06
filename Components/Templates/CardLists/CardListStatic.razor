@@ -1,0 +1,12 @@
+﻿
+<RadzenDataList Data="@Items" TItem="string" WrapItems="true" AllowPaging="false">
+    <Template Context="item">
+        <RadzenCard>
+            @item
+        </RadzenCard>
+    </Template>
+</RadzenDataList>
+
+@code {
+    [Parameter] public IReadOnlyList<string> Items { get; set; }
+}

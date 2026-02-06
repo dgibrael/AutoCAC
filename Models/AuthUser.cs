@@ -31,6 +31,8 @@ public partial class AuthUser
 
     public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
 
+    public virtual ICollection<HighCostQue> HighCostQues { get; set; } = new List<HighCostQue>();
+
     public virtual ICollection<NurseCompoundTraining> NurseCompoundTrainings { get; set; } = new List<NurseCompoundTraining>();
 
     public virtual ICollection<TsaileActivitylog> TsaileActivitylogs { get; set; } = new List<TsaileActivitylog>();

@@ -1,28 +1,27 @@
 ﻿@using AutoCAC.Components.Templates.Buttons
-@if (IsLoading)
+@using AutoCAC.Models
+
+@switch (LoadState)
 {
-    if (NotFoundMessage != null)
-    {
+    case LoadStates.Loading:
+        <span>Loading...</span>
+        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                           AriaLabel="Loading" />
+        break;
+    case LoadStates.NotFound:
         <p>@NotFoundMessage</p>
         <a href="javascript:history.back()">Back</a>
-    }
-    else
-    {        
-        <span>Loading...</span>
-        <RadzenProgressBar Value="100" ShowValue="false" Mode="ProgressBarMode.Indeterminate" 
-        AriaLabel="Loading"/>
-    }
-}
-else
-{
-    @ChildContent
+        break;
+    case LoadStates.Error:
+        <p>Error occured when retrieving data</p>
+        break;
+    default:
+        @ChildContent
+        break;
 }
 
 @code {
-    [Parameter] public bool IsLoading { get; set; }
-
-    [Parameter] public EventCallback<bool> LoadingCompleteChanged { get; set; }
-
+    [Parameter] public LoadStates LoadState { get; set; }
     [Parameter] public RenderFragment ChildContent { get; set; }
-    [Parameter] public string NotFoundMessage { get; set; }
+    [Parameter] public string NotFoundMessage { get; set; } = "No Data Found";
 }

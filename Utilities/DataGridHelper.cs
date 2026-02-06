@@ -68,6 +68,8 @@ public sealed class DataGridHelper<T> where T : class
     public Task ReloadAsync()
     {
         ShouldCount = true;
+        if (UseClientSideData)
+            _cache = null;
         if (_reloadAsync is null)
         {
             _reloadPending = true;
@@ -419,5 +421,25 @@ public sealed class DataGridHelper<T> where T : class
         };
 
         ShouldCount = null;
+    }
+
+    public void SetData(IEnumerable<T> items, bool requestReload = true)
+    {
+        EnsureInitialized();
+
+        _cache = items?.ToList() ?? new List<T>();
+
+        // invalidate derived state (filters/search/count depend on dataset)
+        ShouldCount = true;
+        _lastFilter = null;
+        _lastSearchText = null;
+        LastBuilder = null;
+
+        // optional: reflect immediately (useful if caller wants instant render even before grid reload)
+        Data = _cache;
+        Count = _cache.Count;
+
+        if (requestReload)
+            Reload();
     }
 }

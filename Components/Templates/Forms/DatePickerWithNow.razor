@@ -1,0 +1,39 @@
+﻿@inject DialogService Dialog
+@if (!string.IsNullOrEmpty(Label))
+{
+    <VanillaFormField Label="@Label">
+        <RadzenDatePicker Value="@Value" TValue="DateTime?"
+                          ValueChanged="OnValueChanged"
+                          ShowTime="true"
+                          AllowClear="true" />
+        <RadzenButton Text="@NowText" Click="SetNow" />
+    </VanillaFormField>
+}
+else
+{
+    <RadzenDatePicker Value="@Value" TValue="DateTime?"
+                      ValueChanged="OnValueChanged"
+                      ShowTime="true"
+                      AllowClear="true" />
+    <RadzenButton Text="@NowText" Click="SetNow" />
+}
+@code {
+    [Parameter] public DateTime? Value { get; set; }
+    [Parameter] public EventCallback<DateTime?> ValueChanged { get; set; }
+    [Parameter] public string NowText { get; set; } = "Now";
+    [Parameter] public string Label { get; set; }
+    [Parameter] public bool DialogForm { get; set; } = true;
+    async Task SetNow()
+    {
+        await ValueChanged.InvokeAsync(DateTime.Now);
+        if (DialogForm)
+        {
+            Dialog.Refresh();
+        }
+    }
+
+    async Task OnValueChanged(DateTime? value)
+    {
+        await ValueChanged.InvokeAsync(value);
+    }
+}

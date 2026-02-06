@@ -11,7 +11,7 @@
 @inject DialogService DialogService
 @inject LookupValueService Lookup
 
-<LoadingContent IsLoading="@(selectedPatient == null)" NotFoundMessage="@_notFoundMsg">
+<LoadingContent LoadState="@(LoadState)">
 	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.ChartNumber})")</h3>
 	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
 		<VanillaFormField Label="Waiter">
@@ -42,7 +42,7 @@
 	private TsailePatient selectedPatient { get; set; }
 	private string initialComment { get; set; }
 	private IReadOnlyList<string> _batchChoices;
-	private string _notFoundMsg;
+	private LoadStates LoadState = LoadStates.Loading;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -52,6 +52,7 @@
 	}
 	private async Task SelectPatient()
 	{
+		LoadState = LoadStates.Loading;
 		await using var db = await DbFactory.CreateDbContextAsync();
 		selectedPatient = await db.TsailePatients
 							.Include(x => x.TsaileBetterqs)
@@ -59,7 +60,7 @@
 							;
 		if (selectedPatient?.Id == null || selectedPatient.Id == 0)
 		{
-			_notFoundMsg = "Patient Not Found";
+			LoadState = LoadStates.NotFound;
 			StateHasChanged();
 			return;
 		}
@@ -82,6 +83,7 @@
 		}
 		_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 		item.PatientId = Id;
+		LoadState = LoadStates.Loaded;
 		StateHasChanged();
 	}
 	private async Task OnSubmit()

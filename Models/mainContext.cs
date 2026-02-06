@@ -21,11 +21,15 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<AuthUserGroup> AuthUserGroups { get; set; }
 
+    public virtual DbSet<BillingRx> BillingRxes { get; set; }
+
     public virtual DbSet<DataGridTemplate> DataGridTemplates { get; set; }
 
     public virtual DbSet<Drug> Drugs { get; set; }
 
     public virtual DbSet<GroupAutoMatch> GroupAutoMatches { get; set; }
+
+    public virtual DbSet<HighCostQue> HighCostQues { get; set; }
 
     public virtual DbSet<InpatientMedOrder> InpatientMedOrders { get; set; }
 
@@ -70,6 +74,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<TsailePatient> TsailePatients { get; set; }
 
     public virtual DbSet<TsailePatientcomment> TsailePatientcomments { get; set; }
+
+    public virtual DbSet<VwBillingRx> VwBillingRxes { get; set; }
 
     public virtual DbSet<VwNdcLookup> VwNdcLookups { get; set; }
 
@@ -199,6 +205,38 @@ public partial class mainContext : DbContext
                 .HasConstraintName("auth_user_groups_user_id_6a12ed8b_fk_auth_user_id");
         });
 
+        modelBuilder.Entity<BillingRx>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__BillingR__3213E83FB7243E6C");
+
+            entity.ToTable("BillingRx");
+
+            entity.HasIndex(e => new { e.RxNum, e.FillNum, e.Id }, "IX_BillingRx_RxFill_IdDesc").IsDescending(false, false, true);
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.DrugId)
+                .IsUnicode(false)
+                .HasColumnName("DrugID");
+            entity.Property(e => e.FillDate).HasColumnType("datetime");
+            entity.Property(e => e.InsuranceName).IsUnicode(false);
+            entity.Property(e => e.InsuranceType).IsUnicode(false);
+            entity.Property(e => e.LastUpdate).HasColumnType("datetime");
+            entity.Property(e => e.Ndc)
+                .IsUnicode(false)
+                .HasColumnName("NDC");
+            entity.Property(e => e.Paper).IsUnicode(false);
+            entity.Property(e => e.PostedToAr).IsUnicode(false);
+            entity.Property(e => e.RejectionReasons).IsUnicode(false);
+            entity.Property(e => e.Rts)
+                .IsUnicode(false)
+                .HasColumnName("RTS");
+            entity.Property(e => e.RxNum)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+        });
+
         modelBuilder.Entity<DataGridTemplate>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__DataGrid__3214EC072ACDA0C4");
@@ -267,6 +305,28 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.AuthGroup).WithMany(p => p.GroupAutoMatches)
                 .HasForeignKey(d => d.AuthGroupId)
                 .HasConstraintName("FK_GroupAutoMatch_auth_group");
+        });
+
+        modelBuilder.Entity<HighCostQue>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__HighCost__3213E83FF8748086");
+
+            entity.ToTable("HighCostQue");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.HighCostQues)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_HighCostQue_auth_user");
+
+            entity.HasOne(d => d.IdNavigation).WithOne(p => p.HighCostQue)
+                .HasForeignKey<HighCostQue>(d => d.Id)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HighCostQue_id");
         });
 
         modelBuilder.Entity<InpatientMedOrder>(entity =>
@@ -793,6 +853,37 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.TsailePatientcomments)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("FK_tsaile_patientcomment_PatientId");
+        });
+
+        modelBuilder.Entity<VwBillingRx>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("vw_BillingRx");
+
+            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.Dob)
+                .HasColumnType("datetime")
+                .HasColumnName("DOB");
+            entity.Property(e => e.DrugId)
+                .IsUnicode(false)
+                .HasColumnName("DrugID");
+            entity.Property(e => e.DrugName).IsUnicode(false);
+            entity.Property(e => e.FillDate).HasColumnType("datetime");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.InsuranceName).IsUnicode(false);
+            entity.Property(e => e.InsuranceType).IsUnicode(false);
+            entity.Property(e => e.LastUpdate).HasColumnType("datetime");
+            entity.Property(e => e.Ndc)
+                .IsUnicode(false)
+                .HasColumnName("NDC");
+            entity.Property(e => e.Paper).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.PatientName).IsUnicode(false);
+            entity.Property(e => e.RejectionReasons).IsUnicode(false);
+            entity.Property(e => e.RxNum)
+                .HasMaxLength(200)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<VwNdcLookup>(entity =>

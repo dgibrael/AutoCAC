@@ -14,7 +14,7 @@
 @inject IRecordUnlockService UnlockService
 @implements IAsyncDisposable
 @using AutoCAC.Extensions.Tsaile
-<LoadingContent IsLoading="@(item == null)" NotFoundMessage="@_notFoundMsg">
+<LoadingContent LoadState="@LoadState" >
 	<a href="javascript:history.back()">Back</a>
 	<PrintContent PrintOnly="false">
 		<h2>@($"Ticket# {Id}")</h2>
@@ -52,9 +52,7 @@
 		<VanillaFormField Label="Earliest Fill Date">
 			<RadzenDatePicker @bind-Value="x.Efdt" ShowTime="false" />
 		</VanillaFormField>
-		<VanillaFormField Label="Called Date and Time">
-			<RadzenDatePicker @bind-Value="x.CalledDateTime" ShowTime="true" />
-		</VanillaFormField>
+		<DatePickerWithNow @bind-Value="x.CalledDateTime" Label="Called Date and Time" />
 	</OpenDialogFormButton>
 	<RadzenRow>
 		<RadzenColumn Size="6">
@@ -75,21 +73,26 @@
 	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; }
 	private int _userId { get; set; } = 0;
-	private string _notFoundMsg;
 	private IReadOnlyList<string> _batchChoices;
 	private bool _lockedByMe;
 	private IDisposable _unlockSubscription;
 	private bool _promptOpen;
 	DateTime _initialLock;
+	LoadStates LoadState = LoadStates.Loading;
+	void CallNow(TsaileBetterq row)
+	{
+		row.CalledDateTime = DateTime.Now;
+		StateHasChanged();
+	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
-			_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);	
+			_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 			await LoadItem();
 			if (item == null)
 			{
-				_notFoundMsg = "Ticket not found";
+				LoadState = LoadStates.NotFound;
 				StateHasChanged();
 				return;
 			}
@@ -112,6 +115,7 @@
 			_initialLock = await item.LockAsync(DbFactory, _userId);
 			_unlockSubscription = UnlockService.Subscribe(Id, OnUnlockMessageAsync);
 			_lockedByMe = true;
+			LoadState = LoadStates.Loaded;
 			StateHasChanged();
 		}
 	}
@@ -211,7 +215,7 @@
 		{
 			Text = "Move Ticket Back",
 			Value = "Back",
-			Icon = "arrow_back",
+			Icon = "undo",
 			IconColor = Colors.WarningLight,
 			Disabled = () => item?.Status == TsaileTicketStatus.Screening.ToString(),
 			Action = async () =>

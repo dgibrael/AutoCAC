@@ -1,0 +1,27 @@
+﻿
+<RadzenDataList @ref="dataList" Data="@data" TItem="string" WrapItems="true" AllowPaging="false" LoadData="LoadDataInternal" IsLoading="@isLoading">
+    <Template Context="item">
+        <RadzenCard>
+            @item
+        </RadzenCard>
+    </Template>
+</RadzenDataList>
+
+@code {
+    IEnumerable<string> data;
+    RadzenDataList<string> dataList;
+    private bool isLoading = true;
+    [Parameter] public Func<LoadDataArgs, Task<IEnumerable<string>>> LoadData { get; set; }
+    private async Task LoadDataInternal(LoadDataArgs args)
+    {
+        isLoading = true;
+        try
+        {
+            data = await LoadData(args);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

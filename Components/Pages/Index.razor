@@ -14,7 +14,7 @@
 @inject AutoCAC.Services.UserContextService UserContext
 @using System.Security.Claims
 <PageTitle>Home</PageTitle>
-<LoadingContent IsLoading="!UserContext.UserLoaded">
+<LoadingContent LoadState="@(!UserContext.UserLoaded ? LoadStates.Loading : LoadStates.Loaded)">
     <h4>User Info</h4>
 
     <p><strong>Username: </strong>@UserContext.UserProfile.Username</p>

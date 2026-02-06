@@ -9,6 +9,7 @@
 @inject DialogService DialogService
 @using System.Text
 @inject IJSRuntime JS
+@using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @using AutoCAC.Extensions
@@ -48,7 +49,7 @@
     <RadzenBody Expanded="@sidebarExpanded" id="mainContent">
         <RadzenRow class="rz-mx-auto content-container">
             <RadzenColumn Size="12">
-                <LoadingContent IsLoading="@(_canAccess is null)">
+                <LoadingContent LoadState="@(_canAccess is null ? LoadStates.Loading : LoadStates.Loaded)">
                     @if(_canAccess == true)
                     {
                         @Body
@@ -88,6 +89,7 @@
                 <RadzenPanelMenuItem Text="Order Dialogs" Path="/orderdialogs" Icon="action_key" />
                 <AuthPanelItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 <AuthPanelItem Path="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
+                <AuthPanelItem Path="billing/highcost" Icon="attach_money" Text="High Cost Report" />
                 <RadzenPanelMenuItem Text="Ward Stock" Path="/wardstock" Icon="inventory" />
                 <AuthPanelItem Text="Tsaile Que" Path="/tsaile" Icon="featured_play_list" />
                 <RadzenPanelMenuItem Text="Settings" Icon="settings" >

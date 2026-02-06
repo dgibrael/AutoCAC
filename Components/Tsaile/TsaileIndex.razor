@@ -44,7 +44,7 @@
                     {                    
                         if(x.Waiting)
                         {
-                            <strong>@($" ({(int)Math.Round((DateTime.Now - x.CreatedDateTime).TotalMinutes)})")</strong>
+                            <strong>@($" ({(int)Math.Round((DateTime.Now - (x.CalledDateTime ?? x.CreatedDateTime)).TotalMinutes)})")</strong>
                         }
                     }
                 </div>
@@ -68,7 +68,7 @@
             }
             else
             {
-                <SplitButtonTemplate DefaultButtonValue="@(row?.StatusEnum is (TsaileTicketStatus.Verifying or TsaileTicketStatus.Filling) ? "Forward" : "Edit")"
+                <SplitButtonTemplate DefaultButtonValue="@DefaultButtonValue(row)"
                 Buttons="@BuildButtons(row)" ButtonSize="ButtonSize.Small" />
             }
         </ActionColumn>
@@ -94,6 +94,13 @@
 
 @code {
     bool IsFutureFills => Nav.GetPath(includeExistingQry: false).Equals("/tsaile/futurefills", StringComparison.OrdinalIgnoreCase);
+    private string DefaultButtonValue(TsaileBetterq row) => row.StatusEnum switch
+    {
+        TsaileTicketStatus.Verifying or TsaileTicketStatus.Filling => "Forward",
+        TsaileTicketStatus.ReadyForPickup => "Call",
+        _ => "Edit"
+    };
+
     private DataGridHelper<TsaileBetterq> GridModel = new()
     {
         SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
@@ -266,6 +273,24 @@
             Action = async () =>
             {
                 Nav.NavigateToWithExistingQry($"/tsaile/patient/{row.PatientId}");
+            }
+        },
+        new SplitButtonItem
+        {
+            Text = "Call Patient",
+            Value = "Call",
+            Icon = "record_voice_over",
+            IconColor = Colors.Info,
+            Disabled = () => row?.StatusEnum != TsaileTicketStatus.ReadyForPickup,
+            Action = async () =>
+            {
+                await using var db = await DbFactory.CreateDbContextAsync();
+                var curDateTime = DateTime.Now;
+                await db.TsaileBetterqs
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(x => x.CalledDateTime, curDateTime));
+                NotificationService.Success($"Patient marked as called at {curDateTime}");
+                Nav.NavigateToWithExistingQry($"/tsaile/ticket/{row.Id}");
             }
         },
     };

@@ -1,0 +1,60 @@
+﻿@page "/billing/highcost"
+@using AutoCAC.Components.Templates
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Services
+@inject UserContextService UserContext
+@using Microsoft.Data.SqlClient
+@using Microsoft.EntityFrameworkCore
+<DataGridVanilla TItem="VwBillingRx" GridModel="GridModel">
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="Id" Title="Transaction#" Width="150px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="LastUpdate" Title="Last Update" Width="150px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="RxNum" Title="Rx/Fill#" Width="125px">
+		<Template Context="x">@($"{x.RxNum}/{x.FillNum}")</Template>
+	</RadzenDataGridColumn>
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="TotalBilled" Title="Billed" Width="125px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="TotalPaid" Title="Payable" Width="125px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="DrugName" Title="Drug" />
+	<ActionColumn TItem="VwBillingRx" Context="x">
+		<RadzenButton Text="Complete" ButtonStyle="ButtonStyle.Success" Click="@(() => Complete(x))" />
+	</ActionColumn>
+</DataGridVanilla>
+
+@code {
+	DataGridHelper<VwBillingRx> GridModel = new()
+	{
+		QueryFactory = db => db.VwBillingRxes
+							.Where(x => x.FillDate >= DateTime.Now.AddDays(-365))
+							.Where(x => x.TotalPaid != null && x.TotalBilled != null && x.TotalPaid > 0)
+							.Where(x => x.TotalBilled > x.TotalPaid)
+							.Where(x => EF.Functions.Like(x.InsuranceType, "%medicaid%"))
+							.Where(x => !db.HighCostQues.Any(q => q.Id == x.Id)),
+		UseClientSideData = true
+	}
+	;
+	async Task Complete(VwBillingRx row)
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var highCost = new HighCostQue
+			{
+				Id = row.Id,
+				AuthUserId = UserContext.UserProfile.Id,
+				CompletedAt = DateTime.Now
+			};
+		await db.HighCostQues.AddAsync(highCost);
+		try
+		{
+			await db.SaveChangesAsync();
+		}
+		catch (DbUpdateException ex) when
+			(ex.InnerException is SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+		{
+			await db.HighCostQues
+				.Where(x => x.Id == row.Id)
+				.ExecuteUpdateAsync(s => s
+					.SetProperty(x => x.AuthUserId, UserContext.UserProfile.Id)
+					.SetProperty(x => x.CompletedAt, DateTime.Now));
+		}
+		await GridModel.ReloadAsync();
+	}
+}

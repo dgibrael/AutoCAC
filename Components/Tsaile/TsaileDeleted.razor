@@ -10,18 +10,23 @@
 <RadzenLink Text="Go to Main Que" Path="tsaile" Icon="home" />
 <RadzenLink Text="Go to Completed Items" Path="tsaile/completed" Icon="checklist" />
 <DataGridVanilla TItem="AutoCAC.Models.TsaileBetterq" GridModel="GridModel" >
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
-                          FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
-                          FilterMode="FilterMode.CheckBoxList" />
-    <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
-    <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
-        <SplitButtonTemplate DefaultButtonValue="Delete" Buttons="@BuildButtons(row)" ButtonStyle="ButtonStyle.Danger"/>
-    </ActionColumn>
+    <HeaderContent>
+        <RadzenButton Text="Delete All Permanently" Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="DeleteAll"/>
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
+                              FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="ControlledSubstance" Title="ControlledSubstance"
+                              FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CreatedDateTime" Title="Created At" />
+        <ActionColumn TItem="AutoCAC.Models.TsaileBetterq" Context="row" Width="250px">
+            <SplitButtonTemplate DefaultButtonValue="Delete" Buttons="@BuildButtons(row)" ButtonStyle="ButtonStyle.Danger"/>
+        </ActionColumn>
+    </ChildContent>
 </DataGridVanilla>
 
 @code {
@@ -41,6 +46,18 @@
             .AsQueryable(),
         SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
     };
+
+    async Task DeleteAll()
+    {
+        var confirm = await DialogService.YesNoDialog("Are you sure you want to permanently delete ALL items in the trash? This action cannot be undone");
+        if (confirm != true) return;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var rows = await db.TsaileBetterqs
+            .Where(x => x.Status == "Deleted")
+            .ExecuteDeleteAsync();
+        NotificationService.Success($"Deleted {rows} records");
+        await GridModel.ReloadAsync();
+    }
 
     IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
     {
