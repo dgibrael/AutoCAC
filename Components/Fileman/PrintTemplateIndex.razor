@@ -1,0 +1,39 @@
+﻿@page "/fileman/printtemplate"
+
+@inject IJSRuntime JS
+@using AutoCAC.Components.Templates.Buttons
+@using System.Text
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject DialogService Dialog
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NavigationManager Nav
+<DataGridVanilla TItem="FilemanPrintTemplate" GridModel="GridModel" AddButtonClick="AddClick">
+	<TrailingColumns>
+		<ActionDefaultColumn TItem="FilemanPrintTemplate" />
+	</TrailingColumns>
+</DataGridVanilla>
+@code {
+	DataGridHelper<FilemanPrintTemplate> GridModel = new()
+	{
+
+	};
+	async Task AddClick()
+	{
+		var templateName = await Dialog.TextPromptAsync(header: "Enter new template name");
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var existingTemplate = await db.FilemanPrintTemplates.FirstOrDefaultAsync(x => x.TemplateName == templateName);
+		if (existingTemplate != null)
+		{
+			Nav.NavigateToWithExistingQry($"/fileman/printtemplate/{existingTemplate.Id}");
+			return;
+		}
+		var newTemplate = new FilemanPrintTemplate
+			{
+				TemplateName = templateName
+			};
+		await db.AddAsync(newTemplate);
+		await db.SaveChangesAsync();
+		Nav.NavigateToWithExistingQry($"/fileman/printtemplate/{newTemplate.Id}");
+	}
+}

@@ -47,6 +47,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[FilemanPrintTemplate]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[FilemanPrintTemplateItem]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[GroupAutoMatch]",
          "ObjectType": 0
       },

@@ -1,0 +1,10 @@
+﻿@page "/dashboard/vancomycin"
+<DataGridVanilla TItem="AutoCAC.Models.VwVancomycinAuc" GridModel="GridModel" />
+<footer>Note: This report may take a long time to load initially.</footer>
+
+@code{
+	DataGridHelper<AutoCAC.Models.VwVancomycinAuc> GridModel = new()
+		{
+			UseClientSideData = true
+		};
+}

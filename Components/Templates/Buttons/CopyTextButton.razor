@@ -1,0 +1,21 @@
+﻿@inject NotificationService Notifications
+@inject IJSRuntime JS
+<RadzenButton Icon="content_copy"
+              ButtonStyle="ButtonStyle.Base"
+              Text="@Label"
+              Size="@Size"
+              Click="@OnClickAsync"
+              aria-label="Copy" />
+
+@code {
+    [Parameter, EditorRequired] public Func<Task<string>> GetText { get; set; }
+    [Parameter] public string Label { get; set; } = "Copy";
+    [Parameter] public ButtonSize Size { get; set; } = ButtonSize.Medium;
+
+    async Task OnClickAsync()
+    {
+        var txt = await GetText();
+        await JS.CopyText(txt);
+        Notifications.Success($"Copied {txt}");
+    }
+}

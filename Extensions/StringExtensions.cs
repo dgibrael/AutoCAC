@@ -179,5 +179,26 @@ namespace AutoCAC.Extensions
             u = "/" + u.Trim('/') + "/";
             return u.ToLowerInvariant();
         }
+
+        public static string ToPascalCase(this string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var parts = value.Split((char[])null, StringSplitOptions.RemoveEmptyEntries); // split on any whitespace
+            var sb = new StringBuilder();
+
+            foreach (var part in parts)
+            {
+                if (part.Length == 0) continue;
+
+                sb.Append(char.ToUpperInvariant(part[0]));
+
+                if (part.Length > 1)
+                    sb.Append(part.Substring(1).ToLowerInvariant());
+            }
+
+            return sb.ToString();
+        }
     }
 }

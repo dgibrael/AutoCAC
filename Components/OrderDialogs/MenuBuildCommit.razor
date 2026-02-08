@@ -104,7 +104,7 @@
                             default:
                                 if(cell != null)
                                 {
-                                    var _newcelldisp = string.IsNullOrWhiteSpace(cell.DisplayText) ? $"{cell.Mnemonic} {cell.Item.DisplayText}" : $"{cell.Mnemonic} {cell.DisplayText}";
+                                    var _newcelldisp = string.IsNullOrWhiteSpace(cell?.DisplayText) ? $"{cell?.Mnemonic} {cell?.Item?.DisplayText}" : $"{cell?.Mnemonic} {cell?.DisplayText}";
                                     <i>@_newcelldisp</i>
                                 }
                                 break;

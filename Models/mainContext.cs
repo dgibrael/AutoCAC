@@ -27,6 +27,10 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Drug> Drugs { get; set; }
 
+    public virtual DbSet<FilemanPrintTemplate> FilemanPrintTemplates { get; set; }
+
+    public virtual DbSet<FilemanPrintTemplateItem> FilemanPrintTemplateItems { get; set; }
+
     public virtual DbSet<GroupAutoMatch> GroupAutoMatches { get; set; }
 
     public virtual DbSet<HighCostQue> HighCostQues { get; set; }
@@ -290,6 +294,51 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Synonym).IsUnicode(false);
             entity.Property(e => e.Unit).IsUnicode(false);
             entity.Property(e => e.VaPrintName).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<FilemanPrintTemplate>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__FilemanP__3213E83FC7B0BA2F");
+
+            entity.ToTable("FilemanPrintTemplate");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FileName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.OptionName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.TableName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.TemplateName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<FilemanPrintTemplateItem>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__FilemanP__3213E83FE9FD356F");
+
+            entity.ToTable("FilemanPrintTemplateItem");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ColumnName)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.DataType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.Field)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.FilemanPrintTemplateId).HasColumnName("FilemanPrintTemplate_id");
+
+            entity.HasOne(d => d.FilemanPrintTemplate).WithMany(p => p.FilemanPrintTemplateItems)
+                .HasForeignKey(d => d.FilemanPrintTemplateId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_FilemanPrintTemplateItem_FilemanPrintTemplate");
         });
 
         modelBuilder.Entity<GroupAutoMatch>(entity =>
@@ -862,6 +911,7 @@ public partial class mainContext : DbContext
                 .ToView("vw_BillingRx");
 
             entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.Division).IsUnicode(false);
             entity.Property(e => e.Dob)
                 .HasColumnType("datetime")
                 .HasColumnName("DOB");

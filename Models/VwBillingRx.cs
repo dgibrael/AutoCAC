@@ -48,4 +48,6 @@ public partial class VwBillingRx
     public DateTime? Dob { get; set; }
 
     public int RxId { get; set; }
+
+    public string? Division { get; set; }
 }

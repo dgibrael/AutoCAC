@@ -80,6 +80,9 @@
                     <RadzenPanelMenuItem Text="Night Shift Rotation" Path="supervisor/inpatient/nightshiftrotation" />
                     <RadzenPanelMenuItem Text="Nurse Compound Training" Path="supervisor/inpatient/NurseCompoundTraining" />
                 </AuthPanelItem>
+                <AuthPanelItem Text="Fileman" Icon="data_table" Path="fileman" NavigateOnClick="false">
+                    <RadzenPanelMenuItem Text="Print Template Builder" Path="fileman/printtemplate" />
+                </AuthPanelItem>
                 <AuthPanelItem Text="Inpatient" Icon="inpatient" Path="inpatient" NavigateOnClick="false">
                     <RadzenPanelMenuItem Text="Medication Orders" Path="inpatient/medorder" />
                     <RadzenPanelMenuItem Text="ADT" Path="inpatient/adt" />
@@ -87,6 +90,10 @@
                 </AuthPanelItem>
                 <AuthPanelItem Text="Notes" Path="notes" Icon="notes" />
                 <RadzenPanelMenuItem Text="Order Dialogs" Path="/orderdialogs" Icon="action_key" />
+                <AuthPanelItem Text="Dashboards" Icon="dashboard" Path="dashboard" NavigateOnClick="false">
+                    <AuthPanelItem Text="Point of Sale" Path="dashboard/pos" />
+                    <AuthPanelItem Text="Vancomycin" Path="dashboard/vancomycin" />
+                </AuthPanelItem>
                 <AuthPanelItem Text="Menu Requests" Path="menubuild" Icon="dashboard" />
                 <AuthPanelItem Path="piverify" Icon="credit_card" Text="Private Insurance Verification"/>
                 <AuthPanelItem Path="billing/highcost" Icon="attach_money" Text="High Cost Report" />

@@ -72,6 +72,7 @@
     [Parameter] public bool DefaultAddButton { get; set; } = true;
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
+    [Parameter] public TItem InsertAfterItem { get; set; }
     TItem currentlyEditing = null;
     private async Task OnRowDoubleClick(DataGridRowMouseEventArgs<TItem> args)
     {
@@ -138,8 +139,14 @@
         }
         else
         {
-            // Normal path: existing rows, let Radzen handle insertion
-            await basegrid.Grid.InsertRow(newItem);
+            if (InsertAfterItem != null)
+            {
+                await basegrid.Grid.InsertAfterRow(newItem, InsertAfterItem);
+            }
+            else
+            {
+                await basegrid.Grid.InsertRow(newItem);
+            }
         }
     }
 

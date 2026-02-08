@@ -7,10 +7,11 @@
 @using Microsoft.Data.SqlClient
 @using Microsoft.EntityFrameworkCore
 <DataGridVanilla TItem="VwBillingRx" GridModel="GridModel">
-	<RadzenDataGridColumn TItem="VwBillingRx" Property="Id" Title="Transaction#" Width="150px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="PatientName" Title="Name" Width="200px" />
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="ChartNumber" Title="Chart#" Width="150px" />
 	<RadzenDataGridColumn TItem="VwBillingRx" Property="LastUpdate" Title="Last Update" Width="150px" />
-	<RadzenDataGridColumn TItem="VwBillingRx" Property="RxNum" Title="Rx/Fill#" Width="125px">
-		<Template Context="x">@($"{x.RxNum}/{x.FillNum}")</Template>
+	<RadzenDataGridColumn TItem="VwBillingRx" Property="RxId" Title="Rx/Fill#" Width="125px">
+		<Template Context="x">@($"{x.RxId}/{x.FillNum}")</Template>
 	</RadzenDataGridColumn>
 	<RadzenDataGridColumn TItem="VwBillingRx" Property="TotalBilled" Title="Billed" Width="125px" />
 	<RadzenDataGridColumn TItem="VwBillingRx" Property="TotalPaid" Title="Payable" Width="125px" />
@@ -25,10 +26,13 @@
 	{
 		QueryFactory = db => db.VwBillingRxes
 							.Where(x => x.FillDate >= DateTime.Now.AddDays(-365))
-							.Where(x => x.TotalPaid != null && x.TotalBilled != null && x.TotalPaid > 0)
+							.Where(x => x.TotalPaid != null && x.TotalBilled != null && x.TotalPaid > 700)
 							.Where(x => x.TotalBilled > x.TotalPaid)
+							.Where(x => x.Division == "CHINLE HOSP PHARMACY")
 							.Where(x => EF.Functions.Like(x.InsuranceType, "%medicaid%"))
-							.Where(x => !db.HighCostQues.Any(q => q.Id == x.Id)),
+							.Where(x => !db.HighCostQues.Any(q => q.Id == x.Id))
+							.OrderByDescending(x => x.LastUpdate)
+							,
 		UseClientSideData = true
 	}
 	;

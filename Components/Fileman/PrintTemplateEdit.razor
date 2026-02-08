@@ -1,0 +1,151 @@
+﻿@page "/fileman/printtemplate/{Id:int}"
+@inject IJSRuntime JS
+@using AutoCAC.Components.Templates.Buttons
+@using System.Text
+@using AutoCAC.Extensions
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+
+<DataGridEditable TItem="FilemanPrintTemplateItem" GridModel="GridModel" AddAction="Add" @ref="grid" InsertAfterItem="lastItem">
+    <ChildContent>
+        <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="DataType" Title="Data Type">
+            <EditTemplate Context="x">
+                <RadzenDropDown AllowClear="false" @bind-Value="@x.DataTypeEnum" Data="@(Enum.GetValues<DataTypeEnum>())" Change="@(() => x.DataTypeChange())" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="Field" Title="Field">
+            <EditTemplate Context="x">
+                <RadzenTextBox @bind-Value="@x.Field" Change="@(() => x.FieldChange())"/>
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="ColumnName" Title="DB Column Name">
+            <EditTemplate Context="x">
+                <RadzenTextBox @bind-Value="@x.ColumnName" Disabled="@x.NoColumnName" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="SortOrder" Title="Sort Order">
+            <EditTemplate Context="x">
+                <RadzenNumeric TValue="int" @bind-Value="@x.SortOrder" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+    </ChildContent>
+    <RowButtonsViewMode Context="x">
+        <RadzenButton Icon="add" Click="@(() => AddAfter(x))" />
+    </RowButtonsViewMode>
+</DataGridEditable>
+<CopyTextButton GetText="@GetAllStr" />
+@code {
+    [Parameter] public int Id { get; set; }
+    DataGridEditable<FilemanPrintTemplateItem> grid;
+    DataGridHelper<FilemanPrintTemplateItem> GridModel = new();
+    FilemanPrintTemplateItem lastItem;
+    FilemanPrintTemplateItem insertAfterItem;
+    protected override void OnInitialized()
+    {
+        GridModel.QueryFactory = db => db.FilemanPrintTemplateItems
+                            .Where(x => x.FilemanPrintTemplateId == Id)
+                            .OrderBy(x => x.SortOrder)
+                            ;
+    }
+    async Task<IEnumerable<FilemanPrintTemplateItem>> GetData()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        return await GridModel.QueryFactory(db).ToListAsync();
+    }
+    private async Task<string> GetAllStr()
+    {
+        var items = await GetData();
+        return string.Concat(items.Select(x => x.FullStr)) + "\"},\";X" + Environment.NewLine;
+    }
+    async Task AddAfter(FilemanPrintTemplateItem item)
+    {
+        lastItem = item;
+        insertAfterItem = item;
+        await grid.OnAddClick();
+    }
+    async Task MoveItems(int fromSortOrder)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var q = GridModel.QueryFactory(db);
+        q = q.Where(x => x.SortOrder >= fromSortOrder);
+        await q.ExecuteUpdateAsync(setters =>
+            setters.SetProperty(x => x.SortOrder, x => x.SortOrder + 1));
+        await GridModel.ReloadAsync();
+    }
+    async Task AddAndReload(FilemanPrintTemplateItem item)
+    {
+        item.FilemanPrintTemplateId = Id;
+        await MoveItems(item.SortOrder);
+        await DbFactory.AddItemAsync(item);
+        await GridModel.ReloadAsync();
+    }
+    async Task<FilemanPrintTemplateItem> Add()
+    {
+        FilemanPrintTemplateItem newItem = new()
+        {
+            FilemanPrintTemplateId = Id
+        };
+        var data = await GetData();
+        lastItem ??= data.LastOrDefault();
+        insertAfterItem = lastItem;
+        if (lastItem == null)
+        {
+            await DbFactory.AddItemAsync(new FilemanPrintTemplateItem
+            {
+                FilemanPrintTemplateId = Id,
+                SortOrder = 0,
+                DataTypeEnum = DataTypeEnum.CHARONLY,
+                Field = "{"
+            }
+            );
+            await GridModel.ReloadAsync();
+            newItem.SortOrder = 1;
+            newItem.DataTypeEnum = DataTypeEnum.STR;
+            newItem.Field = "NUMBER";
+            newItem.ColumnName = "id";
+            return newItem;
+        }
+        int nextSort = lastItem.SortOrder+1;
+        if (lastItem.DataTypeEnum == DataTypeEnum.SUBFILE)
+        {
+            await AddAndReload(new FilemanPrintTemplateItem
+                {
+                    DataTypeEnum = DataTypeEnum.CHARONLY,
+                    Field = "{",
+                    SortOrder = nextSort
+                }
+            );
+            nextSort += 1;
+            newItem.DataTypeEnum = DataTypeEnum.STR;
+        }
+        else if (lastItem.StandardField)
+        {
+            await AddAndReload(new FilemanPrintTemplateItem
+            {
+                DataTypeEnum = DataTypeEnum.CHARONLY,
+                Field = ",",
+                SortOrder = nextSort
+            }
+            );
+            nextSort += 1;
+            newItem.DataTypeEnum = DataTypeEnum.STR;
+        }          
+        else if (lastItem.DataTypeEnum == DataTypeEnum.POINTERPARENT)
+        {
+            newItem.DataTypeEnum = DataTypeEnum.POINTERCHILD;
+            newItem.Field = "NUMBER";
+        }
+        else if (lastItem.DataTypeEnum == DataTypeEnum.CHARONLY)
+        {
+            newItem.DataTypeEnum = DataTypeEnum.STR;
+        }
+        else
+        {
+            newItem.DataTypeEnum = DataTypeEnum.CHARONLY;
+        }
+        await MoveItems(nextSort);
+        newItem.SortOrder = nextSort;
+        lastItem = null;
+        return newItem;
+    }
+}
