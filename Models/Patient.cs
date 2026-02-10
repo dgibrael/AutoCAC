@@ -17,7 +17,7 @@ public partial class Patient
 
     public DateTime? Dob { get; set; }
 
-    public string? Age { get; set; }
+    public int? Age { get; set; }
 
     public string? Race { get; set; }
 
@@ -53,7 +53,11 @@ public partial class Patient
 
     public string? Last4 { get; set; }
 
+    public string? State { get; set; }
+
     public virtual ICollection<Adt> Adts { get; set; } = new List<Adt>();
+
+    public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();
 
     public virtual ICollection<PatientLink> PatientLinks { get; set; } = new List<PatientLink>();
 

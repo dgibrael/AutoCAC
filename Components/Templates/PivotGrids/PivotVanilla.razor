@@ -84,7 +84,8 @@
             GridModel.Initialize(
                 DbFactory,
                 UserContext.Username,
-                reloadAsync: () => InvokeAsync(() => Grid.FirstPage(true))
+                reloadAsync: () => InvokeAsync(() => Grid.FirstPage(true)),
+                notifyAsync: msg => InvokeAsync(() => NotificationService.Notify(msg))
             );
             await InvokeAsync(StateHasChanged);
             return;

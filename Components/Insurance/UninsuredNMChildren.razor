@@ -1,0 +1,21 @@
+﻿@page "/insurance/uninsurednmchildren"
+@using AutoCAC.Models
+<DataGridVanilla TItem="Patient" GridModel="GridModel">
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="ChartNumber" Title="ChartNumber" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Name" Title="Name" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Dob" Title="Dob" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="DateOfDeath" Title="DateOfDeath" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="ZipCode" Title="ZipCode" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Last4" Title="Last4" />
+</DataGridVanilla>
+
+@code{
+	DataGridHelper<Patient> GridModel = new()
+	{
+		QueryFactory = db => db.Patients
+						.Where(a =>
+							a.Dob >= DateTime.Today.AddYears(-18) &&
+							a.State == "NEW MEXICO" &&
+							!db.Insurances.Any(b => b.PatientId == a.Id))
+	};
+}

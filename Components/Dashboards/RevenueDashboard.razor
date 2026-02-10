@@ -1,0 +1,110 @@
+﻿@page "/dashboard/pos"
+@using AutoCAC.Components.Templates.CardLists
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Utilities
+<RadzenStack Orientation="Orientation.Horizontal">
+	<RadzenDatePicker ShowTime="false" @bind-Value="@startDate" Change="@(() => RefreshAsync())"/>
+	<span>to</span>
+	<RadzenDatePicker ShowTime="false" @bind-Value="@endDate" Change="@(() => RefreshAsync())" />
+</RadzenStack>
+
+<RadzenCard>
+	<h4>Key Performance Indicators</h4>
+	<LoadingContent LoadState="@(kpiData == null ? LoadStates.Loading : LoadStates.Loaded)">
+		<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Stretch" Wrap="FlexWrap.Wrap">
+			<RadzenCard><span>Total Revenue: </span><strong>@kpiData.Paid.ToString("C")</strong></RadzenCard>
+			<RadzenCard><span>Total Billed: </span><strong>@kpiData.Billed.ToString("C")</strong></RadzenCard>
+			<RadzenCard><span>Total Profit/Loss: </span><strong>@kpiData.Profit.ToString("C")</strong></RadzenCard>
+		</RadzenStack>
+	</LoadingContent>
+</RadzenCard>
+
+<DataGridVanilla TItem="VwBillingRx" GridModel="GridModelPos">
+	<HeaderContent><h4>Point of Sale Raw Data</h4></HeaderContent>
+</DataGridVanilla>
+
+@code{
+	private DateOnly startDate;
+	private DateOnly endDate;
+	private DateTime startDateTime => startDate.ToDateTime(TimeOnly.MinValue);
+	private DateTime endDateTime => endDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+	private bool _initialLoad = true;
+	private sealed class KpiDataDto
+	{		
+		public double Paid;
+		public double Billed;
+		public double Profit => Paid - Billed;
+	}
+	private DataGridHelper<VwBillingRx> GridModelPos = new()
+	{
+		UseClientSideData = true
+	}
+	;
+	protected override void OnInitialized()
+	{
+		(startDate, endDate) = DateRanges.LastQuarter();
+		GridModelPos.QueryFactory = db => db.VwBillingRxes
+								.OrderByDescending(x => x.LastUpdate)
+								.Where(x => x.LastUpdate >= startDateTime && x.LastUpdate < endDateTime);
+	}
+
+	CancellationTokenSource cts;
+
+	async Task RefreshAsync()
+	{
+		BatchLoader.ResetCts(ref cts);
+
+
+		await BatchLoader.RunAllAsync(
+			cts.Token,
+			LoadKpisAsync,
+			ReloadPosRaw
+		);
+
+		StateHasChanged();
+	}
+	private async Task ReloadPosRaw(CancellationToken token)
+	{
+		if (!_initialLoad)
+		{
+			await GridModelPos.ReloadAsync(token);
+		}
+	}
+	private KpiDataDto kpiData;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await RefreshAsync();
+			_initialLoad = false;
+		}
+	}
+	async Task LoadKpisAsync(CancellationToken token)
+	{
+		try
+		{
+			kpiData = null;
+			StateHasChanged();
+			await using var db = await DbFactory.CreateDbContextAsync();
+
+			kpiData = await db.VwBillingRxes
+				.Where(x => x.LastUpdate >= startDateTime && x.LastUpdate < endDateTime)
+				.GroupBy(_ => 1)
+				.Select(g => new KpiDataDto
+				{
+					Paid = g.Sum(a => a.TotalPaid) ?? 0,
+					Billed = g.Sum(a => a.TotalBilled) ?? 0
+				})
+				.SingleOrDefaultAsync(token);
+		}
+		catch (OperationCanceledException)
+		{
+			// expected during refresh; do nothing
+		}
+		finally
+		{
+			StateHasChanged();
+		}
+	}
+}

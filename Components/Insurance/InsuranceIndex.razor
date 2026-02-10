@@ -1,0 +1,20 @@
+﻿@page "/insurance/insured"
+@using AutoCAC.Models
+<DataGridVanilla TItem="Insurance" GridModel="GridModel">
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="PatientId" Title="PatientId" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceCompany" Title="InsuranceCompany" FilterMode="FilterMode.CheckBoxList" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceType" Title="InsuranceType" FilterMode="FilterMode.CheckBoxList" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="PolicyNumber" Title="PolicyNumber" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="GroupName" Title="GroupName" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="EffectiveDate" Title="EffectiveDate" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="ExpirationDate" Title="ExpirationDate" />
+</DataGridVanilla>
+
+@code{
+	DataGridHelper<Insurance> GridModel = new()
+	{
+		QueryFactory = db => db.Insurances
+							.Include(x => x.Patient)
+							.OrderBy(x => x.Patient.Name)
+	};
+}

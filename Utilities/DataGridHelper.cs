@@ -32,7 +32,8 @@ public sealed class DataGridHelper<T> where T : class
     private Func<Task> _reloadAsync;
     private bool _reloadPending;
 
-    public void Initialize(IDbContextFactory<mainContext> dbFactory, string username, Func<Task> reloadAsync)
+    Func<NotificationMessage, Task> _notifyAsync;
+    public void Initialize(IDbContextFactory<mainContext> dbFactory, string username, Func<Task> reloadAsync, Func<NotificationMessage, Task> notifyAsync)
     {
         // always refresh these (safe + predictable)
         _db = dbFactory;
@@ -45,7 +46,7 @@ public sealed class DataGridHelper<T> where T : class
             ShouldCount = true;
             IsInitialized = true;
         }
-
+        _notifyAsync = notifyAsync;
         // attach/replace reload handler (single-owner model)
         _reloadAsync = reloadAsync;
 
@@ -65,11 +66,21 @@ public sealed class DataGridHelper<T> where T : class
     public void Reload()
         => _ = ReloadAsync();
 
-    public Task ReloadAsync()
+    private CancellationTokenSource _loadCts;
+    private CancellationToken _currentLoadToken;
+    private int _loadVersion;
+    private int _activeVersion;
+    public Task ReloadAsync(CancellationToken ct = default)
     {
         ShouldCount = true;
         if (UseClientSideData)
             _cache = null;
+        _activeVersion = Interlocked.Increment(ref _loadVersion);
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _currentLoadToken = _loadCts.Token;
+
         if (_reloadAsync is null)
         {
             _reloadPending = true;
@@ -85,9 +96,21 @@ public sealed class DataGridHelper<T> where T : class
         {
             await _reloadAsync();
         }
-        catch
+        catch (OperationCanceledException)
         {
-            // swallow or log
+        }
+        catch (Exception ex)
+        {
+            if (_notifyAsync != null)
+            {
+                await _notifyAsync(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Error,
+                    Summary = "Reload failed",
+                    Detail = ex.Message,
+                    Duration = 4000
+                });
+            }
         }
     }
 
@@ -165,7 +188,11 @@ public sealed class DataGridHelper<T> where T : class
     // -------------------------
     // Query mutation API (caller changes QueryFactory, helper handles invalidation + reload)
     // -------------------------
-    public void SetQueryFactory(Func<mainContext, IQueryable<T>> queryFactory, bool clearClientCache = true, bool requestReload = true)
+    public async Task SetQueryFactoryAsync(
+        Func<mainContext, IQueryable<T>> queryFactory,
+        bool clearClientCache = true,
+        bool requestReload = true,
+        CancellationToken ct = default)
     {
         QueryFactory = queryFactory;
 
@@ -179,7 +206,7 @@ public sealed class DataGridHelper<T> where T : class
             _cache = null;
 
         if (requestReload)
-            Reload();
+            await ReloadAsync(ct);
     }
 
     public async Task SetQuickFilterAsync(string text = null)
@@ -195,57 +222,89 @@ public sealed class DataGridHelper<T> where T : class
     {
         EnsureInitialized();
 
-        if (UseClientSideData)
+        if (ct == default && _currentLoadToken != default)
+            ct = _currentLoadToken;
+
+        var versionAtStart = _activeVersion;
+
+        try
         {
-            await LoadClientSideAsync(args, ct);
-            return;
-        }
+            if (UseClientSideData)
+            {
+                await LoadClientSideAsync(args, ct);
+                return;
+            }
 
-        await using var ctx = await _db.CreateDbContextAsync(ct);
+            await using var ctx = await _db.CreateDbContextAsync(ct);
 
-        var source = QueryFactory ?? DefaultQuery;
-        IQueryable<T> query = source(ctx).AsNoTracking();
+            var source = QueryFactory ?? DefaultQuery;
+            IQueryable<T> query = source(ctx).AsNoTracking();
 
-        if (!string.IsNullOrEmpty(args.Filter) &&
-            !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
-        {
-            query = query.Where(args.Filter);
-        }
-
-        if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
-            query = query.QuickSearch(SearchText, SearchColumns);
-
-        ShouldCount ??= _lastFilter != args.Filter || _lastSearchText != SearchText;
-        if (ShouldCount.Value)
-        {
-            Count = await query.CountAsync(ct);
-            _lastFilter = args.Filter;
-            _lastSearchText = SearchText;
-        }
-
-        if (!string.IsNullOrEmpty(args.OrderBy))
-            query = query.OrderBy(_config, args.OrderBy);
-
-        if (args.Skip.HasValue) query = query.Skip(args.Skip.Value);
-        if (args.Top.HasValue) query = query.Take(args.Top.Value);
-
-        Data = await query.ToListAsync(ct);
-
-        LastBuilder = c =>
-        {
-            var q = (QueryFactory ?? DefaultQuery)(c).AsNoTracking();
+            if (!string.IsNullOrEmpty(args.Filter) &&
+                !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(args.Filter);
+            }
 
             if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
-                q = q.QuickSearch(SearchText, SearchColumns);
+                query = query.QuickSearch(SearchText, SearchColumns);
 
-            if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
-                q = q.Where(args.Filter);
+            ShouldCount ??= _lastFilter != args.Filter || _lastSearchText != SearchText;
+            if (ShouldCount == true)
+            {
+                var newCount = await query.CountAsync(ct);
 
-            return q;
-        };
+                // stale? drop it
+                if (versionAtStart == _activeVersion)
+                {
+                    Count = newCount;
+                    _lastFilter = args.Filter;
+                    _lastSearchText = SearchText;
+                }
+                else
+                {
+                    return; // ok to return here because we're in try/finally below
+                }
+            }
 
-        ShouldCount = null;
+            if (!string.IsNullOrEmpty(args.OrderBy))
+                query = query.OrderBy(_config, args.OrderBy);
+
+            if (args.Skip.HasValue) query = query.Skip(args.Skip.Value);
+            if (args.Top.HasValue) query = query.Take(args.Top.Value);
+
+            var list = await query.ToListAsync(ct);
+
+            if (versionAtStart == _activeVersion)
+            {
+                Data = list;
+
+                LastBuilder = c =>
+                {
+                    var q = (QueryFactory ?? DefaultQuery)(c).AsNoTracking();
+
+                    if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
+                        q = q.QuickSearch(SearchText, SearchColumns);
+
+                    if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
+                        q = q.Where(args.Filter);
+
+                    return q;
+                };
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
+        finally
+        {
+            // Always clear this so future loads recompute correctly.
+            // (If you want to keep it non-null on cancellation, you can, but current code clears it.)
+            ShouldCount = null;
+        }
     }
+
 
     public async Task LoadColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
     {

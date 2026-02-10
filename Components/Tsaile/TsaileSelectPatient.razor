@@ -1,6 +1,11 @@
 ﻿@using AutoCAC.Components.Templates.DataGrids
 
-<DataGridDialog TItem="AutoCAC.Models.TsailePatient" GridModel="GridModel" />
+<DataGridDialog TItem="AutoCAC.Models.TsailePatient" GridModel="GridModel">
+    <EmptyTemplate>
+        <p><strong>If this is a new patient, go to "^TSAILE PATIENT SCHEDULED" in RPMS and press Enter at the "Requested Time To Print: NOW//" prompt.</strong></p>
+        <strong>It will take about 1 to 2 minutes to update the patient list.</strong>
+    </EmptyTemplate>
+</DataGridDialog>
 
 @code{
     private DataGridHelper<AutoCAC.Models.TsailePatient> GridModel = new()

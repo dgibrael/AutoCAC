@@ -14,6 +14,7 @@
                  LeadingColumns="LeadingColumns"
                  TrailingColumns="TrailingColumns"
                  ChildContent="ChildContent"
+                 EmptyTemplate="@EmptyTemplate"
                  />
 <CancelDialogButton />
 
@@ -25,5 +26,6 @@
     [Parameter] public RenderFragment<TItem> ExpandContentBoth { get; set; }
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
+    [Parameter] public RenderFragment EmptyTemplate { get; set; }
     public void OnSelect(TItem selected) => DialogService.Close(selected);
 }

@@ -37,6 +37,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<InpatientMedOrder> InpatientMedOrders { get; set; }
 
+    public virtual DbSet<Insurance> Insurances { get; set; }
+
     public virtual DbSet<LookupValue> LookupValues { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
@@ -415,6 +417,32 @@ public partial class mainContext : DbContext
             entity.Property(e => e.VerifyingPharmacist).IsUnicode(false);
         });
 
+        modelBuilder.Entity<Insurance>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Insuranc__3214EC072F1891EB");
+
+            entity.ToTable("Insurance");
+
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.GroupName)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.InsuranceCompany)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.InsuranceType)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.PolicyNumber)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Insurances)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Insurance_PatientId");
+        });
+
         modelBuilder.Entity<LookupValue>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__LookupVa__3213E83F0BDFEBE5");
@@ -580,7 +608,6 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
                 .HasColumnName("id");
-            entity.Property(e => e.Age).IsUnicode(false);
             entity.Property(e => e.AttendingPhysician).IsUnicode(false);
             entity.Property(e => e.CellNumber).IsUnicode(false);
             entity.Property(e => e.ChartNumber).IsUnicode(false);
@@ -602,6 +629,9 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Remarks).IsUnicode(false);
             entity.Property(e => e.RoomBed).IsUnicode(false);
             entity.Property(e => e.Sex).IsUnicode(false);
+            entity.Property(e => e.State)
+                .HasMaxLength(250)
+                .IsUnicode(false);
             entity.Property(e => e.Veteran).IsUnicode(false);
             entity.Property(e => e.WardLocation).IsUnicode(false);
             entity.Property(e => e.WorkPhone).IsUnicode(false);

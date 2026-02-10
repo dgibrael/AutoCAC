@@ -46,7 +46,7 @@
         @if (GridModel?.SearchColumns != null)
         {
             <RadzenColumn Size="4">
-                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="GridModel.ReloadAsync" />
+                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync()" />
             </RadzenColumn>
         }
     </RadzenStack>
@@ -201,7 +201,8 @@
         GridModel.Initialize(
             DbFactory,
             UserContext.Username,
-            reloadAsync: () => InvokeAsync(() => Grid.Reload())
+            reloadAsync: () => InvokeAsync(Grid.Reload),
+            notifyAsync: msg => InvokeAsync(() => NotificationService.Notify(msg))
         );
 
         StateHasChanged();
@@ -213,12 +214,22 @@
         GridModel?.DetachReloadHandler();
     }
 
+    private long _loadVersion;
+
     public async Task LoadData(LoadDataArgs args)
     {
+        var myVersion = Interlocked.Increment(ref _loadVersion);
+
         IsLoading = true;
+        StateHasChanged();
+
         try
         {
             await GridModel.LoadAsync(args);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected if you cancel loads
         }
         catch (Exception ex)
         {
@@ -226,8 +237,12 @@
         }
         finally
         {
-            IsLoading = false;
-            StateHasChanged();
+            // Only the newest load is allowed to clear the spinner
+            if (myVersion == Volatile.Read(ref _loadVersion))
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
         }
     }
 
