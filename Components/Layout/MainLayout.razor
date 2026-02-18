@@ -49,7 +49,7 @@
     <RadzenBody Expanded="@sidebarExpanded" id="mainContent">
         <RadzenRow class="rz-mx-auto content-container">
             <RadzenColumn Size="12">
-                <LoadingContent LoadState="@(_canAccess is null ? LoadStates.Loading : LoadStates.Loaded)">
+                <LoadingContent LoadState="@(_canAccess is null ? LoadingState.Loading : LoadingState.Loaded)">
                     @if(_canAccess == true)
                     {
                         @Body

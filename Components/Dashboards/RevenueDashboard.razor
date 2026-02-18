@@ -3,75 +3,99 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @using AutoCAC.Utilities
-<RadzenStack Orientation="Orientation.Horizontal">
-	<RadzenDatePicker ShowTime="false" @bind-Value="@startDate" Change="@(() => RefreshAsync())"/>
-	<span>to</span>
-	<RadzenDatePicker ShowTime="false" @bind-Value="@endDate" Change="@(() => RefreshAsync())" />
-</RadzenStack>
+@inject NotificationService Notifications
+
+<EnumDropdown TEnum="PeriodOption" @bind-Value="@selectedPeriod.SelectedOption" Change="@RefreshAsync"/>
 
 <RadzenCard>
 	<h4>Key Performance Indicators</h4>
-	<LoadingContent LoadState="@(kpiData == null ? LoadStates.Loading : LoadStates.Loaded)">
+	<LoadingContent LoadState="@kpiLoadState">
 		<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Stretch" Wrap="FlexWrap.Wrap">
-			<RadzenCard><span>Total Revenue: </span><strong>@kpiData.Paid.ToString("C")</strong></RadzenCard>
-			<RadzenCard><span>Total Billed: </span><strong>@kpiData.Billed.ToString("C")</strong></RadzenCard>
-			<RadzenCard><span>Total Profit/Loss: </span><strong>@kpiData.Profit.ToString("C")</strong></RadzenCard>
+			<RadzenCard><span>Total Revenue: </span><strong>@kpiData.Current.Paid.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			<RadzenCard><span>Total Cost: </span><strong>@kpiData.Current.Cost.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			<RadzenCard><span>Total Profit/Loss: </span><strong>@kpiData.Current.Profit.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			@if(kpiData.MissingData)
+			{
+				<RadzenCard><span>Comparison data not available for this time period</span></RadzenCard>
+			}
+			else
+			{				
+				<RadzenCard>
+					<span>@kpiData.ProfitMsg</span><strong 
+						class="@(HelperMethods.ConditionalTextCss(kpiData.DiffProfit < 0, kpiData.DiffProfit > 0))"
+					>@kpiData.DiffProfit.ToString("$#,0.00;$#,0.00;$0.00")</strong>
+				</RadzenCard>
+			}
 		</RadzenStack>
 	</LoadingContent>
 </RadzenCard>
 
-<DataGridVanilla TItem="VwBillingRx" GridModel="GridModelPos">
-	<HeaderContent><h4>Point of Sale Raw Data</h4></HeaderContent>
-</DataGridVanilla>
-
-@code{
-	private DateOnly startDate;
-	private DateOnly endDate;
-	private DateTime startDateTime => startDate.ToDateTime(TimeOnly.MinValue);
-	private DateTime endDateTime => endDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+@code {
+	LoadingState kpiLoadState = LoadingState.Loading;
+	PeriodSelection selectedPeriod = new(PeriodOption.LastQuarter);
 	private bool _initialLoad = true;
-	private sealed class KpiDataDto
-	{		
+	private sealed class KpiRowDto
+	{
+		// True = current, False = compare, null = neither/other (if you ever allow it)
+		public bool? CurrentData;
+
+		public int Transactions;
 		public double Paid;
+		public double Cost;
 		public double Billed;
-		public double Profit => Paid - Billed;
+		public double Profit => Paid - Cost;
 	}
-	private DataGridHelper<VwBillingRx> GridModelPos = new()
+	private sealed class KpiData
 	{
-		UseClientSideData = true
+		public KpiRowDto Current = null;
+		public KpiRowDto Last = null;
+		public bool MissingData => Current == null || Last == null;
+		public double DiffPaid => MissingData ? 0 : Current.Paid - Last.Paid;
+		public double DiffCost => MissingData ? 0 : Current.Cost - Last.Cost;
+		public double DiffProfit => MissingData ? 0 : Current.Profit - Last.Profit;
+		public bool? ProfitIncreased => MissingData || DiffProfit == 0 ? null : DiffProfit > 0;
+		public string ProfitMsg => ProfitIncreased switch
+		{
+			true => "Profit INCREASED since last period by: ",
+			false => "Profit DECREASED since last period by: ",
+			null => "No change in profit since last period. "
+		};
 	}
-	;
-	protected override void OnInitialized()
-	{
-		(startDate, endDate) = DateRanges.LastQuarter();
-		GridModelPos.QueryFactory = db => db.VwBillingRxes
-								.OrderByDescending(x => x.LastUpdate)
-								.Where(x => x.LastUpdate >= startDateTime && x.LastUpdate < endDateTime);
-	}
-
+	private KpiData kpiData = new();
 	CancellationTokenSource cts;
-
 	async Task RefreshAsync()
 	{
 		BatchLoader.ResetCts(ref cts);
-
-
 		await BatchLoader.RunAllAsync(
 			cts.Token,
 			LoadKpisAsync,
-			ReloadPosRaw
+			ReloadRejectChart
 		);
 
 		StateHasChanged();
 	}
-	private async Task ReloadPosRaw(CancellationToken token)
+	private async Task ReloadRejectChart(CancellationToken token)
 	{
 		if (!_initialLoad)
 		{
-			await GridModelPos.ReloadAsync(token);
+			try
+			{
+
+			}
+			catch (OperationCanceledException)
+			{
+				// expected during refresh; do nothing
+			}
+			catch (Exception ex)
+			{
+				Notifications.Error(ex);
+			}
+			finally
+			{
+				StateHasChanged();
+			}
 		}
 	}
-	private KpiDataDto kpiData;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -84,23 +108,49 @@
 	{
 		try
 		{
-			kpiData = null;
+			kpiData = new();
+			kpiLoadState = LoadingState.Loading;
 			StateHasChanged();
 			await using var db = await DbFactory.CreateDbContextAsync();
 
-			kpiData = await db.VwBillingRxes
-				.Where(x => x.LastUpdate >= startDateTime && x.LastUpdate < endDateTime)
-				.GroupBy(_ => 1)
-				.Select(g => new KpiDataDto
+			var curStart = selectedPeriod.CurrentStart;
+			var curEnd = selectedPeriod.CurrentEnd;
+			var cmpStart = selectedPeriod.CompareStart;
+			var cmpEnd = selectedPeriod.CompareEnd;
+
+			var kpiRows = await db.VwBillingRxes
+				.Where(x =>
+					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ||
+					(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd))
+				.GroupBy(x =>
+					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ? (bool?)true :
+					(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd) ? (bool?)false :
+					(bool?)null)
+				.Select(g => new KpiRowDto
 				{
+					CurrentData = g.Key,
+					Transactions = g.Count(),
 					Paid = g.Sum(a => a.TotalPaid) ?? 0,
+					Cost = g.Sum(a => a.Cost) ?? 0,
 					Billed = g.Sum(a => a.TotalBilled) ?? 0
 				})
-				.SingleOrDefaultAsync(token);
+				.Where(x => x.CurrentData != null)      // safe even if not needed today
+				.OrderByDescending(x => x.CurrentData)  // True first, then False
+				.ToListAsync(token);
+			kpiData.Current = kpiRows?.FirstOrDefault(x => x.CurrentData == true);
+			kpiData.Last = kpiRows?.FirstOrDefault(x => x.CurrentData == false);
+			kpiLoadState = LoadingState.Loaded;
+
 		}
 		catch (OperationCanceledException)
 		{
 			// expected during refresh; do nothing
+			kpiLoadState = LoadingState.Loaded;
+		}
+		catch (Exception ex)
+		{
+			kpiLoadState = LoadingState.Error;
+			Notifications.Error(ex);
 		}
 		finally
 		{

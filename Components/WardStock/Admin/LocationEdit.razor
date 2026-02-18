@@ -6,7 +6,7 @@
 @inject NavigationManager Nav
 @inject DialogService DialogService
 <BackLink />
-<LoadingContent LoadState="@(!pageLoaded ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
 	<RadzenTemplateForm TItem="WardstockLocation" Data="@pageItem" Submit="@OnSubmit">
 		<VanillaFormField Label="Location Name">
 			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="!metaEdit" />

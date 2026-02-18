@@ -78,7 +78,7 @@
 	private IDisposable _unlockSubscription;
 	private bool _promptOpen;
 	DateTime _initialLock;
-	LoadStates LoadState = LoadStates.Loading;
+	LoadingState LoadState = LoadingState.Loading;
 	void CallNow(TsaileBetterq row)
 	{
 		row.CalledDateTime = DateTime.Now;
@@ -92,7 +92,7 @@
 			await LoadItem();
 			if (item == null)
 			{
-				LoadState = LoadStates.NotFound;
+				LoadState = LoadingState.NotFound;
 				StateHasChanged();
 				return;
 			}
@@ -115,7 +115,7 @@
 			_initialLock = await item.LockAsync(DbFactory, _userId);
 			_unlockSubscription = UnlockService.Subscribe(Id, OnUnlockMessageAsync);
 			_lockedByMe = true;
-			LoadState = LoadStates.Loaded;
+			LoadState = LoadingState.Loaded;
 			StateHasChanged();
 		}
 	}

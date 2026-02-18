@@ -12,7 +12,7 @@
 @using AutoCAC.Components.Templates.Buttons
 
 <a href="javascript:history.back()">Back</a>
-<LoadingContent LoadState="@(!pageLoaded ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
 	@if(UserType == UserTypes.unauthorized)
 	{
 		<span>You are not authorized to view this page</span>

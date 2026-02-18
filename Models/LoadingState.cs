@@ -1,6 +1,6 @@
 ﻿namespace AutoCAC.Models;
 
-public enum LoadStates
+public enum LoadingState
 {
     Loading,
     Loaded,

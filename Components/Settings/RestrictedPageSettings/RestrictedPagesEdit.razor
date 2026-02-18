@@ -6,7 +6,7 @@
 @inject NavigationManager Nav
 @inject NotificationService NotificationService
 
-<LoadingContent LoadState="@(!pageLoaded ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
 	<RadzenTemplateForm TItem="RestrictedPage" Data="@restrictedPage" Submit="@OnSubmit">
 		<TextFieldWithValidator Name="RelativeUrl"
 								Label="Relative URL"

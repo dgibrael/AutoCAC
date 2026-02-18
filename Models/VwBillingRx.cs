@@ -19,6 +19,8 @@ public partial class VwBillingRx
 
     public double? TotalBilled { get; set; }
 
+    public double? Cost { get; set; }
+
     public double? TotalPaid { get; set; }
 
     public string? Paper { get; set; }
@@ -47,7 +49,7 @@ public partial class VwBillingRx
 
     public DateTime? Dob { get; set; }
 
-    public int RxId { get; set; }
-
     public string? Division { get; set; }
+
+    public int RxId { get; set; }
 }

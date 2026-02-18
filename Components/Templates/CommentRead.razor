@@ -1,7 +1,7 @@
 ﻿@using AutoCAC.Models
 @using AutoCAC.Components.Templates
 
-<LoadingContent LoadState="@(isLoading ? LoadStates.Loading: LoadStates.Loaded)">
+<LoadingContent LoadState="@(isLoading ? LoadingState.Loading: LoadingState.Loaded)">
     @if(comments == null || !comments.Any())
     {
         <span>None</span>

@@ -8,7 +8,7 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 
-<LoadingContent LoadState="@(GridModel is null ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(GridModel is null ? LoadingState.Loading : LoadingState.Loaded)">
     <RadzenSplitButton Text="Save Template" Icon="save"
                        Click="@(item => SaveGridSettingsClick(item))"
                        ButtonStyle="ButtonStyle.Base">

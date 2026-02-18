@@ -42,8 +42,7 @@
 	[Parameter] public int Id { get; set; }
 	private TsailePatient item { get; set; }
 	private int _userId { get; set; } = 0;
-	private string _notFoundMsg;
-	LoadStates LoadState = LoadStates.Loading;
+	LoadingState LoadState = LoadingState.Loading;
 	private DataGridHelper<TsaileBetterq> GridModel = new()
 	{
 		DataGridName = "TsaileBetterqPatientTicket"
@@ -56,12 +55,12 @@
 			await LoadItem();
 			if (item == null)
 			{
-				LoadState = LoadStates.NotFound;
+				LoadState = LoadingState.NotFound;
 				StateHasChanged();
 				return;
 			}
 			_userId = UserContext.UserProfile.Id;
-			LoadState = LoadStates.Loaded;
+			LoadState = LoadingState.Loaded;
 			StateHasChanged();
 		}
 	}

@@ -42,7 +42,7 @@
 	private TsailePatient selectedPatient { get; set; }
 	private string initialComment { get; set; }
 	private IReadOnlyList<string> _batchChoices;
-	private LoadStates LoadState = LoadStates.Loading;
+	private LoadingState LoadState = LoadingState.Loading;
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -52,7 +52,7 @@
 	}
 	private async Task SelectPatient()
 	{
-		LoadState = LoadStates.Loading;
+		LoadState = LoadingState.Loading;
 		await using var db = await DbFactory.CreateDbContextAsync();
 		selectedPatient = await db.TsailePatients
 							.Include(x => x.TsaileBetterqs)
@@ -60,7 +60,7 @@
 							;
 		if (selectedPatient?.Id == null || selectedPatient.Id == 0)
 		{
-			LoadState = LoadStates.NotFound;
+			LoadState = LoadingState.NotFound;
 			StateHasChanged();
 			return;
 		}
@@ -83,7 +83,7 @@
 		}
 		_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 		item.PatientId = Id;
-		LoadState = LoadStates.Loaded;
+		LoadState = LoadingState.Loaded;
 		StateHasChanged();
 	}
 	private async Task OnSubmit()

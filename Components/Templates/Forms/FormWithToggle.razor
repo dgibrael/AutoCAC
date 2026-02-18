@@ -3,7 +3,7 @@
 @inject NotificationService Notifications
 @inject IDbContextFactory<mainContext> DbFactory
 
-<LoadingContent LoadState="@(isLoading ? LoadStates.Loading: LoadStates.Loaded)">
+<LoadingContent LoadState="@(isLoading ? LoadingState.Loading: LoadingState.Loaded)">
     <RadzenTemplateForm TItem="TItem"
                         Data="@data"
                         Submit="@OnSubmitInternal">

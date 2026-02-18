@@ -3,7 +3,7 @@
 @using AutoCAC.Components.Templates.Forms
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
-<LoadingContent LoadState="@(!pageLoaded ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
 	<RadzenTemplateForm TItem="AuthUser" Data="@user" Submit="@OnSubmit">
 		<RadzenPickList @bind-Source="@(unSelectedLocations)" @bind-Target="@(selectedLocations)" TextProperty="LocationName"
 						Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true">

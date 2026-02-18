@@ -908,6 +908,9 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Remarks).IsUnicode(false);
             entity.Property(e => e.RoomBed).IsUnicode(false);
             entity.Property(e => e.Sex).IsUnicode(false);
+            entity.Property(e => e.State)
+                .HasMaxLength(250)
+                .IsUnicode(false);
             entity.Property(e => e.Veteran).IsUnicode(false);
             entity.Property(e => e.WardLocation).IsUnicode(false);
             entity.Property(e => e.WorkPhone).IsUnicode(false);

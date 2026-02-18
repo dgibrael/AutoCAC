@@ -18,7 +18,7 @@
 @using System.Reflection
 @using AutoCAC.Components.Templates
 
-<LoadingContent LoadState="@(GridModel?.IsInitialized != true ? LoadStates.Loading : LoadStates.Loaded)">
+<LoadingContent LoadState="@(GridModel?.IsInitialized != true ? LoadingState.Loading : LoadingState.Loaded)">
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start"
     Wrap="FlexWrap.Wrap">
         @HeaderContent
