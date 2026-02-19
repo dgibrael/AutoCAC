@@ -63,5 +63,11 @@ public partial class Patient
 
     public virtual ICollection<PiVerification> PiVerifications { get; set; } = new List<PiVerification>();
 
+    public virtual ICollection<RxFill> RxFills { get; set; } = new List<RxFill>();
+
+    public virtual ICollection<Rx> Rxes { get; set; } = new List<Rx>();
+
     public virtual ICollection<Tiu> Tius { get; set; } = new List<Tiu>();
+
+    public virtual ICollection<Visit> Visits { get; set; } = new List<Visit>();
 }

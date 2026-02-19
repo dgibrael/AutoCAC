@@ -28,7 +28,7 @@
 		}
 
 		<h2>@item?.BatchTo</h2>
-		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber})")</h3>
+		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber}, DOB: {item?.Patient?.Dob})")</h3>
 		@if (item?.ControlledSubstance == true)
 		{
 			<h5 class="rz-color-warning">Order Has Controlled Substances</h5>
@@ -206,7 +206,7 @@
 			Disabled = () => item?.Status == TsaileTicketStatus.Complete.ToString(),
 			Action = async () =>
 			{
-				await DbFactory.AdvanceStatusAndSaveAsync(item.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+				await DbFactory.AdvanceStatusAndSaveAsync(item.Id, _userId);
 				Notifications.Success("Successfully saved ticket");
 				Nav.NavigateToWithExistingQry("/tsaile/");
 			}
@@ -220,7 +220,7 @@
 			Disabled = () => item?.Status == TsaileTicketStatus.Screening.ToString(),
 			Action = async () =>
 			{
-				await DbFactory.ReverseStatusAndSaveAsync(item.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+				await DbFactory.ReverseStatusAndSaveAsync(item.Id, _userId);
 				await LoadItem();
 				Notifications.Success($"Status updated to {item?.Status}");
 				StateHasChanged();

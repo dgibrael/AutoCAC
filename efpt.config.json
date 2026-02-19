@@ -123,6 +123,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Rx]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[RxFill]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[TIU]",
          "ObjectType": 0
       },
@@ -144,6 +152,10 @@
       },
       {
          "Name": "[dbo].[TsailePatient]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Visit]",
          "ObjectType": 0
       },
       {

@@ -1,21 +1,58 @@
 ﻿@page "/insurance/uninsurednmchildren"
 @using AutoCAC.Models
-<DataGridVanilla TItem="Patient" GridModel="GridModel">
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="ChartNumber" Title="ChartNumber" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Name" Title="Name" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Dob" Title="Dob" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="DateOfDeath" Title="DateOfDeath" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="ZipCode" Title="ZipCode" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Patient" Property="Last4" Title="Last4" />
+
+<EnumDropdown TEnum="PeriodOption" @bind-Value="@selectedPeriod.SelectedOption" Change="@(() => GridModel.ReloadAsync())" />
+<DataGridVanilla TItem="UninsuredNmChildDto" GridModel="GridModel">
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="ChartNumber" Title="ChartNumber" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="Name" Title="Name" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="Dob" Title="Dob" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="RxFills" Title="Rx Fills" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="Visits" Title="Visits" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="Last4" Title="Last4" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="ZipCode" Title="ZipCode" />
+	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="DateOfDeath" Title="DateOfDeath" />
 </DataGridVanilla>
 
 @code{
-	DataGridHelper<Patient> GridModel = new()
+	PeriodSelection selectedPeriod = new(PeriodOption.Past365Days);
+	public sealed class UninsuredNmChildDto
 	{
-		QueryFactory = db => db.Patients
+		public int Id { get; set; }
+		public string ChartNumber { get; set; } = "";
+		public string Name { get; set; } = "";
+		public DateTime? Dob { get; set; }
+		public DateTime? DateOfDeath { get; set; }
+		public string ZipCode { get; set; }
+		public string Last4 { get; set; }
+		public int RxFills { get; set; }
+		public int Visits { get; set; }
+	}
+
+	DataGridHelper<UninsuredNmChildDto> GridModel = new();
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db =>
+		{
+			var start = selectedPeriod.CurrentStart;
+			var end = selectedPeriod.CurrentEnd;
+			return db.Patients
 						.Where(a =>
 							a.Dob >= DateTime.Today.AddYears(-18) &&
 							a.State == "NEW MEXICO" &&
 							!db.Insurances.Any(b => b.PatientId == a.Id))
-	};
+						.Select(p => new UninsuredNmChildDto
+							{
+								Id = p.Id,
+								ChartNumber = p.ChartNumber,
+								Name = p.Name,
+								Dob = p.Dob,
+								DateOfDeath = p.DateOfDeath,
+								ZipCode = p.ZipCode,
+								Last4 = p.Last4,
+
+								RxFills = p.RxFills.Count(f => f.ReleasedDateTime >= start && f.ReleasedDateTime < end),
+								Visits = p.Visits.Count(v => v.VisitAdmitDateTime >= start && v.VisitAdmitDateTime < end)
+							});
+		};
+	}
 }

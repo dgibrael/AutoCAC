@@ -1,0 +1,21 @@
+﻿
+<RadzenColumn Size="4">
+	<RadzenChart Style="max-width: 100%;">
+		<RadzenPieSeries Data="data" ValueProperty="Cost" CategoryProperty="Name" Title="My test chart"/>
+	</RadzenChart>
+</RadzenColumn>
+
+@code {
+	public sealed class ChartTestDto
+	{
+		public double Cost { get; set; }
+		public string Name { get; set; }
+	}
+	private IEnumerable<ChartTestDto> data = new List<ChartTestDto>
+	{
+		new() { Cost=1000, Name="a" },
+		new() { Cost=1000, Name="b" },
+		new() { Cost=2000, Name="c" },
+		new() { Cost=5000, Name="d" },
+	};
+}

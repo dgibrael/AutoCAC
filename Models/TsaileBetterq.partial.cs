@@ -49,10 +49,23 @@ public partial class TsaileBetterq
 {
     public TsaileTicketStatus StatusEnum =>
         Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
-    public TsaileTicketStatus NextStatusEnum =>
-        StatusEnum.NextStatus();
-    public TsaileTicketStatus PreviousStatusEnum =>
-        StatusEnum.PreviousStatus();
+    public TsaileTicketStatus NextStatusEnum
+    {
+        get
+        {
+            if (StatusEnum == TsaileTicketStatus.Verifying && !Waiting) return TsaileTicketStatus.Complete;
+            return StatusEnum.NextStatus();
+        }
+    }
+
+    public TsaileTicketStatus PreviousStatusEnum
+    {
+        get
+        {
+            if (StatusEnum == TsaileTicketStatus.Complete && !Waiting) return TsaileTicketStatus.Verifying;
+            return StatusEnum.PreviousStatus();
+        }
+    }
     public bool IsLocked => LockedDateTime > DateTime.Now.AddMinutes(-10);
     public async Task UpdateStatusAsync(
         IDbContextFactory<mainContext> dbFactory,

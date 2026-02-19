@@ -63,20 +63,11 @@ namespace AutoCAC.Extensions.Tsaile
             this IDbContextFactory<mainContext> dbFactory,
             long ticketId,
             int userId,
-            IReadOnlyList<string> skipVerify,
             CancellationToken ct = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
             var nextStatus = ticket.NextStatusEnum;
-            if (ticket.StatusEnum == TsaileTicketStatus.Verifying)
-            {
-                var skipStep = skipVerify.FirstOrDefault(x => ticket.BatchTo == x);
-                if (skipStep != null)
-                {
-                    nextStatus = nextStatus.NextStatus();
-                }
-            }
             return await db.UpdateStatusAsync(ticket, nextStatus.ToString(), userId, ct);
         }
 
@@ -84,20 +75,11 @@ namespace AutoCAC.Extensions.Tsaile
             this IDbContextFactory<mainContext> dbFactory,
             long ticketId,
             int userId,
-            IReadOnlyList<string> skipVerify,
             CancellationToken ct = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(ct);
             var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketId);
             var prevStatus = ticket.PreviousStatusEnum;
-            if (ticket.StatusEnum == TsaileTicketStatus.Complete)
-            {
-                var skipStep = skipVerify.FirstOrDefault(x => ticket.BatchTo == x);
-                if (skipStep != null)
-                {
-                    prevStatus = prevStatus.PreviousStatus();
-                }
-            }
             return await db.UpdateStatusAsync(ticket, prevStatus.ToString(), userId, ct);        
         }
 

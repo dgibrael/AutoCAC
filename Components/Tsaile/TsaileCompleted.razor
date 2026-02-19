@@ -72,7 +72,7 @@
             Disabled = () => row.Status == TsaileTicketStatus.ReadyForPickup.ToString(),
             Action = async () =>
             {
-                await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+                await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId);
                 NotificationService.Success($"Status updated to {row.Status}");
                 await GridModel.ReloadAsync();
             }

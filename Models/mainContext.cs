@@ -69,6 +69,10 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<RestrictedPageGroup> RestrictedPageGroups { get; set; }
 
+    public virtual DbSet<Rx> Rxes { get; set; }
+
+    public virtual DbSet<RxFill> RxFills { get; set; }
+
     public virtual DbSet<Tiu> Tius { get; set; }
 
     public virtual DbSet<TsaileActivitylog> TsaileActivitylogs { get; set; }
@@ -80,6 +84,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<TsailePatient> TsailePatients { get; set; }
 
     public virtual DbSet<TsailePatientcomment> TsailePatientcomments { get; set; }
+
+    public virtual DbSet<Visit> Visits { get; set; }
 
     public virtual DbSet<VwBillingRx> VwBillingRxes { get; set; }
 
@@ -768,6 +774,95 @@ public partial class mainContext : DbContext
                 .HasConstraintName("FK_RestrictedPageGroup_RestrictedPage");
         });
 
+        modelBuilder.Entity<Rx>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Rx__3213E83FA01251EE");
+
+            entity.ToTable("Rx", tb => tb.HasTrigger("tr_Rx_RxFill"));
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.CancelDate).HasColumnType("datetime");
+            entity.Property(e => e.Clinic).IsUnicode(false);
+            entity.Property(e => e.CsHardcopy).IsUnicode(false);
+            entity.Property(e => e.DaysSupply).IsUnicode(false);
+            entity.Property(e => e.Division).IsUnicode(false);
+            entity.Property(e => e.Drug).IsUnicode(false);
+            entity.Property(e => e.DrugId)
+                .IsUnicode(false)
+                .HasColumnName("DrugID");
+            entity.Property(e => e.EnteredBy).IsUnicode(false);
+            entity.Property(e => e.ExpirationDate).HasColumnType("datetime");
+            entity.Property(e => e.FinishingPerson).IsUnicode(false);
+            entity.Property(e => e.HoldDate).HasColumnType("datetime");
+            entity.Property(e => e.IndicationCode).IsUnicode(false);
+            entity.Property(e => e.Instructions).IsUnicode(false);
+            entity.Property(e => e.Insurance).IsUnicode(false);
+            entity.Property(e => e.IssueDate).HasColumnType("datetime");
+            entity.Property(e => e.LastModified).HasColumnType("datetime");
+            entity.Property(e => e.Manufacturer).IsUnicode(false);
+            entity.Property(e => e.Ndc).IsUnicode(false);
+            entity.Property(e => e.OrigNumRefills).IsUnicode(false);
+            entity.Property(e => e.Patient).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.PatientInstructions).IsUnicode(false);
+            entity.Property(e => e.Pharmacist).IsUnicode(false);
+            entity.Property(e => e.PharmacyOrderableItemId)
+                .IsUnicode(false)
+                .HasColumnName("PharmacyOrderableItemID");
+            entity.Property(e => e.Provider).IsUnicode(false);
+            entity.Property(e => e.Qty).IsUnicode(false);
+            entity.Property(e => e.Refill).IsUnicode(false);
+            entity.Property(e => e.ReleasedDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.Rts)
+                .IsUnicode(false)
+                .HasColumnName("RTS");
+            entity.Property(e => e.Rx1)
+                .IsUnicode(false)
+                .HasColumnName("Rx");
+            entity.Property(e => e.Sig).IsUnicode(false);
+            entity.Property(e => e.SignOrSymptom).IsUnicode(false);
+            entity.Property(e => e.Status).IsUnicode(false);
+            entity.Property(e => e.UnitPriceOfDrug).IsUnicode(false);
+
+            entity.HasOne(d => d.PatientNavigation).WithMany(p => p.Rxes)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Rx_PatientID");
+        });
+
+        modelBuilder.Entity<RxFill>(entity =>
+        {
+            entity.HasKey(e => new { e.RxId, e.FillNum });
+
+            entity.ToTable("RxFill");
+
+            entity.HasIndex(e => e.ReleasedDateTime, "IX_RxFill_Date");
+
+            entity.HasIndex(e => new { e.PatientId, e.ReleasedDateTime }, "IX_RxFill_Patient_Date");
+
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.Qty).HasColumnType("decimal(18, 4)");
+            entity.Property(e => e.ReleasedDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Rts)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("RTS");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 4)");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.RxFills)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RxFill_PatientId");
+
+            entity.HasOne(d => d.Rx).WithMany(p => p.RxFills)
+                .HasForeignKey(d => d.RxId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RxFill_RxId");
+        });
+
         modelBuilder.Entity<Tiu>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__TIU__3213E83F134EACEB");
@@ -935,6 +1030,31 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.TsailePatientcomments)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("FK_tsaile_patientcomment_PatientId");
+        });
+
+        modelBuilder.Entity<Visit>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Visit__3213E83F9F8A1180");
+
+            entity.ToTable("Visit");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.Billed).IsUnicode(false);
+            entity.Property(e => e.CheckOutDateTime).HasColumnType("datetime");
+            entity.Property(e => e.CreatedDate).HasColumnType("datetime");
+            entity.Property(e => e.HospitalLocation).IsUnicode(false);
+            entity.Property(e => e.LocationId)
+                .IsUnicode(false)
+                .HasColumnName("LocationID");
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.ServiceCategory).IsUnicode(false);
+            entity.Property(e => e.VisitAdmitDateTime).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Visits)
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("FK_Visit_PatientID");
         });
 
         modelBuilder.Entity<VwBillingRx>(entity =>

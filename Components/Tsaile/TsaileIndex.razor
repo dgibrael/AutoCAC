@@ -10,8 +10,8 @@
 @inject NotificationService NotificationService
 @inject NavigationManager Nav
 @inject TsaileTicketWatcher Notifier
-@inject LookupValueService Lookup
 @inject IRecordUnlockService UnlockService
+@inject LookupValueService LookupService
 @implements IDisposable
 
 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" AlignItems="AlignItems.Start">
@@ -124,7 +124,7 @@
                 .ThenBy(x => x.CreatedDateTime)
             ;
         Notifier.QueueChangedAsync += Reload;
-        var batchOptions = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
+        var batchOptions = LookupService.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 
         GridModel.CustomChoices = new Dictionary<string, IEnumerable<object>>
         {
@@ -213,7 +213,7 @@
             Disabled = () => row.Status == TsaileTicketStatus.Screening.ToString(),
             Action = async () =>
             {
-                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+                var ticket = await DbFactory.ReverseStatusAndSaveAsync(row.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
@@ -229,7 +229,7 @@
             Action = async () =>
             {
 
-                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId, Lookup.GetValues("TsaileSkipVerify"));
+                var ticket = await DbFactory.AdvanceStatusAndSaveAsync(row.Id, _userId);
                 NotificationService.Success($"Status updated to {ticket.Status}");
                 await GridModel.ReloadAsync();
             }
