@@ -1,0 +1,43 @@
+﻿@using AutoCAC.Components.Templates.CardLists
+@using AutoCAC.Models
+@using AutoCAC.Utilities
+
+<RadzenStack Orientation="Orientation.Horizontal">
+    <RadzenDropDown TValue="PeriodOption"
+                    Data="@(EnumExtensionsCustom.GetDictionary<PeriodOption>())"
+                    ValueProperty="Key"
+                    TextProperty="Value"
+                    @bind-Value="Value.SelectedOption"
+                    Change="OptionChange"
+                    />
+    <RadzenDatePicker @bind-Value="Value.CustomStart" Change="Change" Disabled="disableDatePicker"/>
+    <span>To</span>
+    <RadzenDatePicker @bind-Value="Value.CustomEnd" Change="Change" Disabled="disableDatePicker" />
+</RadzenStack>
+
+@code {
+    [Parameter] public PeriodSelection Value { get; set; }
+    [Parameter] public EventCallback<PeriodSelection> ValueChanged { get; set; }
+    [Parameter] public EventCallback Change { get; set; }
+    PeriodOption previousOption;
+    protected override void OnInitialized()
+    {
+        previousOption = Value.SelectedOption;
+    }
+
+    async Task OptionChange()
+    {
+        if (Value.SelectedOption == previousOption) return;
+        if (Value.SelectedOption == PeriodOption.Custom)
+        {
+            Value.CustomStart = previousOption.CurrentStart();
+            Value.CustomEnd = previousOption.CurrentEnd();
+            previousOption = Value.SelectedOption;
+            return;
+        }
+        previousOption = Value.SelectedOption;
+        await Change.InvokeAsync();
+    }
+
+    bool disableDatePicker => Value.SelectedOption != PeriodOption.Custom;
+}

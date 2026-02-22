@@ -42,6 +42,14 @@ namespace AutoCAC.Extensions
             return await context.Database.SqlQuery<T>(sql).ToListAsync();
         }
 
+        public static async Task<T> ReadSqlFirstRowAsync<T>(
+            this IDbContextFactory<mainContext> factory,
+            FormattableString sql) where T : class
+        {
+            var results = await factory.ReadSqlAsync<T>(sql);
+            return results.FirstOrDefault();
+        }
+
         public static async Task<int> ExecuteSqlAsync(
             this IDbContextFactory<mainContext> factory,
             FormattableString sql)

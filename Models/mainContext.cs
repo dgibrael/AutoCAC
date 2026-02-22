@@ -65,6 +65,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<PiVerificationComment> PiVerificationComments { get; set; }
 
+    public virtual DbSet<RejectCode> RejectCodes { get; set; }
+
     public virtual DbSet<RestrictedPage> RestrictedPages { get; set; }
 
     public virtual DbSet<RestrictedPageGroup> RestrictedPageGroups { get; set; }
@@ -742,6 +744,24 @@ public partial class mainContext : DbContext
                 .HasConstraintName("FK_PI_VerificationComment_PI_Verification");
         });
 
+        modelBuilder.Entity<RejectCode>(entity =>
+        {
+            entity.HasKey(e => e.Code).HasName("PK__RejectCo__A25C5AA62EE7EEC5");
+
+            entity.ToTable("RejectCode");
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Category)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.Explanation).IsUnicode(false);
+            entity.Property(e => e.Preventable)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+        });
+
         modelBuilder.Entity<RestrictedPage>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Restrict__3214EC077DAF73BB");
@@ -838,10 +858,6 @@ public partial class mainContext : DbContext
             entity.HasKey(e => new { e.RxId, e.FillNum });
 
             entity.ToTable("RxFill");
-
-            entity.HasIndex(e => e.ReleasedDateTime, "IX_RxFill_Date");
-
-            entity.HasIndex(e => new { e.PatientId, e.ReleasedDateTime }, "IX_RxFill_Patient_Date");
 
             entity.Property(e => e.PatientId).HasColumnName("PatientID");
             entity.Property(e => e.Qty).HasColumnType("decimal(18, 4)");

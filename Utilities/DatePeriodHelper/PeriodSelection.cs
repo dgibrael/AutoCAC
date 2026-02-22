@@ -1,14 +1,43 @@
-﻿namespace AutoCAC.Utilities;
+﻿using AutoCAC.Extensions;
+namespace AutoCAC.Utilities;
 public sealed class PeriodSelection
 {
     private PeriodOption _selectedPeriod;
-    private DateTime _now;
-
-    public PeriodSelection(PeriodOption selectedPeriod, DateTime? now = null)
+    private DateOnly _today;
+    private DateOnly? _customStart;
+    private DateOnly? _customEnd;
+    public PeriodSelection(PeriodOption selectedPeriod, DateOnly? today = null, DateTime? customStart = null, DateTime? customEnd = null)
     {
-        _now = now ?? DateTime.Now;
+        _today = today ?? DateTime.Now.DateOnly;
         _selectedPeriod = selectedPeriod;
         Refresh();
+    }
+
+    public DateOnly CustomEnd
+    {
+        get => _customEnd ?? DateTime.Now.DateOnly;
+        set
+        {
+            _customEnd = value;
+            if (CustomStart > value)
+            {
+                _customStart = value;
+            }
+            RefreshNow();
+        }
+    }
+    public DateOnly CustomStart
+    {
+        get => _customStart ?? CustomEnd.AddDays(-30);
+        set
+        {
+            _customStart = value;
+            if (CustomEnd < value) 
+            { 
+                _customEnd = value;
+            }
+            RefreshNow();
+        }
     }
 
     public PeriodOption SelectedOption
@@ -18,40 +47,37 @@ public sealed class PeriodSelection
         {
             if (_selectedPeriod == value) return;
             _selectedPeriod = value;
-            Refresh();
+            RefreshNow();
         }
     }
 
-    // Bindable too if you ever want it, otherwise keep it set-only via method
-    public DateTime Now
-    {
-        get => _now;
-        set
-        {
-            if (_now == value) return;
-            _now = value;
-            Refresh();
-        }
-    }
-
-    public DateTime CurrentStart { get; private set; }
-    public DateTime CurrentEnd { get; private set; }
-    public DateTime CompareStart { get; private set; }
-    public DateTime CompareEnd { get; private set; }
+    public DateOnly CurrentStart { get; private set; }
+    public DateOnly CurrentEnd { get; private set; }
+    public DateOnly CompareStart { get; private set; }
+    public DateOnly CompareEnd { get; private set; }
 
     public void Refresh()
     {
+        if (SelectedOption == PeriodOption.Custom)
+        {
+            CurrentStart = CustomStart;
+            CurrentEnd = CustomEnd;
+            CompareEnd = CurrentStart.AddDays(-1);
+            var offset = CurrentEnd.DayNumber - CurrentStart.DayNumber;
+            CompareStart = CompareEnd.AddDays(-offset);
+            return;
+        }
         // Uses your extension methods as-is
-        CurrentStart = SelectedOption.CurrentStart(_now);
-        CurrentEnd = SelectedOption.CurrentEnd(_now);
-        CompareStart = SelectedOption.CompareStart(_now);
-        CompareEnd = SelectedOption.CompareEnd(_now);
+        CurrentStart = SelectedOption.CurrentStart(_today);
+        CurrentEnd = SelectedOption.CurrentEnd(_today);
+        CompareStart = SelectedOption.CompareStart(_today);
+        CompareEnd = SelectedOption.CompareEnd(_today);
     }
 
     // convenience if you want “refresh with latest clock”
     public void RefreshNow()
     {
-        _now = DateTime.Now;
+        _today = DateTime.Now.DateOnly;
         Refresh();
     }
 }

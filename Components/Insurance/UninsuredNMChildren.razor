@@ -1,7 +1,8 @@
 ﻿@page "/insurance/uninsurednmchildren"
 @using AutoCAC.Models
 
-<EnumDropdown TEnum="PeriodOption" @bind-Value="@selectedPeriod.SelectedOption" Change="@(() => GridModel.ReloadAsync())" />
+<span>Date range only effects Rx and Visit counts</span>
+<DateRangeSelect @bind-Value="@selectedPeriod" Change="@(() => GridModel.ReloadAsync())" />
 <DataGridVanilla TItem="UninsuredNmChildDto" GridModel="GridModel">
 	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="ChartNumber" Title="ChartNumber" />
 	<RadzenDataGridColumn TItem="UninsuredNmChildDto" Property="Name" Title="Name" />
@@ -33,8 +34,8 @@
 	{
 		GridModel.QueryFactory = db =>
 		{
-			var start = selectedPeriod.CurrentStart;
-			var end = selectedPeriod.CurrentEnd;
+			var start = selectedPeriod.CurrentStart.StartOfDay;
+			var end = selectedPeriod.CurrentEnd.StartOfNextDay;
 			return db.Patients
 						.Where(a =>
 							a.Dob >= DateTime.Today.AddYears(-18) &&

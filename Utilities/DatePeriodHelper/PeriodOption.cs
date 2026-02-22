@@ -8,5 +8,6 @@ public enum PeriodOption
     Past60Days,
     Past90Days,
     Past365Days,
-    YearToDate
+    YearToDate,
+    Custom
 }

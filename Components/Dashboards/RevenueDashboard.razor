@@ -1,40 +1,90 @@
-﻿@page "/dashboard/pos"
+﻿@page "/dashboard/revenue"
 @using AutoCAC.Components.Templates.CardLists
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @using AutoCAC.Utilities
 @inject NotificationService Notifications
-
-<EnumDropdown TEnum="PeriodOption" @bind-Value="@selectedPeriod.SelectedOption" Change="@RefreshAsync"/>
-
+<PageTitle>Revenue Dashboard</PageTitle>
+<DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
 <RadzenCard>
-	<h4>Key Performance Indicators</h4>
-	<LoadingContent LoadState="@kpiLoadState">
-		<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Stretch" Wrap="FlexWrap.Wrap">
-			<RadzenCard><span>Total Revenue: </span><strong>@kpiData.Current.Paid.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
-			<RadzenCard><span>Total Cost: </span><strong>@kpiData.Current.Cost.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
-			<RadzenCard><span>Total Profit/Loss: </span><strong>@kpiData.Current.Profit.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
-			@if(kpiData.MissingData)
+	<h4>Point of Sale Key Performance Indicators</h4>
+	<LoadingContent LoadState="@posLoadState">
+		<RadzenCardGroup>
+			<RadzenCard><span>Total POS Revenue: </span><strong>@posData?.Current?.Paid.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			<RadzenCard><span>Total Cost: </span><strong>@posData?.Current?.Cost.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			<RadzenCard><span>Total POS Profit/Loss: </span><strong>@posData?.Current?.Profit.ToString("$#,0.00;-$#,0.00;$0.00")</strong></RadzenCard>
+			@if(posData?.MissingData != false)
 			{
 				<RadzenCard><span>Comparison data not available for this time period</span></RadzenCard>
 			}
 			else
 			{				
 				<RadzenCard>
-					<span>@kpiData.ProfitMsg</span><strong 
-						class="@(HelperMethods.ConditionalTextCss(kpiData.DiffProfit < 0, kpiData.DiffProfit > 0))"
-					>@kpiData.DiffProfit.ToString("$#,0.00;$#,0.00;$0.00")</strong>
+					<span>@posData?.ProfitMsg</span><strong 
+						class="@(HelperMethods.ConditionalTextCss(posData?.DiffProfit < 0, posData?.DiffProfit > 0))"
+					>@($"{posData?.DiffProfit.ToString("$#,0.00;$#,0.00;$0.00")} ({posData?.PctDiffProfit.ToString("P")})")</strong>
+					<span>@($"(previous: {posData?.Last.Profit.ToString("$#,0.00;$#,0.00;$0.00")})")</span>
 				</RadzenCard>
 			}
-		</RadzenStack>
+		</RadzenCardGroup>
+	</LoadingContent>
+</RadzenCard>
+<RadzenCard>
+	<h4>Insurance Key Performance Indicators</h4>
+	<LoadingContent LoadState="@insuranceLoadState">
+		<RadzenCardGroup>
+			<RadzenCard>
+				<span>Total Patients</span>
+				<strong>@insuranceData?.TotalPatients</strong>
+			</RadzenCard>
+			<RadzenCard>
+				<span>Insured Patients (% of total)</span>
+				<strong>@($"{insuranceData?.InsuredPatients} ({insuranceData?.PctPatientsInsured.ToString("P")})")</strong>
+			</RadzenCard>
+			<RadzenCard>
+				<span>Total Fills</span>
+				<strong>@insuranceData?.TotalFills</strong>
+			</RadzenCard>
+			<RadzenCard>
+				<span>Insured Fills (% of total)</span>
+				<strong>@($"{insuranceData?.InsuredFills} ({insuranceData?.PctFillsInsured.ToString("P")})")</strong>
+			</RadzenCard>
+		</RadzenCardGroup>
+	</LoadingContent>
+</RadzenCard>
+<RadzenCard>
+	<h4>Top 20 Reject Codes by Cost Chart</h4>
+	<LoadingContent LoadState="@rejectCodesLoadState">
+		<RadzenChart >
+			<RadzenPieSeries Data="rejectCodeAmounts" ValueProperty="Amount" CategoryProperty="Legend" 
+				Title="Reject Codes">
+				<TooltipTemplate Context="x">
+					<strong>@($"{x.Explanation}: ")</strong><span>@x?.Amount.ToString("C")</span>
+				</TooltipTemplate>
+			</RadzenPieSeries>
+		</RadzenChart>
 	</LoadingContent>
 </RadzenCard>
 
 @code {
-	LoadingState kpiLoadState = LoadingState.Loading;
+	LoadingState posLoadState = LoadingState.Loading;
+	LoadingState rejectCodesLoadState = LoadingState.Loading;
+	LoadingState insuranceLoadState = LoadingState.Loading;
+	DateTime curStart;
+	DateTime curEnd;
+	DateTime cmpStart;
+	DateTime cmpEnd;
 	PeriodSelection selectedPeriod = new(PeriodOption.LastQuarter);
-	private bool _initialLoad = true;
-	private sealed class KpiRowDto
+	private Dictionary<string, string> rejectDefinitions;
+	private sealed class RejectCodeAmountDto
+	{
+		public string Code { get; set; }
+		public string Explanation { get; set; }
+		public double Amount { get; set; } = 0;
+		public string Legend => $"{Explanation} ({Amount:C})";
+	}
+	private List<RejectCodeAmountDto> rejectCodeAmounts;
+	private sealed class PosRowDto
 	{
 		// True = current, False = compare, null = neither/other (if you ever allow it)
 		public bool? CurrentData;
@@ -45,14 +95,15 @@
 		public double Billed;
 		public double Profit => Paid - Cost;
 	}
-	private sealed class KpiData
+	private sealed class PosData
 	{
-		public KpiRowDto Current = null;
-		public KpiRowDto Last = null;
+		public PosRowDto Current = null;
+		public PosRowDto Last = null;
 		public bool MissingData => Current == null || Last == null;
 		public double DiffPaid => MissingData ? 0 : Current.Paid - Last.Paid;
 		public double DiffCost => MissingData ? 0 : Current.Cost - Last.Cost;
 		public double DiffProfit => MissingData ? 0 : Current.Profit - Last.Profit;
+		public double PctDiffProfit => MissingData ? 0 : DiffProfit/Current.Profit;
 		public bool? ProfitIncreased => MissingData || DiffProfit == 0 ? null : DiffProfit > 0;
 		public string ProfitMsg => ProfitIncreased switch
 		{
@@ -61,63 +112,158 @@
 			null => "No change in profit since last period. "
 		};
 	}
-	private KpiData kpiData = new();
+	private PosData posData = new();
+	private sealed class InsuranceDto
+	{
+		public int TotalPatients { get; set; }
+		public int InsuredPatients { get; set; }
+		public int TotalFills { get; set; }
+		public int InsuredFills { get; set; }
+		public decimal PctPatientsInsured =>
+			TotalPatients == 0 ? 0m : (decimal)InsuredPatients / TotalPatients;
+
+		public decimal PctFillsInsured =>
+			TotalFills == 0 ? 0m : (decimal)InsuredFills / TotalFills;
+	}
+	InsuranceDto insuranceData;
 	CancellationTokenSource cts;
 	async Task RefreshAsync()
 	{
+		curStart = selectedPeriod.CurrentStart.StartOfDay;
+		curEnd = selectedPeriod.CurrentEnd.StartOfNextDay;
+		cmpStart = selectedPeriod.CompareStart.StartOfDay;
+		cmpEnd = selectedPeriod.CompareEnd.StartOfNextDay;
 		BatchLoader.ResetCts(ref cts);
 		await BatchLoader.RunAllAsync(
 			cts.Token,
-			LoadKpisAsync,
-			ReloadRejectChart
+			LoadPosAsync,
+			LoadInsured,
+			LoadRejectCodes
 		);
 
 		StateHasChanged();
 	}
-	private async Task ReloadRejectChart(CancellationToken token)
+	private async Task LoadRejectCodes(CancellationToken token)
 	{
-		if (!_initialLoad)
+		try
 		{
-			try
-			{
+			rejectCodesLoadState = LoadingState.Loading;
+			StateHasChanged();
 
-			}
-			catch (OperationCanceledException)
+			await using var db = await DbFactory.CreateDbContextAsync();
+			// Pull rows into memory (code string + amount)
+			var data = await db.BillingRxes
+				.AsNoTracking()
+				.Where(x => x.LastUpdate >= curStart && x.LastUpdate < curEnd)
+				.Where(x => x.RejectionReasons != null && x.RejectionReasons != "")
+				.Select(x => new
+				{
+					x.RejectionReasons,
+					Amount = ((x.UnitPrice * x.Qty) ?? 0) // adjust if your type differs
+				})
+				.ToListAsync(token);
+
+			// Expand -> group -> sum, then enrich from rejectDefinitions
+			rejectCodeAmounts = data
+				.SelectMany(r =>
+					r.RejectionReasons
+						.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+						.Select(code => new { Code = code, Amount = r.Amount })
+				)
+				.GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+				.Select(g => new RejectCodeAmountDto
+				{
+					Code = g.Key,
+					Explanation = rejectDefinitions != null && rejectDefinitions.TryGetValue(g.Key, out var exp)
+						? exp
+						: "Uknown",
+					Amount = g.Sum(x => x.Amount)
+				})
+				.OrderByDescending(x => x.Amount)
+				.Take(20)
+				.ToList();
+			if (!rejectCodeAmounts.Any())
 			{
-				// expected during refresh; do nothing
+				rejectCodesLoadState = LoadingState.NotFound;
+				return;
 			}
-			catch (Exception ex)
+			rejectCodesLoadState = LoadingState.Loaded;
+		}
+		catch (OperationCanceledException)
+		{
+			// expected during refresh; do nothing
+			rejectCodesLoadState = LoadingState.Loaded;
+		}
+		catch (Exception ex)
+		{
+			rejectCodesLoadState = LoadingState.Error;
+			Notifications.Error(ex);
+		}
+		finally
+		{
+			StateHasChanged();
+		}
+	}
+	private async Task LoadInsured(CancellationToken token)
+	{
+		try
+		{
+			insuranceLoadState = LoadingState.Loading;
+			insuranceData = await DbFactory.ReadSqlFirstRowAsync<InsuranceDto>(
+				$@"WITH z as(SELECT a.ReleasedDateTime FillDate, a.PatientID
+, CASE WHEN EXISTS (SELECT 1 FROM BillingRx c WHERE c.RxNum = b.Rx and c.FillNum = a.FillNum) THEN 1 ELSE 0 END HasInsurance
+FROM RxFill a
+INNER JOIN Rx b on a.RxID = b.Id)
+SELECT COUNT(Distinct PatientID) TotalPatients
+,COUNT(DISTINCT CASE WHEN HasInsurance = 1 Then PatientID ELSE NULL END) InsuredPatients
+, COUNT(HasInsurance) TotalFills
+, COALESCE(SUM(HasInsurance),0) InsuredFills
+FROM z
+WHERE FillDate >= {curStart} and FillDate < {curEnd}"
+			);
+			if (insuranceData.TotalFills > 0)
 			{
-				Notifications.Error(ex);
+				insuranceLoadState = LoadingState.Loaded;
 			}
-			finally
+			else
 			{
-				StateHasChanged();
+				insuranceLoadState = LoadingState.NotFound;
 			}
+		}
+		catch (OperationCanceledException)
+		{
+			// expected during refresh; do nothing
+			insuranceLoadState = LoadingState.Loaded;
+		}
+		catch (Exception ex)
+		{
+			Notifications.Error(ex);
+			insuranceLoadState = LoadingState.Error;
+		}
+		finally
+		{
+			StateHasChanged();
 		}
 	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			rejectDefinitions = await db.RejectCodes
+									.AsNoTracking()
+									.ToDictionaryAsync(x => x.Code, x => x.Explanation);
 			await RefreshAsync();
-			_initialLoad = false;
 		}
 	}
-	async Task LoadKpisAsync(CancellationToken token)
+	async Task LoadPosAsync(CancellationToken token)
 	{
 		try
 		{
-			kpiData = new();
-			kpiLoadState = LoadingState.Loading;
+			posLoadState = LoadingState.Loading;
 			StateHasChanged();
+			posData = new();
 			await using var db = await DbFactory.CreateDbContextAsync();
-
-			var curStart = selectedPeriod.CurrentStart;
-			var curEnd = selectedPeriod.CurrentEnd;
-			var cmpStart = selectedPeriod.CompareStart;
-			var cmpEnd = selectedPeriod.CompareEnd;
-
 			var kpiRows = await db.VwBillingRxes
 				.Where(x =>
 					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ||
@@ -126,7 +272,7 @@
 					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ? (bool?)true :
 					(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd) ? (bool?)false :
 					(bool?)null)
-				.Select(g => new KpiRowDto
+				.Select(g => new PosRowDto
 				{
 					CurrentData = g.Key,
 					Transactions = g.Count(),
@@ -137,19 +283,23 @@
 				.Where(x => x.CurrentData != null)      // safe even if not needed today
 				.OrderByDescending(x => x.CurrentData)  // True first, then False
 				.ToListAsync(token);
-			kpiData.Current = kpiRows?.FirstOrDefault(x => x.CurrentData == true);
-			kpiData.Last = kpiRows?.FirstOrDefault(x => x.CurrentData == false);
-			kpiLoadState = LoadingState.Loaded;
+			if (!kpiRows.Any())
+			{
+				posLoadState = LoadingState.NotFound;
+			}
+			posData.Current = kpiRows?.FirstOrDefault(x => x.CurrentData == true);
+			posData.Last = kpiRows?.FirstOrDefault(x => x.CurrentData == false);
+			posLoadState = LoadingState.Loaded;
 
 		}
 		catch (OperationCanceledException)
 		{
 			// expected during refresh; do nothing
-			kpiLoadState = LoadingState.Loaded;
+			posLoadState = LoadingState.Loaded;
 		}
 		catch (Exception ex)
 		{
-			kpiLoadState = LoadingState.Error;
+			posLoadState = LoadingState.Error;
 			Notifications.Error(ex);
 		}
 		finally
@@ -157,4 +307,5 @@
 			StateHasChanged();
 		}
 	}
+
 }
