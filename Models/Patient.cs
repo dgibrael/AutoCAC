@@ -55,6 +55,12 @@ public partial class Patient
 
     public string? State { get; set; }
 
+    public string? TsaileChartNumber { get; set; }
+
+    public string? PinonChartNumber { get; set; }
+
+    public string? ChartList { get; set; }
+
     public virtual ICollection<Adt> Adts { get; set; } = new List<Adt>();
 
     public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();

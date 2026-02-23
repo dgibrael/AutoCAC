@@ -55,6 +55,8 @@ public partial class TsailePatient
 
     public string? State { get; set; }
 
+    public string? ChartList { get; set; }
+
     public virtual ICollection<TsaileBetterq> TsaileBetterqs { get; set; } = new List<TsaileBetterq>();
 
     public virtual ICollection<TsailePatientcomment> TsailePatientcomments { get; set; } = new List<TsailePatientcomment>();

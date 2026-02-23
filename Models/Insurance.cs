@@ -23,5 +23,9 @@ public partial class Insurance
 
     public DateOnly? ExpirationDate { get; set; }
 
+    public int? InsurerId { get; set; }
+
+    public virtual Insurer? Insurer { get; set; }
+
     public virtual Patient Patient { get; set; } = null!;
 }

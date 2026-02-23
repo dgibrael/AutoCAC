@@ -67,6 +67,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Insurer]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[LookupValue]",
          "ObjectType": 0
       },

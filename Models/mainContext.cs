@@ -39,6 +39,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Insurance> Insurances { get; set; }
 
+    public virtual DbSet<Insurer> Insurers { get; set; }
+
     public virtual DbSet<LookupValue> LookupValues { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
@@ -445,10 +447,64 @@ public partial class mainContext : DbContext
                 .HasMaxLength(250)
                 .IsUnicode(false);
 
+            entity.HasOne(d => d.Insurer).WithMany(p => p.Insurances)
+                .HasForeignKey(d => d.InsurerId)
+                .HasConstraintName("FK_Insurance_InsurerId");
+
             entity.HasOne(d => d.Patient).WithMany(p => p.Insurances)
                 .HasForeignKey(d => d.PatientId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Insurance_PatientId");
+        });
+
+        modelBuilder.Entity<Insurer>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Insurer__3213E83F89F3BC7F");
+
+            entity.ToTable("Insurer");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.AllInclusiveBilling)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.City)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.DentalBillingStatus)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.EinNumber)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.InsurerType)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Name)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Phone)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.RxBillingStatus)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.State)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Status)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Street)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.TypeOfInsurer)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Zip)
+                .HasMaxLength(250)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<LookupValue>(entity =>
@@ -611,14 +667,17 @@ public partial class mainContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__Patient__3213E83F57C79012");
 
-            entity.ToTable("Patient");
+            entity.ToTable("Patient", tb => tb.HasTrigger("tr_Patient_ChartNumbers"));
 
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
                 .HasColumnName("id");
             entity.Property(e => e.AttendingPhysician).IsUnicode(false);
             entity.Property(e => e.CellNumber).IsUnicode(false);
-            entity.Property(e => e.ChartNumber).IsUnicode(false);
+            entity.Property(e => e.ChartList).IsUnicode(false);
+            entity.Property(e => e.ChartNumber)
+                .HasMaxLength(250)
+                .IsUnicode(false);
             entity.Property(e => e.CurrentAdmission).HasColumnType("datetime");
             entity.Property(e => e.CurrentMovement).HasColumnType("datetime");
             entity.Property(e => e.DateEnteredIntoFile).IsUnicode(false);
@@ -633,11 +692,17 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Pcp)
                 .IsUnicode(false)
                 .HasColumnName("PCP");
+            entity.Property(e => e.PinonChartNumber)
+                .HasMaxLength(250)
+                .IsUnicode(false);
             entity.Property(e => e.Race).IsUnicode(false);
             entity.Property(e => e.Remarks).IsUnicode(false);
             entity.Property(e => e.RoomBed).IsUnicode(false);
             entity.Property(e => e.Sex).IsUnicode(false);
             entity.Property(e => e.State)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.TsaileChartNumber)
                 .HasMaxLength(250)
                 .IsUnicode(false);
             entity.Property(e => e.Veteran).IsUnicode(false);
@@ -1000,6 +1065,7 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Age).IsUnicode(false);
             entity.Property(e => e.AttendingPhysician).IsUnicode(false);
             entity.Property(e => e.CellNumber).IsUnicode(false);
+            entity.Property(e => e.ChartList).IsUnicode(false);
             entity.Property(e => e.ChartNumber).IsUnicode(false);
             entity.Property(e => e.CurrentAdmission).HasColumnType("datetime");
             entity.Property(e => e.CurrentMovement).HasColumnType("datetime");
