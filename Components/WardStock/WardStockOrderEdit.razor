@@ -21,7 +21,7 @@
 	{
 		<h3>@($"Order for {currentOrder?.Location?.LocationName}; Current Status: {currentOrder?.Status}; Original Order DateTime: {currentOrder?.OrderDateTime}")</h3>
 		<RadzenRow>
-			<RadzenColumn Size="7">
+			<RadzenColumn Size="8">
 				<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" 
 					AddAction="@(UserType != UserTypes.super && currentOrder.StatusEnum > WardstockOrderStatus.New ? 
 									null : AddItemClick)"
@@ -53,10 +53,16 @@
 											   Min="0" Style="width: 100%" />
 							</EditTemplate>
 						</RadzenDataGridColumn>
+						<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockOrderitem" Property="Lot" Title="Lot#"
+											  Width="100px">
+							<EditTemplate Context="item">
+								<RadzenTextBox @bind-Value="@item.Lot" Style="width: 100%" />
+							</EditTemplate>
+						</RadzenDataGridColumn>
 					</ChildContent>
 				</DataGridEditable>
 			</RadzenColumn>
-		<RadzenColumn Size="5">
+		<RadzenColumn Size="4">
 			<CommentTemplate TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
 		</RadzenColumn>
 		</RadzenRow>
@@ -84,6 +90,7 @@
 						<RadzenDataGridColumn Property="Item.DisplayName" Title="Item" Width="250px"/>
 						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" Width="100px" />
 						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" Width="100px"/>
+						<RadzenDataGridColumn Property="Lot" Title="Lot#" Width="100px"/>
 					</Columns>
 				</RadzenDataGrid>
 			}
