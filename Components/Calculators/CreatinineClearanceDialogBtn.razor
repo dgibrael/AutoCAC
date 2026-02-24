@@ -1,0 +1,53 @@
+﻿@using AutoCAC.Common
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject DialogService Dialogs
+@using System.Globalization;
+<RadzenButton Text="Creatinine Clearance" Click="OpenDialog" />
+
+@code {
+    [Parameter] public int PatientId { get; set; } = 0;
+    Patient _patient;
+    CreatinineClearance crcl = new();
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _patient = await db.Patients
+                        .Where(x => x.Id == PatientId)
+                        .Include(x => x.Vitals)
+                        .Include(x => x.Labs)
+                        .FirstOrDefaultAsync();
+    }
+    async Task OpenDialog()
+    {
+        if (_patient != null)
+        {            
+            crcl.Age = _patient.Dob?.DateOnly.GetAge() ?? 0;
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var vitals = _patient.Vitals
+                                .OrderByDescending(x => x.EventDateTime);
+            crcl.HeightCm = vitals
+                            .Where(x => x.Type == "Ht")
+                            .Select(x => x.Value * 2.54)
+                            .FirstOrDefault();
+            crcl.WeightKg = vitals
+                            .Where(x => x.Type == "Wt")
+                            .Select(x => x.Value / 2.2)
+                            .FirstOrDefault();
+            crcl.Female = _patient.Sex.Equals("FEMALE", StringComparison.OrdinalIgnoreCase);
+            crcl.SerumCreatinine = _patient.Labs
+                                    .Where(x => x.LabTest.Contains("creatin", StringComparison.OrdinalIgnoreCase) && !x.Specimen.Contains("urine"))
+                                    .OrderByDescending(x => x.CollectionDateAndTime)
+                                    .Select(x => double.TryParse(x.Results, NumberStyles.Float | NumberStyles.AllowThousands,
+                                                                 CultureInfo.InvariantCulture, out var v)
+                                                    ? v
+                                                    : 0)
+                                    .FirstOrDefault();
+        }
+        await Dialogs.OpenAsync<CreatinineClearanceForm>("Creatinine Clearance"
+        , parameters: new Dictionary<string, object> { ["CrCl"] = crcl }
+        , options: DialogDefaults.Options
+        );
+    }
+}

@@ -41,6 +41,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Insurer> Insurers { get; set; }
 
+    public virtual DbSet<Lab> Labs { get; set; }
+
     public virtual DbSet<LookupValue> LookupValues { get; set; }
 
     public virtual DbSet<MenuBuild> MenuBuilds { get; set; }
@@ -90,6 +92,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<TsailePatientcomment> TsailePatientcomments { get; set; }
 
     public virtual DbSet<Visit> Visits { get; set; }
+
+    public virtual DbSet<Vital> Vitals { get; set; }
 
     public virtual DbSet<VwBillingRx> VwBillingRxes { get; set; }
 
@@ -505,6 +509,41 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Zip)
                 .HasMaxLength(250)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<Lab>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Lab__3213E83F93B2805C");
+
+            entity.ToTable("Lab");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.Clinic).IsUnicode(false);
+            entity.Property(e => e.CollectionDateAndTime).HasColumnType("datetime");
+            entity.Property(e => e.CollectionSample).IsUnicode(false);
+            entity.Property(e => e.IcdCode).IsUnicode(false);
+            entity.Property(e => e.LabTest).IsUnicode(false);
+            entity.Property(e => e.Order).IsUnicode(false);
+            entity.Property(e => e.OrderingDate).HasColumnType("datetime");
+            entity.Property(e => e.OrderingLocation).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.RangeHigh).IsUnicode(false);
+            entity.Property(e => e.RangeLow).IsUnicode(false);
+            entity.Property(e => e.ResultDateAndTime).HasColumnType("datetime");
+            entity.Property(e => e.Results).IsUnicode(false);
+            entity.Property(e => e.Specimen).IsUnicode(false);
+            entity.Property(e => e.Units).IsUnicode(false);
+            entity.Property(e => e.VisitDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VisitId)
+                .IsUnicode(false)
+                .HasColumnName("VisitID");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Labs)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Lab_PatientID");
         });
 
         modelBuilder.Entity<LookupValue>(entity =>
@@ -1137,6 +1176,30 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.Visits)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("FK_Visit_PatientID");
+        });
+
+        modelBuilder.Entity<Vital>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Vital__3213E83F65B9B1B0");
+
+            entity.ToTable("Vital");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.DateTimeLastModified).HasColumnType("datetime");
+            entity.Property(e => e.EventDateTime).HasColumnType("datetime");
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.Type).IsUnicode(false);
+            entity.Property(e => e.VisitDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VisitId)
+                .IsUnicode(false)
+                .HasColumnName("VisitID");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Vitals)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Vital_PatientID");
         });
 
         modelBuilder.Entity<VwBillingRx>(entity =>

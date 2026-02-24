@@ -71,6 +71,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Lab]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[LookupValue]",
          "ObjectType": 0
       },
@@ -164,6 +168,10 @@
       },
       {
          "Name": "[dbo].[Visit]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Vital]",
          "ObjectType": 0
       },
       {

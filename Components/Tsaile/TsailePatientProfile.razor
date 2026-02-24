@@ -3,6 +3,7 @@
 @using AutoCAC.Components.Templates.Buttons
 @using AutoCAC.Components.Templates.Printing
 @using AutoCAC.Components.Tsaile
+@using AutoCAC.Components.Calculators
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @using AutoCAC.Services
@@ -37,6 +38,7 @@
 				MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
 		</RadzenColumn>
 	</RadzenRow>
+	<CreatinineClearanceDialogBtn PatientId="@Id" />
 </LoadingContent>
 @code{
 	[Parameter] public int Id { get; set; }

@@ -1,17 +1,26 @@
 ﻿@page "/insurance/insured"
 @using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject DialogService Dialogs
 <EnumDropdown TEnum="InsuranceReportType" Change="@(() => GridModel.ReloadAsync())" @bind-Value="selectedReportType" />
 <h4>@reportDescription</h4>
-<DataGridVanilla TItem="Insurance" GridModel="GridModel">
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Patient.Name" Title="Name" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Patient.ChartNumber" Title="Chart#" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Insurer.RxBillingStatus" Title="Insurer Rx Billing" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceCompany" Title="InsuranceCompany" FilterMode="FilterMode.CheckBoxList" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceType" Title="InsuranceType" FilterMode="FilterMode.CheckBoxList" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="PolicyNumber" Title="PolicyNumber" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="GroupName" Title="GroupName" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="EffectiveDate" Title="EffectiveDate" />
-	<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="ExpirationDate" Title="ExpirationDate" />
+<DataGridVanilla TItem="Insurance" GridModel="GridModel" RowExpand="RowExpand">
+	<ChildContent>
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Patient.Name" Title="Name" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Patient.ChartNumber" Title="Chart#" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Insurer.RxBillingStatus" Title="Insurer Rx Billing" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceCompany" Title="InsuranceCompany" FilterMode="FilterMode.CheckBoxList" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="InsuranceType" Title="InsuranceType" FilterMode="FilterMode.CheckBoxList" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="PolicyNumber" Title="PolicyNumber" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="GroupName" Title="GroupName" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="EffectiveDate" Title="EffectiveDate" />
+		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="ExpirationDate" Title="ExpirationDate" />
+	</ChildContent>
+	<ExpandContentView Context="x">
+		<h5>Patient Data: Past 180 days</h5>
+		<span>@($"Prescription fills: {rxCount}")</span>
+		<span>@($"Visits: {visitCount}")</span>
+	</ExpandContentView>
 </DataGridVanilla>
 
 @code{
@@ -34,6 +43,8 @@
 	DataGridHelper<Insurance> GridModel = new()
 	{
 	};
+	int rxCount;
+	int visitCount;
 	protected override void OnInitialized()
 	{
 		GridModel.QueryFactory = db =>
@@ -66,5 +77,28 @@
 			return q
 				.Where(x => x.ExpirationDate != null && x.ExpirationDate >= expStart && x.ExpirationDate <= expEnd);
 		};
+	}
+	async Task RowExpand(Insurance row)
+	{
+		try
+		{			
+			var today = DateTime.Now.DateOnly;
+			var countStart = today.AddDays(-180).StartOfDay;
+			var countEnd = today.StartOfNextDay;
+			await using var db = await DbFactory.CreateDbContextAsync();
+			rxCount = db.RxFills
+						.Where(x => x.PatientId == row.PatientId)
+						.Where(x => x.ReleasedDateTime >= countStart && x.ReleasedDateTime < countEnd)
+						.Count();
+			visitCount = db.Visits
+						.Where(x => x.PatientId == row.PatientId)
+						.Where(x => x.VisitAdmitDateTime >= countStart && x.VisitAdmitDateTime < countEnd)
+						.Count();
+		}
+		finally
+		{
+			Dialogs.Close();
+			StateHasChanged();
+		}
 	}
 }

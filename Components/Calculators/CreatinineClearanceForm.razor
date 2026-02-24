@@ -1,0 +1,26 @@
+﻿@using AutoCAC.Common
+@using AutoCAC.Components.Templates.Forms
+
+<RadzenTemplateForm Data="CrCl">
+    <VanillaFormField Label="Female">
+        <RadzenCheckBox @bind-Value="CrCl.Female" />
+    </VanillaFormField>
+    <VanillaFormField Label="Age">
+        <RadzenNumeric @bind-Value="CrCl.Age" Step="1" />
+    </VanillaFormField>
+    <VanillaFormField Label="Serum Creatinine">
+        <RadzenNumeric @bind-Value="CrCl.SerumCreatinine" Step="0.1" />
+    </VanillaFormField>
+    <VanillaFormField Label="Height (cm)">
+        <RadzenNumeric @bind-Value="CrCl.HeightCm" Step="1" />
+    </VanillaFormField>
+    <VanillaFormField Label="Weight (kg)">
+        <RadzenNumeric @bind-Value="CrCl.WeightKg" Step="1" />
+    </VanillaFormField>
+    <h5>Creatinin Clearance:</h5>
+    <h5>@CrCl.Result</h5>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public CreatinineClearance CrCl { get; set; } = new();
+}

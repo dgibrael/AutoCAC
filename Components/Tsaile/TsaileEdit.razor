@@ -3,6 +3,7 @@
 @using AutoCAC.Components.Templates.Buttons
 @using AutoCAC.Components.Templates.Printing
 @using AutoCAC.Components.Tsaile
+@using AutoCAC.Components.Calculators
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @using AutoCAC.Services
@@ -28,7 +29,7 @@
 		}
 
 		<h2>@item?.BatchTo</h2>
-		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber}, DOB: {item?.Patient?.Dob})")</h3>
+		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber}, Age: {Age})")</h3>
 		@if (item?.ControlledSubstance == true)
 		{
 			<h5 class="rz-color-warning">Order Has Controlled Substances</h5>
@@ -63,11 +64,12 @@
 				MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
 		</RadzenColumn>
 	</RadzenRow>
-	<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start">
+	<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Style="margin-bottom: 2px;">
 		<SplitButtonTemplate Buttons="@BuildButtons()" 
 				DefaultButtonValue="@(item?.StatusEnum == TsaileTicketStatus.Complete ? "Back" : "Submit")" />
 		<PrintButton />
 	</RadzenStack>
+	<CreatinineClearanceDialogBtn PatientId="@(item?.Patient.Id ?? 0)" />
 </LoadingContent>
 @code{
 	[Parameter] public int Id { get; set; }
@@ -77,6 +79,7 @@
 	private bool _lockedByMe;
 	private IDisposable _unlockSubscription;
 	private bool _promptOpen;
+	private int? Age => item?.Patient?.Dob?.DateOnly.GetAge();
 	DateTime _initialLock;
 	LoadingState LoadState = LoadingState.Loading;
 	void CallNow(TsaileBetterq row)

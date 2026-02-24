@@ -65,6 +65,8 @@ public partial class Patient
 
     public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();
 
+    public virtual ICollection<Lab> Labs { get; set; } = new List<Lab>();
+
     public virtual ICollection<PatientLink> PatientLinks { get; set; } = new List<PatientLink>();
 
     public virtual ICollection<PiVerification> PiVerifications { get; set; } = new List<PiVerification>();
@@ -76,4 +78,6 @@ public partial class Patient
     public virtual ICollection<Tiu> Tius { get; set; } = new List<Tiu>();
 
     public virtual ICollection<Visit> Visits { get; set; } = new List<Visit>();
+
+    public virtual ICollection<Vital> Vitals { get; set; } = new List<Vital>();
 }

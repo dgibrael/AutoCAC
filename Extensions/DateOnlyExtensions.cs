@@ -2,6 +2,20 @@
 
 public static class DateOnlyExtensions
 {
+    public static int GetAge(this DateOnly dateOfBirth, DateOnly? today = null)
+    {
+        var now = today ?? DateOnly.FromDateTime(DateTime.Today);
+
+        int age = now.Year - dateOfBirth.Year;
+
+        var birthdayThisYear = dateOfBirth.AddYears(age);
+        if (birthdayThisYear > now)
+            age--;
+
+        if (age < 0) age = 0;
+        return age;
+    }
+
     extension(DateOnly value)
     {
         public DateTime StartOfDay
