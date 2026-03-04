@@ -63,18 +63,17 @@ public sealed class DataGridHelper<T> where T : class
         _reloadAsync = null;
     }
 
-    public void Reload()
-        => _ = ReloadAsync();
-
     private CancellationTokenSource _loadCts;
     private CancellationToken _currentLoadToken;
     private int _loadVersion;
     private int _activeVersion;
-    public Task ReloadAsync(CancellationToken ct = default)
+    public Task ReloadAsync(CancellationToken ct = default, bool ClearCache = true)
     {
         ShouldCount = true;
-        if (UseClientSideData)
+        if (UseClientSideData && ClearCache)
+        {
             _cache = null;
+        }
         _activeVersion = Interlocked.Increment(ref _loadVersion);
         _loadCts?.Cancel();
         _loadCts?.Dispose();
@@ -212,7 +211,7 @@ public sealed class DataGridHelper<T> where T : class
     public async Task SetQuickFilterAsync(string text = null)
     {
         SearchText = text ?? string.Empty;
-        await ReloadAsync();
+        await ReloadAsync(ClearCache: false);
     }
 
     // -------------------------
@@ -432,7 +431,6 @@ public sealed class DataGridHelper<T> where T : class
     private async Task LoadClientSideAsync(LoadDataArgs args, CancellationToken ct)
     {
         EnsureInitialized();
-
         // Load full data set if we don't have it yet
         if (_cache == null)
         {
@@ -445,12 +443,12 @@ public sealed class DataGridHelper<T> where T : class
         // Apply search
         if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
             query = query.AsQueryable().QuickSearch(SearchText, SearchColumns);
-
+        var normalizedFilter = NormalizeClientSideFilter(args.Filter);
         // Apply dynamic filter expression
-        if (!string.IsNullOrEmpty(args.Filter) &&
-            !args.Filter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(normalizedFilter) &&
+            !normalizedFilter.Replace(" ", "").Equals("0=1", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.AsQueryable().Where(args.Filter);
+            query = query.AsQueryable().Where(normalizedFilter);
         }
 
         // Count after filtering
@@ -473,8 +471,8 @@ public sealed class DataGridHelper<T> where T : class
             if (!string.IsNullOrWhiteSpace(SearchText) && SearchColumns != null && SearchColumns.Length > 0)
                 q = q.QuickSearch(SearchText, SearchColumns);
 
-            if (!string.IsNullOrEmpty(args.Filter) && !IgnoreFilter)
-                q = q.Where(args.Filter);
+            if (!string.IsNullOrEmpty(normalizedFilter) && !IgnoreFilter)
+                q = q.Where(normalizedFilter);
 
             return q;
         };
@@ -482,23 +480,51 @@ public sealed class DataGridHelper<T> where T : class
         ShouldCount = null;
     }
 
-    public void SetData(IEnumerable<T> items, bool requestReload = true)
+    private static string NormalizeClientSideFilter(string filter)
     {
-        EnsureInitialized();
+        if (string.IsNullOrWhiteSpace(filter))
+            return filter;
 
-        _cache = items?.ToList() ?? new List<T>();
+        // Pass 1: append .ToLowerInvariant() after each *string literal* (handles escaped quotes).
+        var sb = new System.Text.StringBuilder(filter.Length + 64);
 
-        // invalidate derived state (filters/search/count depend on dataset)
-        ShouldCount = true;
-        _lastFilter = null;
-        _lastSearchText = null;
-        LastBuilder = null;
+        for (int i = 0; i < filter.Length; i++)
+        {
+            var ch = filter[i];
+            sb.Append(ch);
 
-        // optional: reflect immediately (useful if caller wants instant render even before grid reload)
-        Data = _cache;
-        Count = _cache.Count;
+            if (ch != '"')
+                continue;
 
-        if (requestReload)
-            Reload();
+            // We are inside a string literal, copy until closing quote (respecting escapes).
+            i++;
+            for (; i < filter.Length; i++)
+            {
+                sb.Append(filter[i]);
+
+                if (filter[i] == '\\' && i + 1 < filter.Length)
+                {
+                    // escape sequence, copy next char too
+                    i++;
+                    sb.Append(filter[i]);
+                    continue;
+                }
+
+                if (filter[i] == '"')
+                {
+                    // closing quote
+                    sb.Append(".ToLowerInvariant()");
+                    break;
+                }
+            }
+        }
+
+        var rewritten = sb.ToString();
+
+        // Pass 2: move ToLowerInvariant from the "" literal to the whole coalesced expression.
+        // Turns: (x.Prop ?? "".ToLowerInvariant()) into (x.Prop ?? "").ToLowerInvariant()
+        rewritten = rewritten.Replace(@"?? """".ToLowerInvariant())", @"?? """").ToLowerInvariant()");
+
+        return rewritten;
     }
 }

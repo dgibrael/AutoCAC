@@ -19,6 +19,8 @@ public partial class WardstockItem
 
     public string Category { get; set; } = null!;
 
+    public bool LotRequired { get; set; }
+
     public virtual Drug? Drug { get; set; }
 
     public virtual WardstockLocation Location { get; set; } = null!;

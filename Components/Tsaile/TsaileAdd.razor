@@ -12,7 +12,7 @@
 @inject LookupValueService Lookup
 
 <LoadingContent LoadState="@(LoadState)">
-	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.ChartNumber})")</h3>
+	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.TsaileChartNumber})")</h3>
 	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
 		<VanillaFormField Label="Waiter">
 			<RadzenCheckBox @bind-Value="item.Waiting" />
@@ -39,7 +39,7 @@
 @code{
 	[Parameter] public int Id { get; set; }
 	private TsaileBetterq item { get; set; } = new();
-	private TsailePatient selectedPatient { get; set; }
+	private Patient selectedPatient { get; set; }
 	private string initialComment { get; set; }
 	private IReadOnlyList<string> _batchChoices;
 	private LoadingState LoadState = LoadingState.Loading;
@@ -54,7 +54,7 @@
 	{
 		LoadState = LoadingState.Loading;
 		await using var db = await DbFactory.CreateDbContextAsync();
-		selectedPatient = await db.TsailePatients
+		selectedPatient = await db.Patients
 							.Include(x => x.TsaileBetterqs)
 							.FirstOrDefaultAsync(x => x.Id == Id)
 							;

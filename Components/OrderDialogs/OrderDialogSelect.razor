@@ -43,37 +43,43 @@
             }
         </ExpandContentView>
     </DataGridVanilla>
-    <RadzenRow>
-        <RadzenColumn Size="4">
-            <RadzenLabel Text="Placeholder text"></RadzenLabel>
-        </RadzenColumn>
-        <RadzenColumn Size="8"> 
-            <RadzenTextBox
-            Name="Txt"
-            @bind-Value="placeholderField.MenuTxt" 
-            Style="width:100%"
-            MaxLength="@placeholderField.MaxLength"
-            />
-        </RadzenColumn>
-    </RadzenRow>
-    <RadzenRow>
-        <RadzenColumn Size="4">
-            <RadzenLabel Text="Placeholder Extended text"></RadzenLabel>
-        </RadzenColumn>
-        <RadzenColumn Size="8">
-            <RadzenTextBox
-            Name="ExtndTxt"
-            @bind-Value="placeholderField.ExtendedTxt" 
-            Style="width:100%"
-            />
-        </RadzenColumn>
-    </RadzenRow>
-    <RadzenRow>
-        <RadzenButton Icon="cancel" Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
-        Click="CloseDialog" />
-        <RadzenButton Text="Create PlaceHolder" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
-        Click="CreatePlaceholder" />
-    </RadzenRow>
+    <RadzenTemplateForm TItem="PlaceholderField" Data="placeholderField" Submit="@CreatePlaceholder">
+        <RadzenRow>
+            <RadzenColumn Size="4">
+                <RadzenLabel Text="Placeholder text"></RadzenLabel>
+            </RadzenColumn>
+            <RadzenColumn Size="8"> 
+                <RadzenTextBox
+                Name="Txt"
+                @bind-Value="placeholderField.MenuTxt" 
+                Style="width:100%"
+                MaxLength="@placeholderField.MaxLength"
+                />
+            <RadzenRegexValidator Component="Txt"
+                                  Text="@($"The characters {DisallowedChars} are not allowed.")"
+                                  Pattern="@BuildNoCharsPattern()"
+                                  Popup="false" />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenColumn Size="4">
+                <RadzenLabel Text="Placeholder Extended text"></RadzenLabel>
+            </RadzenColumn>
+            <RadzenColumn Size="8">
+                <RadzenTextBox
+                Name="ExtndTxt"
+                @bind-Value="placeholderField.ExtendedTxt" 
+                Style="width:100%"
+                />
+            </RadzenColumn>
+        </RadzenRow>
+        <RadzenRow>
+            <RadzenButton Icon="cancel" Text="Cancel" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Secondary"
+            Click="CloseDialog" />
+            <RadzenButton Text="Create PlaceHolder" Size="ButtonSize.Small" ButtonStyle="ButtonStyle.Primary"
+            ButtonType="ButtonType.Submit" />
+        </RadzenRow>
+    </RadzenTemplateForm>
 </RadzenStack>
 
 @code {
@@ -93,7 +99,7 @@
         DialogService.Close(selected);
     }
 
-    private void CreatePlaceholder()
+    async Task CreatePlaceholder()
     {
         DialogService.Close(placeholderField);
     }
@@ -102,5 +108,10 @@
     {
         DialogService.Close(null);
     }
-
+    string DisallowedChars = "-;,=^";
+    private string BuildNoCharsPattern()
+    {
+        var escaped = System.Text.RegularExpressions.Regex.Escape(DisallowedChars);
+        return $"^[^{escaped}]*$";
+    }
 }

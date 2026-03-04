@@ -29,7 +29,7 @@
 		}
 
 		<h2>@item?.BatchTo</h2>
-		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.ChartNumber}, Age: {Age})")</h3>
+		<h3>@($"Ticket for {item?.Patient?.Name} (HRN: {item?.Patient?.TsaileChartNumber}, Age: {Age})")</h3>
 		@if (item?.ControlledSubstance == true)
 		{
 			<h5 class="rz-color-warning">Order Has Controlled Substances</h5>
@@ -38,7 +38,7 @@
 	<h3>@($"Current status: {item?.Status}")</h3>
 	@if (item?.CalledDateTime != null)
 	{
-		<p>@($"Called at {item.CalledDateTime}")</p>
+		<p>@($"Called at {item?.CalledDateTime}")</p>
 	}
 	<OpenDialogFormButton TItem="TsaileBetterq" Data="item" Title="Edit Attributes" Context="x" OnClose="LoadAndStateHasChanged" >
 		<VanillaFormField Label="Waiter">
@@ -123,17 +123,6 @@
 		}
 	}
 
-	private async Task SaveAttributes(TsaileBetterq dialogData)
-	{
-		if (dialogData != null)
-		{
-			await DbFactory.UpdateItemAsync<TsaileBetterq>(dialogData);
-			Notifications.Success("Successfully saved attributes");
-		}
-		await LoadItem();
-		StateHasChanged();
-	}
-
 	private async Task LoadItem()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
@@ -145,7 +134,10 @@
 
 	private async Task LoadAndStateHasChanged()
 	{
+		LoadState = LoadingState.Loading;
+		StateHasChanged();
 		await LoadItem();
+		LoadState = LoadingState.Loaded;
 		StateHasChanged();
 	}
 

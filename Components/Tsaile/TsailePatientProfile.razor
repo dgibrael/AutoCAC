@@ -14,7 +14,7 @@
 @inject LookupValueService Lookup
 <LoadingContent LoadState="@LoadState">
 	<a href="javascript:history.back()">Back</a>
-	<h3>@($"Profile for {item?.Name} (HRN: {item?.ChartNumber})")</h3>
+	<h3>@($"Profile for {item?.Name} (HRN: {item?.TsaileChartNumber})")</h3>
 	<RadzenRow>
 		<RadzenColumn Size="6">
 			<DataGridVanilla TItem="TsaileBetterq" GridModel="GridModel" CellRender="CellFormat"
@@ -42,7 +42,7 @@
 </LoadingContent>
 @code{
 	[Parameter] public int Id { get; set; }
-	private TsailePatient item { get; set; }
+	private Patient item { get; set; }
 	private int _userId { get; set; } = 0;
 	LoadingState LoadState = LoadingState.Loading;
 	private DataGridHelper<TsaileBetterq> GridModel = new()
@@ -88,7 +88,7 @@
 	private async Task LoadItem()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
-		item = await db.TsailePatients
+		item = await db.Patients
 				.Include(x => x.TsaileBetterqs)
 				.Include(x => x.TsailePatientcomments)
 				.FirstOrDefaultAsync(x => x.Id == Id);

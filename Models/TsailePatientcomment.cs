@@ -19,5 +19,5 @@ public partial class TsailePatientcomment
 
     public virtual AuthUser? AuthUser { get; set; }
 
-    public virtual TsailePatient? Patient { get; set; }
+    public virtual Patient? Patient { get; set; }
 }

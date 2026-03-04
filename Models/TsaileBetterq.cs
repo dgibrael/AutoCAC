@@ -35,7 +35,7 @@ public partial class TsaileBetterq
 
     public virtual AuthUser? LockedBy { get; set; }
 
-    public virtual TsailePatient Patient { get; set; } = null!;
+    public virtual Patient Patient { get; set; } = null!;
 
     public virtual ICollection<TsaileActivitylog> TsaileActivitylogs { get; set; } = new List<TsaileActivitylog>();
 

@@ -46,7 +46,7 @@
         @if (GridModel?.SearchColumns != null)
         {
             <RadzenColumn Size="4">
-                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync()" />
+                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync(ClearCache: false)" />
             </RadzenColumn>
         }
     </RadzenStack>

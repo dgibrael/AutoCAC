@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.JSInterop;
 using Radzen;
 using System.Linq.Dynamic.Core;
@@ -56,12 +57,29 @@ namespace AutoCAC.Extensions
             IJSRuntime js,
             string fileName = "data.csv",
             bool paging = false,
-            IEnumerable<string> includeProperties = null // ✅ optional columns
+            IEnumerable<string> includeProperties = null,
+            CancellationToken ct = default
         )
             where T : class
         {
             var filteredSorted = query.ApplyRadzenArgs(args, paging);
-            var list = await filteredSorted.AsNoTracking().ToListAsync();
+
+            // If it's EF-backed, we can (and should) do EF async + AsNoTracking.
+            // If it's LINQ-to-Objects (client-side cache), EF extensions will throw, so fall back to sync.
+            List<T> list;
+
+            if (filteredSorted.Provider is IAsyncQueryProvider)
+            {
+                // AsNoTracking() is safe here and avoids change tracker overhead.
+                list = await filteredSorted.AsNoTracking().ToListAsync(ct);
+            }
+            else
+            {
+                // LINQ-to-Objects (e.g., _cache.AsQueryable()) -> sync enumeration
+                // CancellationToken can't be honored mid-enumeration without custom logic.
+                list = filteredSorted.ToList();
+            }
+
             await list.DownloadAsCsvAsync(js, fileName, includeProperties: includeProperties);
         }
         public static IQueryable<T> QuickSearch<T>(
@@ -79,36 +97,59 @@ namespace AutoCAC.Extensions
             if (keywords.Length == 0)
                 return source;
 
+            // If this is an EF query provider, keep the EF.Like translation.
+            // Otherwise (LINQ-to-Objects), use IndexOf(..., OrdinalIgnoreCase).
+            var isEf = source.Provider is IAsyncQueryProvider;
+
             var param = Expression.Parameter(typeof(T), "e");
             Expression final = null;
 
-            // EF.Functions
+            // EF.Functions (only used for EF path)
             var efFunctionsProp = Expression.Property(null, typeof(EF).GetProperty(nameof(EF.Functions))!);
+
+            // string.IndexOf(string, StringComparison)
+            var indexOfMethod = typeof(string).GetMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(StringComparison) });
+            var ordIgnoreCase = Expression.Constant(StringComparison.OrdinalIgnoreCase);
 
             foreach (var kw in keywords)
             {
                 Expression perKeywordOr = null;
-                var pattern = Expression.Constant($"%{kw}%");
+
+                // For EF Like: "%kw%"
+                var likePattern = Expression.Constant($"%{kw}%");
+                // For IndexOf: "kw"
+                var kwConst = Expression.Constant(kw);
 
                 foreach (var col in columns.Where(c => !string.IsNullOrWhiteSpace(c)))
                 {
-                    var prop = ResolvePropertyPath(param, col);  // your resolver
+                    var prop = ResolvePropertyPath(param, col);
                     if (prop == null)
                         continue;
 
-                    // Convert any type to string with null handling: (prop?.ToString()) ?? ""
+                    // (prop?.ToString()) ?? ""
                     var strExpr = ToSafeString(prop);
 
-                    // EF.Functions.Like(strExpr, "%kw%")
-                    var likeCall = Expression.Call(
-                        typeof(DbFunctionsExtensions),
-                        nameof(DbFunctionsExtensions.Like),
-                        Type.EmptyTypes,
-                        efFunctionsProp,
-                        strExpr,
-                        pattern);
+                    Expression matchExpr;
 
-                    perKeywordOr = perKeywordOr == null ? likeCall : Expression.OrElse(perKeywordOr, likeCall);
+                    if (isEf)
+                    {
+                        // EF.Functions.Like(strExpr, "%kw%")
+                        matchExpr = Expression.Call(
+                            typeof(DbFunctionsExtensions),
+                            nameof(DbFunctionsExtensions.Like),
+                            Type.EmptyTypes,
+                            efFunctionsProp,
+                            strExpr,
+                            likePattern);
+                    }
+                    else
+                    {
+                        // strExpr.IndexOf(kw, OrdinalIgnoreCase) >= 0
+                        var indexOfCall = Expression.Call(strExpr, indexOfMethod!, kwConst, ordIgnoreCase);
+                        matchExpr = Expression.GreaterThanOrEqual(indexOfCall, Expression.Constant(0));
+                    }
+
+                    perKeywordOr = perKeywordOr == null ? matchExpr : Expression.OrElse(perKeywordOr, matchExpr);
                 }
 
                 if (perKeywordOr == null)

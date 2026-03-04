@@ -1,0 +1,113 @@
+﻿@page "/insurance/insureddetails"
+@using AutoCAC.Components.Insurance
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject DialogService Dialogs
+@using AutoCAC.Common
+<EnumDropdown TEnum="InsuranceReportType" Change="@(() => GridModel.ReloadAsync())" @bind-Value="selectedReportType" />
+<h4>@($"{selectedReportType.ReportDescription} (With patient prescription fill count and visits for past 365 days)")</h4>
+<DataGridVanilla TItem="InsuranceDetailsDto" GridModel="GridModel">
+    <ChildContent>
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="PatientName" Title="Name" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="PatientChart" Title="Chart#" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="RxBillingStatus" Title="Insurer Rx Billing" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="InsuranceCompany" Title="InsuranceCompany" FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="InsuranceType" Title="InsuranceType" FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="PolicyNumber" Title="PolicyNumber" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="GroupName" Title="GroupName" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="EffectiveDate" Title="EffectiveDate" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="ExpirationDate" Title="ExpirationDate" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="RxFills" Title="Rx Fills" />
+        <RadzenDataGridColumn TItem="InsuranceDetailsDto" Property="Visits" Title="Visits" />
+    </ChildContent>
+</DataGridVanilla>
+
+@code{
+    public class InsuranceDetailsDto
+    {
+        public string PatientName { get; set; }
+        public string PatientChart { get; set; }
+        public string RxBillingStatus { get; set; }
+        public string InsuranceCompany { get; set; }
+        public string InsuranceType { get; set; }
+        public string PolicyNumber { get; set; }
+        public string GroupName { get; set; }
+        public DateOnly? EffectiveDate { get; set; }
+        public DateOnly? ExpirationDate { get; set; }
+        public int? RxFills { get; set; }
+        public int? Visits { get; set; }
+    }
+    InsuranceReportType selectedReportType = InsuranceReportType.All;
+    DataGridHelper<InsuranceDetailsDto> GridModel = new()
+    {
+        UseClientSideData = true,
+        SearchColumns = new[] { "PatientName" }
+    };
+    protected override void OnInitialized()
+    {
+        GridModel.QueryFactory = db =>
+        {
+            var today = DateTime.Now.DateOnly;
+            var countStart = today.AddDays(-365).StartOfDay;
+            var countEnd = today.StartOfNextDay;
+
+            IQueryable<Insurance> q = db.Insurances.AsNoTracking();
+
+            // your existing report filters
+            if (selectedReportType != InsuranceReportType.All)
+            {
+                if (selectedReportType == InsuranceReportType.AllActive)
+                {
+                    q = q.Where(x => x.ExpirationDate == null || x.ExpirationDate >= today);
+                }
+                else
+                {
+                    DateOnly expStart;
+                    DateOnly expEnd;
+
+                    if (selectedReportType == InsuranceReportType.Expired)
+                    {
+                        expStart = today.AddDays(-365);
+                        expEnd = today;
+                    }
+                    else
+                    {
+                        expStart = today;
+                        expEnd = today.AddDays(30);
+                    }
+
+                    q = q.Where(x =>
+                        x.ExpirationDate >= expStart &&
+                        x.ExpirationDate <= expEnd);
+                }
+            }
+
+            // projection to DTO with correlated counts
+            return q
+                .OrderBy(x => x.Patient.Name)
+                .Select(x => new InsuranceDetailsDto
+                {
+                    PatientName = x.Patient.Name,
+                    PatientChart = x.Patient.ChartNumber,
+                    RxBillingStatus = x.Insurer.RxBillingStatus,
+                    InsuranceCompany = x.InsuranceCompany,
+                    InsuranceType = x.InsuranceType,
+                    PolicyNumber = x.PolicyNumber,
+                    GroupName = x.GroupName,
+                    EffectiveDate = x.EffectiveDate,
+                    ExpirationDate = x.ExpirationDate,
+
+                    // int? properties: cast the count to nullable
+                    RxFills = (int?)db.RxFills.Count(r =>
+                        r.PatientId == x.PatientId &&
+                        r.ReleasedDateTime >= countStart &&
+                        r.ReleasedDateTime < countEnd),
+
+                    Visits = (int?)db.Visits.Count(v =>
+                        v.PatientId == x.PatientId &&
+                        v.VisitAdmitDateTime >= countStart &&
+                        v.VisitAdmitDateTime < countEnd),
+                });
+        };
+    }
+}

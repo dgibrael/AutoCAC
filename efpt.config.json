@@ -107,10 +107,6 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[PatientLink]",
-         "ObjectType": 0
-      },
-      {
          "Name": "[dbo].[PharmacyOrderableItem]",
          "ObjectType": 0
       },
@@ -160,10 +156,6 @@
       },
       {
          "Name": "[dbo].[tsaile_patientcomment]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[TsailePatient]",
          "ObjectType": 0
       },
       {

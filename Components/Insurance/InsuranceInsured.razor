@@ -3,7 +3,7 @@
 @inject IDbContextFactory<mainContext> DbFactory
 @inject DialogService Dialogs
 <EnumDropdown TEnum="InsuranceReportType" Change="@(() => GridModel.ReloadAsync())" @bind-Value="selectedReportType" />
-<h4>@reportDescription</h4>
+<h4>@selectedReportType.ReportDescription</h4>
 <DataGridVanilla TItem="Insurance" GridModel="GridModel" RowExpand="RowExpand">
 	<ChildContent>
 		<RadzenDataGridColumn TItem="AutoCAC.Models.Insurance" Property="Patient.Name" Title="Name" />
@@ -24,22 +24,7 @@
 </DataGridVanilla>
 
 @code{
-	enum InsuranceReportType
-	{
-		All,
-		AllActive,
-		Expired,
-		Expiring
-	};
 	InsuranceReportType selectedReportType = InsuranceReportType.All;
-	string reportDescription => selectedReportType switch
-	{
-		InsuranceReportType.All => "All Insurance Polices",
-		InsuranceReportType.AllActive => "All Insurance Polices with no expiration or expiration in the future",
-		InsuranceReportType.Expired => "Insurance polices expired in past 365 days",
-		InsuranceReportType.Expiring => "Insurance polices expiring within the next 30 days",
-		_ => ""
-	};
 	DataGridHelper<Insurance> GridModel = new()
 	{
 	};

@@ -16,7 +16,7 @@
     <ChildContent>
         <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="CompletedDateTime" Title="Deleted At" />
         <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.Name" Title="Name" />
-        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.ChartNumber" Title="Chart #" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Patient.TsaileChartNumber" Title="Chart #" />
         <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="Waiting" Title="Waiting"
                               FilterMode="FilterMode.CheckBoxList" />
         <RadzenDataGridColumn TItem="AutoCAC.Models.TsaileBetterq" Property="BatchTo" Title="Batched To" FilterMode="FilterMode.CheckBoxList" />
@@ -44,7 +44,7 @@
             .Include(x => x.Patient)
             .OrderByDescending(x => x.CompletedDateTime)
             .AsQueryable(),
-        SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+        SearchColumns = new[] { "Patient.Name", "Patient.TsaileChartNumber" }
     };
 
     async Task DeleteAll()

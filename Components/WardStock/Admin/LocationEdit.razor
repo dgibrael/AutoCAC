@@ -39,6 +39,11 @@
 				<RadzenNumeric @bind-Value="row.Par"  />
 			</EditTemplate>
 		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="LotRequired" Title="Lot Required">
+			<EditTemplate Context="row">
+				<RadzenCheckBox @bind-Value="row.LotRequired"  />
+			</EditTemplate>
+		</RadzenDataGridColumn>
 	</DataGridEditable>
 </LoadingContent>
 <BackLink />
@@ -54,7 +59,10 @@
 		await LoadPageItem();
 		StateHasChanged();
 	}
-	private DataGridHelper<AutoCAC.Models.WardstockItem> GridModel = new();
+	private DataGridHelper<AutoCAC.Models.WardstockItem> GridModel = new()
+	{
+		SearchColumns = new[] { "DisplayName" }
+	};
 	protected override void OnInitialized()
 	{
 		GridModel.QueryFactory = db => db.WardstockItems

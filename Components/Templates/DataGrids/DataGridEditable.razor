@@ -33,7 +33,7 @@
                 }
                 @if (DefaultRowButtonsEditMode)
                 {
-                    <RadzenButton Icon="check" Variant="Variant.Flat" Click="@(() => SaveRowAsync(item))" />
+                    <RadzenButton Icon="check" Variant="Variant.Flat" Click="@(() => SaveRowAsync(item))" ButtonType="ButtonType.Submit" />
                     <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Variant="Variant.Flat" Click="@(() => CancelRow(item))" />
                 }
             </EditTemplate>
@@ -73,6 +73,7 @@
     [Parameter] public Func<Task<TItem>> AddAction { get; set; }
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
     [Parameter] public TItem InsertAfterItem { get; set; }
+    [Parameter] public Func<TItem, Task<bool>> ValidateItemAsync { get; set; }
     TItem currentlyEditing = null;
     private async Task OnRowDoubleClick(DataGridRowMouseEventArgs<TItem> args)
     {
@@ -184,16 +185,16 @@
         await basegrid.Grid.EditRow(item);
     }
 
-    public void CancelRow(TItem item)
+    public async Task CancelRow(TItem item)
     {
         basegrid.Grid.CancelEditRow(item);
         if (_newItems.Remove(item))
         {
-            GridModel.Reload();
+            await GridModel.ReloadAsync();
         }
         else
         {
-            basegrid.Grid.Reload();
+            await basegrid.Grid.Reload();
         }
         ResetCurrentlyEditing(item);
     }
@@ -202,6 +203,14 @@
     {
         try
         {
+            if (ValidateItemAsync != null)
+            {
+                var ok = await ValidateItemAsync(item);
+                if (!ok)
+                {
+                    return;
+                }
+            }
             if (_newItems.Contains(item))
             {
                 await DbFactory.AddItemAsync(item);
