@@ -13,7 +13,7 @@ public class TerminalInterop
     [JSInvokable]
     public async Task UserInput(string input)
     {
-        if (_rpms.CurrentMode.SignedIn)
+        if (!_rpms.CurrentMode.SignedIn)
         {
             await _rpms.Login();
             return;

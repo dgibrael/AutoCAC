@@ -420,7 +420,7 @@ public class RPMSService : IDisposable
                     await Task.Delay(200);
                 }
             }
-            catch (ObjectDisposedException)
+            catch (Exception ex) when (ex is ObjectDisposedException || ex is NullReferenceException)
             {
                 await Login();
             }
