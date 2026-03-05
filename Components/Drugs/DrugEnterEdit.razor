@@ -11,8 +11,9 @@
 @using AutoCAC.Extensions
 @using Microsoft.EntityFrameworkCore
 @inject AutoCAC.Services.UserContextService UserContext
+@using AutoCAC.Services
+@using AutoCAC.Exceptions
 @inject RPMSService RPMS
-@implements IDisposable
 
 <PageTitle>Drug Enter Edit</PageTitle>
 
@@ -45,15 +46,7 @@ else
     {
         selectedDrug = selected;
         if (selectedDrug == null) return;
-        await JS.DialogShow();
-        if (RPMS.CurrentMode.SignedIn)
-        {
-            await RunRPMSCommands();
-        }
-        else
-        {
-            RPMS.SubscribeToModeChanged(HandleModeChanged);
-        }
+        await RunRPMSCommands();
         return;
     }
 
@@ -61,23 +54,28 @@ else
     {
         if (selectedDrug != null)
         {
-            try
+            if (selectedDrug.Id == 0)
             {
-
-                if (selectedDrug.Id == 0)
-                {
-                    await NewDrug();
-                }
-                else
-                {
-                    await NdcChange();
-                    await RPMS.SendAsync(selectedNdf.Ndc);
-                    RPMS.WriteToXterm($"(Dispense unit: {selectedDrug.DispenseUnit}): ");
-                }
+                await NewDrug();
+                await JS.DialogShow();
             }
-            finally
+            else
             {
-                RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+                var price = await DialogService.TextPromptAsync("Unit price", "Enter Purchase Price");
+                if (string.IsNullOrWhiteSpace(price))
+                {
+                    return;
+                }
+                var qty = await DialogService.TextPromptAsync("Package size", $"Enter Package Size (in {selectedDrug.DispenseUnit})", selectedNdf.PackageSize);
+                if (string.IsNullOrWhiteSpace(qty))
+                {
+                    return;
+                }
+                await JS.DialogShow();
+                await NdcChange();
+                await RPMS.SendAsync(selectedNdf.Ndc);
+                await RPMS.SendAsync(price);
+                await RPMS.SendAsync(qty);
             }
         }
     }
@@ -217,18 +215,5 @@ else
             }
         }
         throw new Exception("Drug not found");
-    }
-    
-    private async void HandleModeChanged()
-    {
-        if (RPMS.JustSignedIn)
-        {
-            await RunRPMSCommands();   
-        }
-    }
-
-    public void Dispose()
-    {
-        RPMS.UnSubscribeToModeChanged(HandleModeChanged);
     }
 }

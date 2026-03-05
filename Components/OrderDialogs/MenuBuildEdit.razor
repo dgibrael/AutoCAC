@@ -13,7 +13,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @inject IJSRuntime JS
-
+@inject RPMSService RPMS
 @if (currentMenu != null)
 {
     @* Menu metadata display/edit *@
@@ -497,7 +497,7 @@
 
     private async Task OrderDialogsRpmsToDb()
     {
-        await RPMSRef.RunUpdateFromRPMS("OrderDialog", async () =>
+        await RPMSRef.UpdateFromRPMS(RPMSReport.OrderDialog, async () =>
         {
             await JS.DialogHide();
             foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())

@@ -1,9 +1,11 @@
 using AutoCAC;
 using AutoCAC.Components;
+using AutoCAC.Options;
 using AutoCAC.Services;
 using AutoCAC.Utilities;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder.Extensions;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Mvc;
@@ -47,6 +49,11 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 
+builder.Services
+    .AddOptions<RpmsOptions>()
+    .Bind(builder.Configuration.GetSection("RpmsOptions"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddScoped<RPMSService>();
 builder.Services.AddScoped<TerminalInterop>();
 builder.Services.AddScoped<FtpUploadService>();

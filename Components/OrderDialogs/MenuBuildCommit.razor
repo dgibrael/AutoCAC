@@ -115,10 +115,9 @@
         </div>
     </ChildContent>
 </RadzenPanel>
-<RPMSOutput @ref="RPMSRef" />
+<RPMSOutput />
 @code {
     [Parameter] public int Id { get; set; }
-    private RPMSOutput RPMSRef;
     private MenuBuildMetum currentMenu;
     private List<AutoCAC.Models.MenuBuild> addLst;
     private List<ProblemGroup> problemGroups = new();
@@ -320,7 +319,7 @@
             if (!continueAnyway) return;
         }
         await JS.DialogShow();
-        await RPMSRef.RunWhenSignedIn(RunMenuUpdate);
+        await RunMenuUpdate();
     }
 
     public class ProblemGroup

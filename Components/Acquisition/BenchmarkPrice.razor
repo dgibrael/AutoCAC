@@ -5,7 +5,6 @@
 @inject DialogService DialogService
 @inject RPMSService RPMS
 @inject NotificationService NotificationService
-@implements IDisposable
 
 <h4>Step 1: Download Cost Change Report from McKesson</h4>
 <ul>
@@ -120,51 +119,25 @@ else
     private async Task SetFileUploaded()
     {
         fileUploaded = true;
-        if (RPMS.CurrentMode.SignedIn)
-        {
-            await RunRPMSCommands();
-        }
-        else
-        {
-            RPMS.SubscribeToModeChanged(HandleModeChanged);
-        }
+        await RunRPMSCommands();
         StateHasChanged();
     }
 
     private async Task RunRPMSCommands()
     {
-        try
+        await RPMS.GoToMenu("AAC");
+        RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
+        await RPMS.SendAsync("YES");
+        await RPMS.HandlePrompt(new()
         {
-            await RPMS.GoToMenu("AAC");
-            RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
-            await RPMS.SendAsync("YES");
-            await RPMS.HandlePrompt(new()
-            {
-                ("Replace", async () => { await RPMS.SendAsync("...", aixDirectory, ""); }),
-                ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(aixDirectory); })
-            });
-            await RPMS.HandlePrompt(new()
-            {
-                ("Replace", async () => { await RPMS.SendAsync("...", fileName, ""); }),
-                ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(fileName); })
-            });
-            await RPMS.SendAsync();
-        }
-        finally
+            ("Replace", async () => { await RPMS.SendAsync("...", aixDirectory, ""); }),
+            ("ENTER THE PATH TO THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(aixDirectory); })
+        });
+        await RPMS.HandlePrompt(new()
         {
-            RPMS.UnSubscribeToModeChanged(HandleModeChanged);
-        }
-    }
-    private async void HandleModeChanged()
-    {
-        if (RPMS.JustSignedIn)
-        {
-            await RunRPMSCommands();   
-        }
-    }
-
-    public void Dispose()
-    {
-        RPMS.UnSubscribeToModeChanged(HandleModeChanged);
+            ("Replace", async () => { await RPMS.SendAsync("...", fileName, ""); }),
+            ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(fileName); })
+        });
+        await RPMS.SendAsync();
     }
 }
