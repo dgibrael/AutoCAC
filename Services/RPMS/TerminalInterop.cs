@@ -4,15 +4,17 @@ namespace AutoCAC.Services;
 public class TerminalInterop
 {
     private readonly RPMSService _rpms;
-
-    public TerminalInterop(RPMSService rpms)
+    private readonly UserContextService _user;
+    public TerminalInterop(RPMSService rpms, UserContextService user)
     {
+        _user = user;
         _rpms = rpms;
     }
 
     [JSInvokable]
     public async Task UserInput(string input)
     {
+        if (!_user.IsAllowedRPMSInput) return;
         if (!_rpms.CurrentMode.SignedIn)
         {
             await _rpms.Login();

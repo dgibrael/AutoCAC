@@ -150,6 +150,8 @@ public sealed class DataGridHelper<T> where T : class
     public bool AllowFiltering { get; set; } = true;
     public bool AllowColumnReorder { get; set; } = true;
     public bool AllowColumnPicking { get; set; } = true;
+    public bool ShowDownloadButton { get; set; } = true;
+    public bool ShowTemplates { get; set; } = true;
 
     // -------------------------
     // Existing helper state/output (kept close to your current code)

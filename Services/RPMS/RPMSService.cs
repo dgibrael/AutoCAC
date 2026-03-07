@@ -11,31 +11,6 @@ using Renci.SshNet;
 using Renci.SshNet.Common;
 namespace AutoCAC.Services;
 
-public enum RPMSMode
-{
-    Disconnected,
-    DefaultInput,
-    DefaultReceive,
-    Access,
-    Verify,
-    ScrollWrite,
-    Report,
-    ReportPrompt
-}
-
-public static class RPMSModeExtensions
-{
-    extension(RPMSMode mode)
-    {
-        public bool SignedIn => mode switch
-        {
-            RPMSMode.Disconnected or RPMSMode.Access
-            or RPMSMode.Verify => false,
-            _ => true
-        };
-    }
-}
-
 public class RPMSService : IDisposable
 {
     private readonly IJSRuntime _js;
@@ -296,6 +271,13 @@ public class RPMSService : IDisposable
                     }
                     SetMode(RPMSMode.DefaultInput);
                     break;
+                }
+                break;
+            case RPMSMode.ScrollWrite:
+                if (data.Contains("\x1B[?7h"))
+                {
+                    SendEndOfFeed();
+                    SetMode(RPMSMode.DefaultReceive);
                 }
                 break;
         }
@@ -580,6 +562,28 @@ public class RPMSService : IDisposable
         {
             throw new RPMSException();
         }
+    }
+
+    public void SendKey(RPMSTermKey key)
+    {
+        SendRaw(key.Value);
+    }
+    public void SendScrollCommand(RPMSScrollFunc func)
+    {
+        SendKey(RPMSTermKey.F1);
+        SendRaw(func.Value);
+    }
+
+    public async Task ExitScroll(bool save = true)
+    {
+        var func = save ? RPMSScrollFunc.ExitAndSave : RPMSScrollFunc.Exit;
+        SendScrollCommand(func);
+        if (!save)
+        {
+            SendRaw("N");
+            SendRaw("\r");
+        }
+        await WaitUntilModeAsync(RPMSMode.DefaultInput);
     }
 
     public void Close()

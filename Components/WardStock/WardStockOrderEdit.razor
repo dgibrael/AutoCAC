@@ -85,12 +85,13 @@
 			}
 			else if (orderedItems != null)
 			{
+				<h5>@($"Entered by: {firstActivity?.AuthUser?.DisplayName} @ {firstActivity?.ActivityAt}")</h5>
 				<RadzenDataGrid TItem="WardstockOrderitem" Data="orderedItems" >
 					<Columns>
-						<RadzenDataGridColumn Property="Item.DisplayName" Title="Item" Width="250px"/>
-						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" Width="100px" />
-						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" Width="100px"/>
-						<RadzenDataGridColumn Property="Lot" Title="Lot#" Width="100px"/>
+						<RadzenDataGridColumn Property="Item.DisplayName" Title="Item" Width="200px" WhiteSpace="WhiteSpace.Wrap"/>
+						<RadzenDataGridColumn Property="QtyOrdered" Title="QtyOrdered" Width="100px" WhiteSpace="WhiteSpace.Wrap"/>
+						<RadzenDataGridColumn Property="QtyFilled" Title="QtyFilled" Width="100px" WhiteSpace="WhiteSpace.Wrap"/>
+						<RadzenDataGridColumn Property="Lot" Title="Lot#" Width="100px" WhiteSpace="WhiteSpace.Wrap"/>
 					</Columns>
 				</RadzenDataGrid>
 			}
@@ -120,6 +121,7 @@
 	private List<AutoCAC.Models.WardstockItem> allAllowedItems { get; set; }
 	private IEnumerable<WardstockOrderitem> orderedItems;
 	private IEnumerable<WardstockComment> comments;
+	private WardstockActivitylog firstActivity;
 	private enum UserTypes
 	{
 		super,
@@ -170,6 +172,11 @@
 			if (userLocations) UserType = UserTypes.nurse;
 			else UserType = UserTypes.unauthorized;
 		}
+		firstActivity = await db.WardstockActivitylogs
+							.Include(x => x.AuthUser)
+							.Where(x => x.WardstockOrderId == Id && x.Remarks == "Status Changed to Submitted")
+							.OrderByDescending(x => x.ActivityAt)
+							.FirstOrDefaultAsync();
 		pageLoaded = true;
 		StateHasChanged();
 	}

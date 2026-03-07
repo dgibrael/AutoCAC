@@ -7,6 +7,7 @@
 @inject DialogService DialogService
 @using AutoCAC.Components.Templates
 @inject RPMSService RPMS
+@inject UserContextService CurUser
 @if(!string.IsNullOrWhiteSpace(ButtonLabel))
 {
     <button onclick="showDialog()" class="rz-button rz-button-md">@ButtonLabel</button>
@@ -36,7 +37,7 @@
     {
         if (firstRender)
         {
-            await JS.ReinitXterm();
+            await JS.ReinitXterm(CurUser.IsAllowedRPMSInput);
             await JS.WriteToXtermAsync(RPMS.Output.Buffered);
         }
     }

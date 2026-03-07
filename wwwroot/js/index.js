@@ -1,4 +1,4 @@
-﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200 });
+﻿let rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, scrollback: 200, disableStdin: true, cursorBlink: true });
 const rpmsTxtDivId = "rpmsOutputTxtDiv";
 
 let rpmsDotNetRef = null;
@@ -27,14 +27,14 @@ window.clearRPMSXterm = function () {
     }
 };
 
-window.reinitRPMSXterm = function () {
+window.reinitRPMSXterm = function (enabled = false) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
         console.warn("Target div not found:", rpmsTxtDivId);
         return;
     }
 
-    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14 });
+    rpmsTerm = new Terminal({ convertEol: true, fontSize: 14, disableStdin: !enabled, cursorBlink: enabled });
     rpmsTerm.open(container);
 
     rpmsTerm.onData(function (input) {
@@ -42,6 +42,7 @@ window.reinitRPMSXterm = function () {
             console.warn("RPMS .NET reference not set.");
             return;
         }
+        if (rpmsTerm.disableStdin) return;
         rpmsDotNetRef.invokeMethodAsync("UserInput", input);
     });
 };

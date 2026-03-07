@@ -57,10 +57,10 @@ Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />
         }
         else
         {    
-            var adUser = await DialogService.StaffAdDialog(AdGroupHelper.Pharmacist);
-            if (adUser is null || string.IsNullOrWhiteSpace(adUser.SamAccountName))
+            var newUser = await DialogService.StaffAdDialog(AdGroupHelper.Pharmacist);
+            if (newUser is null)
                 return null;
-            user = $"D1_{adUser.SamAccountName}";
+            user = newUser.Username;
         }
 
         return new NightShiftRotation

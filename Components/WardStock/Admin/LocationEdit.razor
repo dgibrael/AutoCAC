@@ -5,75 +5,111 @@
 @inject IDbContextFactory<mainContext> DbFactory
 @inject NavigationManager Nav
 @inject DialogService DialogService
+@inject NotificationService Notifications
 <BackLink />
 <LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
-	<RadzenTemplateForm TItem="WardstockLocation" Data="@pageItem" Submit="@OnSubmit">
-		<VanillaFormField Label="Location Name">
-			<RadzenTextBox @bind-Value="@(pageItem.LocationName)" Disabled="!metaEdit" />
-		</VanillaFormField>
-		@if(metaEdit)
-		{
-			<StandardButtons CancelClick="ToggleMetaEdit" SubmitText="Save Property Changes"/>
-		}
-		else
-		{
-			<RadzenButton Click="ToggleMetaEdit" ButtonType="ButtonType.Button" Text="Edit Attributes" 
-				Size="ButtonSize.Medium" Icon="edit" />
-		}
-	</RadzenTemplateForm>
-	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" GridModel="GridModel">
-		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="DisplayName" Title="Display Name">
-			<EditTemplate Context="row" >
-				<RadzenTextBox @bind-Value="row.DisplayName" Name="rowDisplayName"/>
-				<RadzenRequiredValidator Component="rowDisplayName" />
-			</EditTemplate>
-		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Category" Title="Category">
-			<EditTemplate Context="row">
-				<RadzenTextBox @bind-Value="row.Category" Name="rowCategory" />
-				<RadzenRequiredValidator Component="rowCategory" />
-			</EditTemplate>
-		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Par" Title="Par">
-			<EditTemplate Context="row">
-				<RadzenNumeric @bind-Value="row.Par"  />
-			</EditTemplate>
-		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="LotRequired" Title="Lot Required">
-			<EditTemplate Context="row">
-				<RadzenCheckBox @bind-Value="row.LotRequired"  />
-			</EditTemplate>
-		</RadzenDataGridColumn>
+	<RadzenRow>
+		<RadzenButton Text="@($"{pageItem?.LocationName} (click to edit name)")" Variant="Variant.Text" Click="EditName" Size="ButtonSize.Large" Style="text-transform: none;" />
+	</RadzenRow>
+	<DataGridEditable TItem="AutoCAC.Models.WardstockItem" AddAction="SelectNewDrug" GridModel="GridModelDrugs">
+		<HeaderContent><h4>Drugs</h4></HeaderContent>
+		<ChildContent>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="DisplayName" Title="Display Name">
+				<EditTemplate Context="row" >
+					<RadzenTextBox @bind-Value="row.DisplayName" Name="rowDisplayName"/>
+					<RadzenRequiredValidator Component="rowDisplayName" />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Category" Title="Category">
+				<EditTemplate Context="row">
+					<RadzenTextBox @bind-Value="row.Category" Name="rowCategory" />
+					<RadzenRequiredValidator Component="rowCategory" />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="Par" Title="Par">
+				<EditTemplate Context="row">
+					<RadzenNumeric @bind-Value="row.Par"  />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+			<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockItem" Property="LotRequired" Title="Lot Required">
+				<EditTemplate Context="row">
+					<RadzenCheckBox @bind-Value="row.LotRequired"  />
+				</EditTemplate>
+			</RadzenDataGridColumn>
+		</ChildContent>
 	</DataGridEditable>
+	<DataGridVanilla TItem="AuthUser" AddButtonClick="AddUser" GridModel="GridModelUsers" >
+		<HeaderContent><h4>Users</h4></HeaderContent>
+		<TrailingColumns>
+			<ActionDefaultColumn TItem="AuthUser" ShowEdit="false" GridModel="GridModelUsers"/>
+		</TrailingColumns>
+	</DataGridVanilla>
 </LoadingContent>
 <BackLink />
 	@code {
 	[Parameter] public int Id { get; set; }
-	private bool metaEdit = false;
 	private bool pageLoaded = false;
 	private WardstockLocation pageItem;
-
-	async Task ToggleMetaEdit()
+	private DataGridHelper<AutoCAC.Models.WardstockItem> GridModelDrugs = new()
 	{
-		metaEdit = !metaEdit;
-		await LoadPageItem();
-		StateHasChanged();
-	}
-	private DataGridHelper<AutoCAC.Models.WardstockItem> GridModel = new()
-	{
-		SearchColumns = new[] { "DisplayName" }
+		SearchColumns = new[] { "DisplayName" },
+		ShowDownloadButton = false,
+		ShowTemplates = false,
+		AllowGrouping = false,
+		AllowColumnPicking = false
 	};
+
+	private DataGridHelper<AutoCAC.Models.AuthUser> GridModelUsers = new()
+	{
+		IncludeColumns = new[] { "LastName", "FirstName", "Username"},
+		SearchColumns = new[] { "LastName", "FirstName", "Username" },
+		ShowDownloadButton = false,
+		ShowTemplates = false,
+		AllowGrouping = false,
+		AllowColumnPicking = false
+	};
+
+	private async Task AddUser()
+	{
+		var selectedUser = await DialogService.StaffAdDialog();
+		if (selectedUser == null) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		bool userExists = await db.WardstockUserlocations
+							.AnyAsync(x => x.LocationId == Id && x.AuthUserId == selectedUser.Id);
+		if (userExists)
+		{
+			Notifications.Info($"{selectedUser.DisplayName} already assigned to this location");
+			await GridModelUsers.ReloadAsync();
+			return;
+		}
+		await db.AddItemAsync<WardstockUserlocation>(new WardstockUserlocation
+			{
+				LocationId = Id,
+				AuthUserId = selectedUser.Id
+			}
+		);
+		await db.SaveChangesAsync();
+		await GridModelUsers.ReloadAsync();
+	}
+
 	protected override void OnInitialized()
 	{
-		GridModel.QueryFactory = db => db.WardstockItems
+		GridModelDrugs.QueryFactory = db => db.WardstockItems
 				.Include(x => x.Drug)
 				.Where(x => x.LocationId == Id)
+				.AsQueryable();
+		GridModelUsers.QueryFactory = db => db.WardstockUserlocations
+				.Where(x => x.LocationId == Id)
+				.Select(x => x.AuthUser)
+				.OrderBy(x => x.LastName)
+					.ThenBy(x => x.FirstName)
 				.AsQueryable();
 	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (!firstRender) return;
 		await LoadPageItem();
+
 		pageLoaded = true;
 		StateHasChanged();
 	}
@@ -87,11 +123,13 @@
 							.FirstOrDefaultAsync(x => x.Id == Id);
 	}
 
-	private async Task OnSubmit()
+	private async Task EditName()
 	{
+		var newName = await DialogService.TextPromptAsync("Location Name", "Edit Location Name", pageItem?.LocationName);
+		if (string.IsNullOrWhiteSpace(newName)) return;
+		pageItem.LocationName = newName;
 		await DbFactory.UpdateItemAsync(pageItem);
 		await LoadPageItem();
-		metaEdit = false;
 	}
 
 	private async Task<WardstockItem> SelectNewDrug()

@@ -31,11 +31,11 @@ namespace AutoCAC.Extensions
             }
         }
 
-        public static async Task ReinitXterm(this IJSRuntime js)
+        public static async Task ReinitXterm(this IJSRuntime js, bool enabled = false)
         {
-            await js.InvokeVoidAsync("reinitRPMSXterm");
-        }        
-        
+            await js.InvokeVoidAsync("reinitRPMSXterm", enabled);
+        }
+
         public static async Task DownloadString(this IJSRuntime js, string data, string filename = "output.txt", string mimeType = "text/plain", bool addUtf8Bom = false)
         {
             await js.InvokeVoidAsync("downloadTextFile", data, filename, mimeType, addUtf8Bom);

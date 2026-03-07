@@ -51,7 +51,7 @@ else
     // Optional inputs you can set from a parent (kept from earlier)
     [Parameter] public string GroupEquals { get; set; } = AdGroupHelper.AllStaff;
     [Parameter] public bool Recursive { get; set; } = true;
-    [Parameter] public EventCallback<AdUserDto> OnSelect { get; set; }
+    [Parameter] public EventCallback<AuthUser> OnSelect { get; set; }
     public bool isLoading = true;
     private RadzenDataGrid<AdUserDto> _grid;
     private IEnumerable<AdUserDto> _users;
@@ -75,11 +75,11 @@ else
         var existingUser = await db.AuthUsers
                             .Where(x => selectedUsername.ToLower() == x.Username.ToLower())
                             .FirstOrDefaultAsync();
-        bool newUserCreated = existingUser == default;
+        bool newUserCreated = existingUser is null;
         bool needUpdate = false;
         if (newUserCreated)
         {
-            var newUser = new AuthUser
+            existingUser = new AuthUser
             {
                 Username = selectedUsername,
                 FirstName = firstName,
@@ -93,7 +93,7 @@ else
                 Password = "!"
             };
 
-            db.AuthUsers.Add(newUser);
+            db.AuthUsers.Add(existingUser);
         }
         else
         {
@@ -123,7 +123,7 @@ else
             }
         }
         if (newUserCreated || needUpdate) await db.SaveChangesAsync();
-        await OnSelect.InvokeAsync(selected);
+        await OnSelect.InvokeAsync(existingUser);
     }
 
     private async Task OnGroupSelect()

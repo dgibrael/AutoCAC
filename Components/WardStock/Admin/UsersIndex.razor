@@ -23,8 +23,6 @@
     {
         var selected = await DialogService.StaffAdDialog();
         if (selected is null) return;
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var user = await db.AuthUsers.FirstOrDefaultAsync(x => x.Username.ToLower() == selected.d1Username.ToLower());
-        Nav.NavigateToRelative(user.Id.ToString());
+        Nav.NavigateToRelative(selected.Id.ToString());
     }
 }

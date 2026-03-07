@@ -78,6 +78,7 @@ namespace AutoCAC.Services
         public bool IsClinical() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PublicHealth", "Nurse", "Provider"
             , "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin");
         public bool IsPharmacy() => IsInGroupOrSuperuser("PharmacistSupervisor", "Pharmacist", "PharmacyTech", "PharmacyTechSupervisor", "PinonAdmin", "TsaileAdmin");
+        public bool IsAllowedRPMSInput { get; private set; }
 
         public UserContextService(
             IDbContextFactory<mainContext> dbFactory,
@@ -207,6 +208,7 @@ namespace AutoCAC.Services
                             .FirstOrDefaultAsync(u => u.Id == UserProfile.Id);
                     }
                 }
+                IsAllowedRPMSInput = IsInGroupOrSuperuser("PharmacistSupervisor", "RPMSInput");
                 UserLoaded = true;
             }
             finally

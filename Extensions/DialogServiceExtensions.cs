@@ -142,7 +142,7 @@ namespace AutoCAC.Extensions
 
             return result as TItem;
         }
-        public static async Task<AutoCAC.Models.AdUserDto> StaffAdDialog(
+        public static async Task<AutoCAC.Models.AuthUser> StaffAdDialog(
             this DialogService dialogService,
             string initialGroup = "NAV/CHC CSU Staff")
         {
@@ -160,7 +160,7 @@ namespace AutoCAC.Extensions
                     Resizable = true,
                     Draggable = true
                 });
-            return result as AutoCAC.Models.AdUserDto;
+            return result as AutoCAC.Models.AuthUser;
         }
         public static async Task<AutoCAC.Models.Patient> PatientSelectDialogAsync(
             this DialogService dialogService,

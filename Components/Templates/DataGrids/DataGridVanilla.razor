@@ -30,19 +30,23 @@
                           Click="@OnAddClickInternal"
                           Variant="Variant.Flat" />
         }
+        @if (GridModel?.ShowDownloadButton == true)
+        {
+            <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
+        }
+        @if (GridModel?.ShowTemplates == true)
+        {            
+            <RadzenSplitButton Text="Save Template" Icon="save"
+                               Click="@(item => SaveGridSettingsClick(item))"
+                               ButtonStyle="ButtonStyle.Base">
+                <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
+                <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
+            </RadzenSplitButton>
 
-        <RadzenButton Text="Download" Click="@DownloadTbl" Icon="download" />
-
-        <RadzenSplitButton Text="Save Template" Icon="save"
-                           Click="@(item => SaveGridSettingsClick(item))"
-                           ButtonStyle="ButtonStyle.Base">
-            <RadzenSplitButtonItem Text="Save Template" Value="private" Icon="account_circle" />
-            <RadzenSplitButtonItem Text="Save Public Template" Value="public" Icon="public" />
-        </RadzenSplitButton>
-
-        <SearchTemplateDropown DataGridName="@GridModel.PageName" @ref="templateDropdown"
-                               SelectedTemplateChanged="OnTemplatePicked" InitialValue="GridModel.InitialTemplate"
-                               Placeholder="Load Saved Template..." />
+            <SearchTemplateDropown DataGridName="@GridModel.PageName" @ref="templateDropdown"
+                                   SelectedTemplateChanged="OnTemplatePicked" InitialValue="GridModel.InitialTemplate"
+                                   Placeholder="Load Saved Template..." />
+        }
         @if (GridModel?.SearchColumns != null)
         {
             <RadzenColumn Size="4">

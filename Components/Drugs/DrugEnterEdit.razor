@@ -56,27 +56,32 @@ else
         {
             if (selectedDrug.Id == 0)
             {
-                await NewDrug();
                 await JS.DialogShow();
+                try
+                {
+                    await NewDrug();
+                }
+                catch (Exception ex)
+                {
+                    NotificationService.Error(ex);
+                }
+                return;
             }
-            else
+            var price = await DialogService.TextPromptAsync("Unit price", "Enter Purchase Price");
+            if (string.IsNullOrWhiteSpace(price))
             {
-                var price = await DialogService.TextPromptAsync("Unit price", "Enter Purchase Price");
-                if (string.IsNullOrWhiteSpace(price))
-                {
-                    return;
-                }
-                var qty = await DialogService.TextPromptAsync("Package size", $"Enter Package Size (in {selectedDrug.DispenseUnit})", selectedNdf.PackageSize);
-                if (string.IsNullOrWhiteSpace(qty))
-                {
-                    return;
-                }
-                await JS.DialogShow();
-                await NdcChange();
-                await RPMS.SendAsync(selectedNdf.Ndc);
-                await RPMS.SendAsync(price);
-                await RPMS.SendAsync(qty);
+                return;
             }
+            var qty = await DialogService.TextPromptAsync("Package size", $"Enter Package Size (in {selectedDrug.DispenseUnit})", selectedNdf.PackageSize);
+            if (string.IsNullOrWhiteSpace(qty))
+            {
+                return;
+            }
+            await JS.DialogShow();
+            await NdcChange();
+            await RPMS.SendAsync(selectedNdf.Ndc);
+            await RPMS.SendAsync(price);
+            await RPMS.SendAsync(qty);
         }
     }
 

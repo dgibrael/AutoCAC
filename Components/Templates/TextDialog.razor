@@ -28,9 +28,9 @@
     <div class="flex justify-end gap-2">
         <RadzenButton Text="Cancel"
                       ButtonStyle="ButtonStyle.Secondary"
-                      Click="@(() => DialogService.Close(null))" />
+                      Click="OnCancel" IsBusy="_busy" />
         <RadzenButton Text="OK" ButtonType="ButtonType.Submit"
-                      ButtonStyle="ButtonStyle.Primary"/>
+                      ButtonStyle="ButtonStyle.Primary" IsBusy="_busy"/>
     </div>
 </RadzenTemplateForm>
 
@@ -41,7 +41,7 @@
     [Parameter] public string InitialValue { get; set; }
     [Parameter] public int? MaxLength { get; set; }
     [Parameter] public string DisallowedChars { get; set; }   // NEW
-
+    private bool _busy;
     private string Value;
 
     protected override void OnInitialized()
@@ -51,7 +51,16 @@
 
     private void OnOk()
     {
+        _busy = true;
+        StateHasChanged();
         DialogService.Close(Value);
+    }
+
+    private void OnCancel()
+    {
+        _busy = true;
+        StateHasChanged();
+        DialogService.Close(null);
     }
 
     private string BuildNoCharsPattern()

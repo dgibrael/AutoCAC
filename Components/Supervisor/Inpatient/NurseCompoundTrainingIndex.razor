@@ -52,12 +52,12 @@
     private async Task<NurseCompoundTraining> AddNurseTrainingAsync()
     {
         var user = await DialogService.StaffAdDialog(AdGroupHelper.Scu);
-        if (user is null || string.IsNullOrWhiteSpace(user.SamAccountName))
+        if (user is null)
             return null;
 
         return new NurseCompoundTraining
         {
-            StaffUserName = $"D1_{user.SamAccountName}"
+            StaffUserName = user.Username
         };
     }
 
