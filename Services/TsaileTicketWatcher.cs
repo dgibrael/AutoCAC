@@ -1,44 +1,43 @@
-﻿namespace AutoCAC.Services
+﻿namespace AutoCAC.Services;
+
+public sealed class TsaileTicketWatcher : IDisposable
 {
-    public sealed class TsaileTicketWatcher : IDisposable
+    private readonly SqlWatcher _watcher;
+
+    public event Func<Task> QueueChangedAsync;
+
+    public TsaileTicketWatcher(IConfiguration configuration)
     {
-        private readonly SqlWatcher _watcher;
+        var connString = configuration.GetConnectionString("mainConnection")
+            ?? throw new InvalidOperationException("Connection string 'mainConnection' not found.");
 
-        public event Func<Task> QueueChangedAsync;
+        var query = @"SELECT COUNT_BIG(*) FROM dbo.tsaile_betterq;";
 
-        public TsaileTicketWatcher(IConfiguration configuration)
-        {
-            var connString = configuration.GetConnectionString("mainConnection")
-                ?? throw new InvalidOperationException("Connection string 'mainConnection' not found.");
+        _watcher = new SqlWatcher(connString, query);
 
-            var query = @"SELECT COUNT_BIG(*) FROM dbo.tsaile_betterq;";
+        // Use async event from SqlWatcher (after you add it)
+        _watcher.ChangedAsync += OnSqlChangedAsync;
+    }
 
-            _watcher = new SqlWatcher(connString, query, null);
+    private Task OnSqlChangedAsync()
+    {
+        // If nobody subscribed, do nothing.
+        var handlers = QueueChangedAsync;
+        if (handlers == null)
+            return Task.CompletedTask;
 
-            // Use async event from SqlWatcher (after you add it)
-            _watcher.ChangedAsync += OnSqlChangedAsync;
-        }
+        // Invoke all subscribers and return a combined Task.
+        // (If you prefer sequential invocation, I can show that too.)
+        var tasks = handlers.GetInvocationList()
+            .Cast<Func<Task>>()
+            .Select(h => h());
 
-        private Task OnSqlChangedAsync()
-        {
-            // If nobody subscribed, do nothing.
-            var handlers = QueueChangedAsync;
-            if (handlers == null)
-                return Task.CompletedTask;
+        return Task.WhenAll(tasks);
+    }
 
-            // Invoke all subscribers and return a combined Task.
-            // (If you prefer sequential invocation, I can show that too.)
-            var tasks = handlers.GetInvocationList()
-                .Cast<Func<Task>>()
-                .Select(h => h());
-
-            return Task.WhenAll(tasks);
-        }
-
-        public void Dispose()
-        {
-            _watcher.ChangedAsync -= OnSqlChangedAsync;
-            _watcher.Dispose();
-        }
+    public void Dispose()
+    {
+        _watcher.ChangedAsync -= OnSqlChangedAsync;
+        _watcher.Dispose();
     }
 }

@@ -1,4 +1,5 @@
 ﻿using AutoCAC.Models;
+using DocumentFormat.OpenXml.InkML;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Radzen;
@@ -248,6 +249,11 @@ namespace AutoCAC.Extensions
         {
             db.Attach(item);
             db.Remove(item);
+        }
+
+        public static IQueryable<T> SqlToIQueryable<T>(this mainContext db, FormattableString sql)
+        {
+            return db.Database.SqlQuery<T>(sql);
         }
 
     }

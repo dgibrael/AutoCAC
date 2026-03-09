@@ -36,17 +36,21 @@ namespace AutoCAC.Extensions
 
         public static async Task<List<T>> ReadSqlAsync<T>(
             this IDbContextFactory<mainContext> factory,
-            FormattableString sql) where T : class
+            FormattableString sql,
+            CancellationToken ct = default
+            ) where T : class
         {
             await using var context = factory.CreateDbContext();
-            return await context.Database.SqlQuery<T>(sql).ToListAsync();
+            return await context.Database.SqlQuery<T>(sql).ToListAsync(ct);
         }
 
         public static async Task<T> ReadSqlFirstRowAsync<T>(
             this IDbContextFactory<mainContext> factory,
-            FormattableString sql) where T : class
+            FormattableString sql,
+            CancellationToken ct = default
+            ) where T : class
         {
-            var results = await factory.ReadSqlAsync<T>(sql);
+            var results = await factory.ReadSqlAsync<T>(sql, ct);
             return results.FirstOrDefault();
         }
 

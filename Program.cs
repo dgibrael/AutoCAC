@@ -73,7 +73,7 @@ if (OperatingSystem.IsWindows())
 }
 builder.Services.AddScoped<UserContextService>();
 builder.Services.AddMemoryCache();
-builder.Services.AddScoped<CacheService>();
+builder.Services.AddSingleton<CacheService>();
 builder.Services.AddSingleton<TsaileTicketWatcher>();
 builder.Services.AddSingleton<LookupValueService>();
 builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();

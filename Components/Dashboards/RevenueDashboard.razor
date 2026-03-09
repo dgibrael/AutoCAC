@@ -4,6 +4,7 @@
 @inject IDbContextFactory<mainContext> DbFactory
 @using AutoCAC.Utilities
 @inject NotificationService Notifications
+@inject CacheService Cache
 <PageTitle>Revenue Dashboard</PageTitle>
 <DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
 <RadzenCard>
@@ -53,13 +54,23 @@
 	</LoadingContent>
 </RadzenCard>
 <RadzenCard>
-	<h4>Top 20 Reject Codes by Cost Chart</h4>
+	<h3>Reject Code Charts</h3>
 	<LoadingContent LoadState="@rejectCodesLoadState">
+		<h4>Top 20 Reject Codes by Cost</h4>
 		<RadzenChart >
 			<RadzenPieSeries Data="rejectCodeAmounts" ValueProperty="Amount" CategoryProperty="Legend" 
 				Title="Reject Codes">
 				<TooltipTemplate Context="x">
 					<strong>@($"{x.Explanation}: ")</strong><span>@x?.Amount.ToString("C")</span>
+				</TooltipTemplate>
+			</RadzenPieSeries>
+		</RadzenChart>
+		<h4>Reject Categories by Total Cost</h4>
+		<RadzenChart >
+			<RadzenPieSeries Data="rejectCategoryAmounts" ValueProperty="Amount" CategoryProperty="Legend" 
+				Title="Reject Codes">
+				<TooltipTemplate Context="x">
+					<strong>@($"{x.Category}: ")</strong><span>@x?.Amount.ToString("C")</span>
 				</TooltipTemplate>
 			</RadzenPieSeries>
 		</RadzenChart>
@@ -75,15 +86,23 @@
 	DateTime cmpStart;
 	DateTime cmpEnd;
 	PeriodSelection selectedPeriod = new(PeriodOption.LastQuarter);
-	private Dictionary<string, string> rejectDefinitions;
 	private sealed class RejectCodeAmountDto
 	{
 		public string Code { get; set; }
 		public string Explanation { get; set; }
+		public string Category { get; set; }
 		public double Amount { get; set; } = 0;
 		public string Legend => $"{Explanation} ({Amount:C})";
 	}
 	private List<RejectCodeAmountDto> rejectCodeAmounts;
+	private sealed class RejectCategoryAmountDto
+	{
+		public string Category { get; set; }
+		public double Amount { get; set; } = 0;
+		public string Legend => $"{Category} ({Amount:C})";
+	}
+	private List<RejectCategoryAmountDto> rejectCategoryAmounts;
+
 	private sealed class PosRowDto
 	{
 		// True = current, False = compare, null = neither/other (if you ever allow it)
@@ -149,44 +168,33 @@
 		{
 			rejectCodesLoadState = LoadingState.Loading;
 			StateHasChanged();
-
-			await using var db = await DbFactory.CreateDbContextAsync();
-			// Pull rows into memory (code string + amount)
-			var data = await db.BillingRxes
-				.AsNoTracking()
-				.Where(x => x.LastUpdate >= curStart && x.LastUpdate < curEnd)
-				.Where(x => x.RejectionReasons != null && x.RejectionReasons != "")
-				.Select(x => new
-				{
-					x.RejectionReasons,
-					Amount = ((x.UnitPrice * x.Qty) ?? 0) // adjust if your type differs
-				})
-				.ToListAsync(token);
-
-			// Expand -> group -> sum, then enrich from rejectDefinitions
-			rejectCodeAmounts = data
-				.SelectMany(r =>
-					r.RejectionReasons
-						.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-						.Select(code => new { Code = code, Amount = r.Amount })
-				)
-				.GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
-				.Select(g => new RejectCodeAmountDto
-				{
-					Code = g.Key,
-					Explanation = rejectDefinitions != null && rejectDefinitions.TryGetValue(g.Key, out var exp)
-						? exp
-						: "Uknown",
-					Amount = g.Sum(x => x.Amount)
-				})
-				.OrderByDescending(x => x.Amount)
-				.Take(20)
-				.ToList();
+			rejectCodeAmounts = await DbFactory.ReadSqlAsync<RejectCodeAmountDto>(@$"WITH z as(
+    SELECT LastUpdate, TRIM(zb.[value]) Code, COALESCE(za.UnitPrice * za.Qty, 0) AS Amount
+    FROM BillingRx za
+    CROSS APPLY string_split(za.RejectionReasons, ',') zb
+    WHERE NULLIF(za.RejectionReasons, '') IS NOT NULL
+    and za.LastUpdate >= {curStart} and za.LastUpdate < {curEnd}
+)
+SELECT z.Code, a.Explanation, a.Category, SUM(z.Amount) Amount
+FROM z
+INNER JOIN RejectCode a on z.Code = a.Code
+GROUP By z.Code, a.Explanation, a.Category
+ORDER BY Amount desc
+");
 			if (!rejectCodeAmounts.Any())
 			{
 				rejectCodesLoadState = LoadingState.NotFound;
 				return;
 			}
+			rejectCategoryAmounts = rejectCodeAmounts
+									.GroupBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+									.Select(x => new RejectCategoryAmountDto
+									{
+										Category = x.Key,
+										Amount = x.Sum(y => y.Amount)
+									})
+									.ToList();
+			rejectCodeAmounts = rejectCodeAmounts.Take(20).ToList();
 			rejectCodesLoadState = LoadingState.Loaded;
 		}
 		catch (OperationCanceledException)
@@ -204,13 +212,10 @@
 			StateHasChanged();
 		}
 	}
-	private async Task LoadInsured(CancellationToken token)
+	private async Task<InsuranceDto> InsuredCacheMiss(CancellationToken token)
 	{
-		try
-		{
-			insuranceLoadState = LoadingState.Loading;
-			insuranceData = await DbFactory.ReadSqlFirstRowAsync<InsuranceDto>(
-				$@"WITH z as(SELECT a.ReleasedDateTime FillDate, a.PatientID
+		return await DbFactory.ReadSqlFirstRowAsync<InsuranceDto>(
+			$@"WITH z as(SELECT a.ReleasedDateTime FillDate, a.PatientID
 , CASE WHEN EXISTS (SELECT 1 FROM BillingRx c WHERE c.RxNum = b.Rx and c.FillNum = a.FillNum) THEN 1 ELSE 0 END HasInsurance
 FROM RxFill a
 INNER JOIN Rx b on a.RxID = b.Id)
@@ -220,7 +225,15 @@ SELECT COUNT(Distinct PatientID) TotalPatients
 , COALESCE(SUM(HasInsurance),0) InsuredFills
 FROM z
 WHERE FillDate >= {curStart} and FillDate < {curEnd}"
-			);
+		, token);
+	}
+	private async Task LoadInsured(CancellationToken token)
+	{
+		try
+		{
+			insuranceLoadState = LoadingState.Loading;
+			var cacheKey = GetCacheKey("Insured");
+			insuranceData = await Cache.GetOrCreateAsync(cacheKey, () => InsuredCacheMiss(token), "BillingRx");
 			if (insuranceData.TotalFills > 0)
 			{
 				insuranceLoadState = LoadingState.Loaded;
@@ -249,12 +262,31 @@ WHERE FillDate >= {curStart} and FillDate < {curEnd}"
 	{
 		if (firstRender)
 		{
-			await using var db = await DbFactory.CreateDbContextAsync();
-			rejectDefinitions = await db.RejectCodes
-									.AsNoTracking()
-									.ToDictionaryAsync(x => x.Code, x => x.Explanation);
 			await RefreshAsync();
 		}
+	}
+	async Task<IEnumerable<PosRowDto>> PosCacheMiss(CancellationToken token)
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		return await db.VwBillingRxes
+			.Where(x =>
+				(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ||
+				(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd))
+			.GroupBy(x =>
+				(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ? (bool?)true :
+				(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd) ? (bool?)false :
+				(bool?)null)
+			.Select(g => new PosRowDto
+			{
+				CurrentData = g.Key,
+				Transactions = g.Count(),
+				Paid = g.Sum(a => a.TotalPaid) ?? 0,
+				Cost = g.Sum(a => a.Cost) ?? 0,
+				Billed = g.Sum(a => a.TotalBilled) ?? 0
+			})
+			.Where(x => x.CurrentData != null)      // safe even if not needed today
+			.OrderByDescending(x => x.CurrentData)  // True first, then False
+			.ToListAsync(token);
 	}
 	async Task LoadPosAsync(CancellationToken token)
 	{
@@ -263,26 +295,8 @@ WHERE FillDate >= {curStart} and FillDate < {curEnd}"
 			posLoadState = LoadingState.Loading;
 			StateHasChanged();
 			posData = new();
-			await using var db = await DbFactory.CreateDbContextAsync();
-			var kpiRows = await db.VwBillingRxes
-				.Where(x =>
-					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ||
-					(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd))
-				.GroupBy(x =>
-					(x.LastUpdate >= curStart && x.LastUpdate < curEnd) ? (bool?)true :
-					(x.LastUpdate >= cmpStart && x.LastUpdate < cmpEnd) ? (bool?)false :
-					(bool?)null)
-				.Select(g => new PosRowDto
-				{
-					CurrentData = g.Key,
-					Transactions = g.Count(),
-					Paid = g.Sum(a => a.TotalPaid) ?? 0,
-					Cost = g.Sum(a => a.Cost) ?? 0,
-					Billed = g.Sum(a => a.TotalBilled) ?? 0
-				})
-				.Where(x => x.CurrentData != null)      // safe even if not needed today
-				.OrderByDescending(x => x.CurrentData)  // True first, then False
-				.ToListAsync(token);
+			var cacheKey = GetCacheKey("POS");
+			var kpiRows = await Cache.GetOrCreateAsync<IEnumerable<PosRowDto>>(cacheKey, () => PosCacheMiss(token), "BillingRx");
 			if (!kpiRows.Any())
 			{
 				posLoadState = LoadingState.NotFound;
@@ -290,7 +304,6 @@ WHERE FillDate >= {curStart} and FillDate < {curEnd}"
 			posData.Current = kpiRows?.FirstOrDefault(x => x.CurrentData == true);
 			posData.Last = kpiRows?.FirstOrDefault(x => x.CurrentData == false);
 			posLoadState = LoadingState.Loaded;
-
 		}
 		catch (OperationCanceledException)
 		{
@@ -306,5 +319,9 @@ WHERE FillDate >= {curStart} and FillDate < {curEnd}"
 		{
 			StateHasChanged();
 		}
+	}
+	string GetCacheKey(string section)
+	{
+		return $"RevenueDashboard:{section}:{curStart.DateOnly}:{curEnd.DateOnly}";
 	}
 }

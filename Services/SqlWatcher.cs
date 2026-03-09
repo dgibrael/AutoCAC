@@ -1,12 +1,10 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.Data;
-using System.Threading;
 
 public sealed class SqlWatcher : IDisposable
 {
     private readonly string _connectionString;
     private readonly string _query;
-    private readonly Func<SqlParameter[]> _parametersFactory;
     private readonly TimeSpan _debounceWindow;
 
     private SqlConnection _connection;
@@ -18,12 +16,11 @@ public sealed class SqlWatcher : IDisposable
 
     public event Func<Task> ChangedAsync;
 
-    public SqlWatcher(string connectionString, string query, Func<SqlParameter[]> parametersFactory, TimeSpan? debounceWindow = null)
+    public SqlWatcher(string connectionString, string query)
     {
-        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-        _query = query ?? throw new ArgumentNullException(nameof(query));
-        _parametersFactory = parametersFactory;
-        _debounceWindow = debounceWindow ?? TimeSpan.FromMilliseconds(500);
+        _connectionString = connectionString;
+        _query = query;
+        _debounceWindow = TimeSpan.FromMilliseconds(500);
 
         Subscribe();
     }
@@ -38,10 +35,6 @@ public sealed class SqlWatcher : IDisposable
         _connection.Open();
 
         _command = new SqlCommand(_query, _connection) { CommandType = CommandType.Text };
-
-        var parameters = _parametersFactory?.Invoke();
-        if (parameters != null && parameters.Length > 0)
-            _command.Parameters.AddRange(parameters);
 
         _dependency = new SqlDependency(_command);
         _dependency.OnChange += OnChange;
