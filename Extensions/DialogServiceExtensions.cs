@@ -11,6 +11,7 @@ using Microsoft.Extensions.Options;
 using Radzen;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using System.Numerics;
 
 namespace AutoCAC.Extensions
 {
@@ -81,15 +82,16 @@ namespace AutoCAC.Extensions
             // OK → string (may be ""), Cancel → null
             return result as string;
         }
-        public static async Task<int?> IntPromptAsync(
+        public static async Task<TValue?> NumericPromptAsync<TValue>(
             this DialogService dialogService,
-            string title = "Prompt",
+            string title = "Enter Value",
             string header = "Enter Value",
-            int? initial = null,
-            int? max = null,
-            int? min = 0,
+            TValue? initial = null,
+            decimal? max = null,
+            decimal? min = 0,
             string placeholder = "",
-            DialogOptions options = null)
+            DialogOptions options = null) 
+            where TValue : struct, INumber<TValue>
         {
             var parameters = new Dictionary<string, object>
             {
@@ -100,7 +102,7 @@ namespace AutoCAC.Extensions
                 ["Min"] = min
             };
 
-            var result = await dialogService.OpenAsync<Components.Templates.IntDialog>(
+            var result = await dialogService.OpenAsync<Components.Templates.NumericDialog<TValue>>(
                 title,
                 parameters,
                 options ?? new DialogOptions
@@ -110,8 +112,22 @@ namespace AutoCAC.Extensions
                     Resizable = true,
                     Draggable = true
                 });
-            return result is int value ? value : (int?)null;
+            if (result is TValue value)
+                return value;
+
+            return null;
         }
+
+        public static Task<int?> NumericPromptAsync(
+            this DialogService dialogService,
+            string title = "Prompt",
+            string header = "Enter Value",
+            int? initial = null,
+            decimal? max = null,
+            decimal? min = 0,
+            string placeholder = "",
+            DialogOptions options = null)
+            => dialogService.NumericPromptAsync<int>(title, header, initial, max, min, placeholder, options);
 
         /// <summary>
         /// Opens a reusable TItem dialog component and returns the saved item, or null if cancelled.

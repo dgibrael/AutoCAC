@@ -1,0 +1,117 @@
+﻿@page "/dashboard/interventions"
+@using AutoCAC.Components.Templates.CardLists
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Utilities
+@inject NotificationService Notifications
+@inject CacheService Cache
+
+<PageTitle>Interventions Dashboard</PageTitle>
+<LoadingContent LoadState="@loadState">
+    <DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
+	<RadzenCard>
+		<h4>Key Performance Indicators</h4>
+			<RadzenCardGroup>
+				<RadzenCard><span>Total Outpatient: </span><strong>@opCount</strong></RadzenCard>
+				<RadzenCard><span>Total Inpatient: </span><strong>@ipCount</strong></RadzenCard>
+			</RadzenCardGroup>
+	</RadzenCard>
+	<RadzenCard>
+		<h4>Intervention by Category</h4>
+		<RadzenChart >
+			<RadzenPieSeries Data="chartData" ValueProperty="Count" CategoryProperty="Category" 
+				Title="Intervention by Category" />
+		</RadzenChart>
+	</RadzenCard>
+    <h4>Counts by User</h4>
+    <RadzenDataGrid TItem="InterventionStaffDto" Data="@staffData" AllowSorting="true">
+        <Columns>
+            <RadzenDataGridColumn TItem="InterventionStaffDto" Property="UserName" Title="UserName"/>
+            <RadzenDataGridColumn TItem="InterventionStaffDto" Property="InpatientCount" Title="InpatientCount" />
+            <RadzenDataGridColumn TItem="InterventionStaffDto" Property="OutpatientCount" Title="OutpatientCount" />
+        </Columns>
+    </RadzenDataGrid>
+</LoadingContent>
+
+@code
+{
+    LoadingState loadState = LoadingState.Loading;
+    int opCount;
+    int ipCount;
+
+    private IEnumerable<Intervention> data;
+    private IEnumerable<InterventionChartDto> chartData;
+    private IEnumerable<InterventionStaffDto> staffData;
+    private int staffCount;
+    PeriodSelection selectedPeriod = new(PeriodOption.LastQuarter);
+
+    private class InterventionChartDto
+    {
+        public string Category { get; set; }
+        public int Count { get; set; }
+    }
+    private class InterventionStaffDto
+    {
+        public string UserName { get; set; }
+        public int InpatientCount { get; set; }
+        public int OutpatientCount { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await RefreshAsync();
+    }
+
+    async Task RefreshAsync()
+    {
+        loadState = LoadingState.Loading;
+        StateHasChanged();
+
+        var curStart = selectedPeriod.CurrentStart.StartOfDay;
+        var curEnd = selectedPeriod.CurrentEnd.StartOfNextDay;
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            data = await db.Interventions
+                .Where(x => x.EntryDateTime >= curStart && x.EntryDateTime < curEnd)
+                .Include(x => x.Category)
+                .ToListAsync();
+            staffData = data
+                        .Where(x => x.UserName != null)
+                        .GroupBy(x => x.UserName)
+                        .Select(x => new InterventionStaffDto
+                        {
+                            UserName = x.Key,
+                            InpatientCount = x.Count(x => x.LocationType == "Inpatient"),
+                            OutpatientCount = x.Count(x => x.LocationType == "Outpatient")
+                        })
+                        .ToList();
+            opCount = data.Count(x => x.LocationType == "Outpatient");
+            ipCount = data.Count(x => x.LocationType == "Inpatient");
+
+            chartData = data
+                .GroupBy(x => x.Category?.Name ?? "None")
+                .Select(x => new InterventionChartDto
+                {
+                    Category = x.Key,
+                    Count = x.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            loadState = LoadingState.Loaded;
+        }
+        catch
+        {
+            loadState = LoadingState.Error;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+
+    }
+}

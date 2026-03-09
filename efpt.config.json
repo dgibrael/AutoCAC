@@ -71,6 +71,18 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Intervention]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intervention_category]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[intervention_location]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Lab]",
          "ObjectType": 0
       },
@@ -136,6 +148,10 @@
       },
       {
          "Name": "[dbo].[RxFill]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Staff]",
          "ObjectType": 0
       },
       {

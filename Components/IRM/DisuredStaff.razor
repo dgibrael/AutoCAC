@@ -1,0 +1,22 @@
+﻿@page "/irm/disuseredstaff"
+@using AutoCAC.Models
+
+<h3>Disured Staff</h3>
+
+<DataGridVanilla TItem="Staff" GridModel="GridModel">
+	<RadzenDataGridColumn TItem="Staff" Property="Id" Title="Id" Width="100px"/>
+	<RadzenDataGridColumn TItem="Staff" Property="Name" Title="Name" />
+	<RadzenDataGridColumn TItem="Staff" Property="TerminationDate" Title="TerminationDate" />
+	<RadzenDataGridColumn TItem="Staff" Property="ServiceSection" Title="ServiceSection" />
+	<RadzenDataGridColumn TItem="Staff" Property="Keys" Title="Keys" WhiteSpace="WhiteSpace.Wrap" Width="500px" />
+</DataGridVanilla>
+
+@code {
+	DataGridHelper<Staff> GridModel = new()
+	{
+		QueryFactory = db => db.Staff
+							.Where(x => x.Disuser != null && x.Disuser != ""),
+		SearchColumns = new[] { "Name" }
+	}
+	;
+}

@@ -25,7 +25,7 @@
 				<DataGridEditable TItem="WardstockOrderitem" GridModel="GridModel" ValidateItemAsync="Validate"
 					AddAction="@(UserType != UserTypes.super && currentOrder.StatusEnum > WardstockOrderStatus.New ? 
 									null : AddItemClick)"
-					DisableDeletePredicate="@(x => UserType != UserTypes.super)"
+					DisableDeletePredicate="@(x => !(UserType == UserTypes.super || currentOrder?.IsFirstStatus == true))"
 					DisableEditPredicate="@(x => SubmitDisabled)"
 				>
 					<HeaderContent><h3>Items</h3></HeaderContent>
@@ -341,7 +341,13 @@
 		if(item.Item.LotRequired == true && string.IsNullOrWhiteSpace(item.Lot))
 		{
 			item.Lot = await DialogService.TextPromptAsync("Lot Required", $"Lot number is required for {item.Item.DisplayName}. Enter lot below");
-			return !string.IsNullOrWhiteSpace(item.Lot);
+			if (string.IsNullOrWhiteSpace(item.Lot)) return false;
+		}
+		if(item.QtyOrdered == null && currentOrder.IsFirstStatus)
+		{
+			decimal max = (decimal)item.Item.Par;
+			item.QtyOrdered = await DialogService.NumericPromptAsync<double>("Quantity Required", $"Quantity Ordered is required. Enter Quantity below (Max: {item.Item.Par})", min: 1, max: max);
+			if (item.QtyOrdered is null) return false;
 		}
 		return true;
 	}

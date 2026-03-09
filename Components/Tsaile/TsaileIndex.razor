@@ -25,6 +25,7 @@
     }
     <RadzenLink Text="Deleted Items" Path="tsaile/deleted" Icon="folder_delete"  />
     <RadzenLink Text="Completed Items" Path="tsaile/completed" Icon="checklist" />
+    <RadzenLink Text="Dashboard" Path="tsaile/dashboard" Icon="dashboard" />
 </RadzenStack>
 <DataGridVanilla TItem="TsaileBetterq" GridModel="GridModel" CellRender="CellFormat" 
         RowDoubleClick="@(e => EditTicket(e.Data))" AddButtonClick="NewTicket">
@@ -90,7 +91,7 @@
             <RadzenLink Text="Completed Items" Path="tsaile/completed" Icon="checklist" />
         </RadzenStack>
         <p><strong>If this is a new patient, go to "^PATIENT SCHEDULED" in RPMS and press Enter at the "Requested Time To Print: NOW//" prompt.</strong></p>
-        <strong>It will take about 1 to 2 minutes to update the patient list.</strong>
+        <strong>It will take about 2 to 5 minutes to update the patient list.</strong>
     </EmptyTemplate>
 </DataGridVanilla>
 
@@ -186,6 +187,9 @@
                 break;
             case > 30:
                 args.Attributes.Add("class", "rz-background-color-warning-lighter");
+                break;
+            default:
+                args.Attributes.Add("class", "rz-background-color-info-lighter");
                 break;
         }
     }
@@ -364,7 +368,7 @@
 
     public async Task TicketSearch()
     {
-        var ticketNum = await DialogService.IntPromptAsync("Ticket Search", "Enter ticket#");
+        var ticketNum = await DialogService.NumericPromptAsync("Ticket Search", "Enter ticket#");
         if (ticketNum == null) return;
         await using var db = await DbFactory.CreateDbContextAsync();
         var ticket = await db.TsaileBetterqs.FirstOrDefaultAsync(x => x.Id == ticketNum);

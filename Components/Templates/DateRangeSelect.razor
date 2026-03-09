@@ -10,9 +10,11 @@
                     @bind-Value="Value.SelectedOption"
                     Change="OptionChange"
                     />
-    <RadzenDatePicker @bind-Value="Value.CustomStart" Change="Change" Disabled="disableDatePicker"/>
-    <span>To</span>
-    <RadzenDatePicker @bind-Value="Value.CustomEnd" Change="Change" Disabled="disableDatePicker" />
+    <RadzenColumn Visible="!hideDatePicker">
+        <RadzenDatePicker @bind-Value="Value.CustomStart" Change="Change" Disabled="hideDatePicker"/>
+        <span>To</span>
+        <RadzenDatePicker @bind-Value="Value.CustomEnd" Change="Change" Disabled="hideDatePicker" />
+    </RadzenColumn>
 </RadzenStack>
 
 @code {
@@ -39,5 +41,5 @@
         await Change.InvokeAsync();
     }
 
-    bool disableDatePicker => Value.SelectedOption != PeriodOption.Custom;
+    bool hideDatePicker => Value.SelectedOption != PeriodOption.Custom;
 }

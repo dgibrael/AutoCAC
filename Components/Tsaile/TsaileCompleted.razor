@@ -112,7 +112,7 @@
     };
     public async Task TicketSearch()
     {
-        var ticketNum = await DialogService.IntPromptAsync("Ticket Search", "Enter ticket#");
+        var ticketNum = await DialogService.NumericPromptAsync("Ticket Search", "Enter ticket#");
         if (ticketNum == null) return;
         Nav.NavigateTo($"/tsaile/ticket/{ticketNum}");
     }

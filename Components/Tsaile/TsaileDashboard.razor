@@ -1,0 +1,127 @@
+﻿@page "/tsaile/dashboard"
+@using AutoCAC.Components.Templates.CardLists
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using AutoCAC.Utilities
+@inject NotificationService Notifications
+@inject CacheService Cache
+
+<PageTitle>Tsaile BetterQ Waiters Dashboard</PageTitle>
+<LoadingContent LoadState="@loadState">
+    <DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
+    <RadzenCard>
+        <h5>@($"Total Closed Waiters: {totalClosedWaiters}")</h5>
+        <h4>Wait Times (values are in minutes)</h4>
+        <RadzenCardGroup>
+            <RadzenCard><span>Median: </span><strong>@medianWait</strong></RadzenCard>
+            <RadzenCard><span>Average: </span><strong>@avgWait</strong></RadzenCard>
+            <RadzenCard><span>Max: </span><strong>@maxWait</strong></RadzenCard>
+            <RadzenCard><span>Min: </span><strong>@minWait</strong></RadzenCard>
+        </RadzenCardGroup>
+    </RadzenCard>
+    <h4>Tickets</h4>
+    <RadzenDataGrid TItem="WaitTimeDto" Data="@data" AllowSorting="true" AllowPaging="true" PageSize="10">
+        <Columns>
+            <RadzenDataGridColumn TItem="WaitTimeDto" Property="Ticket" Title="Ticket#" />
+            <RadzenDataGridColumn TItem="WaitTimeDto" Property="CreatedAt" Title="Created At" />
+            <RadzenDataGridColumn TItem="WaitTimeDto" Property="ClosedAt" Title="Closed At" />
+            <RadzenDataGridColumn TItem="WaitTimeDto" Property="WaitTime" Title="Wait Time" />
+        </Columns>
+    </RadzenDataGrid>
+</LoadingContent>
+
+@code
+{
+    LoadingState loadState = LoadingState.Loading;
+    int medianWait;
+    int avgWait;
+    int maxWait;
+    int minWait;
+    int totalClosedWaiters;
+
+    private IEnumerable<WaitTimeDto> data;
+    private int staffCount;
+    PeriodSelection selectedPeriod = new(PeriodOption.LastMonth);
+    private class WaitTimeDto
+    {
+        public long Ticket { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? CalledAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public DateTime ClosedAt => CalledAt ?? CompletedAt ?? DateTime.Now;
+        public int WaitTime => (int)Math.Round((ClosedAt - CreatedAt).TotalMinutes, MidpointRounding.AwayFromZero);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await RefreshAsync();
+    }
+
+    async Task RefreshAsync()
+    {
+        loadState = LoadingState.Loading;
+        StateHasChanged();
+
+        var curStart = selectedPeriod.CurrentStart.StartOfDay;
+        var curEnd = selectedPeriod.CurrentEnd.StartOfNextDay;
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            data = await db.TsaileBetterqs
+                            .Where(x => x.Waiting)
+                            .Where(x => x.CreatedDateTime >= curStart && x.CreatedDateTime < curEnd)
+                            .Where(x => x.CompletedDateTime != null || x.CalledDateTime != null)
+                            .Where(x => !EF.Functions.Like(x.Patient.Name, "DEMO,%"))
+                            .Select(x => new WaitTimeDto
+                                {
+                                    Ticket = x.Id,
+                                    CreatedAt = x.CreatedDateTime,
+                                    CalledAt = x.CalledDateTime,
+                                    CompletedAt = x.CompletedDateTime
+                                })
+                            .ToListAsync();
+            var waitTimes = data.Select(x => x.WaitTime).Where(x => x >= 0).ToArray();
+            totalClosedWaiters = waitTimes.Length;
+            if (totalClosedWaiters == 0)
+            {
+                medianWait = 0;
+                avgWait = 0;
+                maxWait = 0;
+                minWait = 0;
+            }
+            else
+            {
+                Array.Sort(waitTimes);
+                int mid = totalClosedWaiters / 2;
+
+                if ((totalClosedWaiters & 1) == 1)
+                {
+                    // odd
+                    medianWait = waitTimes[mid];
+                }
+                else
+                {
+                    // even: average middle two, rounded away from zero
+                    long a = waitTimes[mid - 1];
+                    long b = waitTimes[mid];
+                    medianWait = (int)((a + b + 1) / 2);
+                }
+                avgWait = (int)Math.Round(waitTimes.Average(), MidpointRounding.AwayFromZero);
+                maxWait = waitTimes.Max();
+                minWait = waitTimes.Min();
+            }
+            loadState = LoadingState.Loaded;
+        }
+        catch
+        {
+            loadState = LoadingState.Error;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+
+    }
+}

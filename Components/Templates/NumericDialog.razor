@@ -1,0 +1,65 @@
+﻿@using Radzen
+@inject DialogService DialogService
+
+@typeparam TValue where TValue : struct, System.Numerics.INumber<TValue>
+
+<RadzenTemplateForm TItem="ValueModel" Data="@Model" Submit="OnOk">
+    @if (!string.IsNullOrWhiteSpace(Header))
+    {
+        <h3 class="text-lg font-semibold">@Header</h3>
+    }
+
+    <RadzenNumeric TValue="TValue"
+                   Name="numericInput"
+                   @bind-Value="Model.Value"
+                   @ref="_numericInput"
+                   Placeholder="@Placeholder"
+                   Style="width:100%" />
+    @if (Max != null || Min != null)
+    {
+        <RadzenNumericRangeValidator Component="numericInput" Max="Max" Min="Min" />
+    }
+
+    <div class="flex justify-end gap-2">
+        <RadzenButton Text="Cancel"
+                      ButtonStyle="ButtonStyle.Secondary"
+                      Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="OK"
+                      ButtonType="ButtonType.Submit"
+                      ButtonStyle="ButtonStyle.Primary" />
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public string Header { get; set; } = "Enter Value";
+    [Parameter] public string Placeholder { get; set; }
+
+    [Parameter] public TValue InitialValue { get; set; }
+    [Parameter] public Decimal? Max { get; set; }
+    [Parameter] public Decimal? Min { get; set; }
+    RadzenNumeric<TValue> _numericInput;
+    public class ValueModel
+    {
+        public TValue Value { get; set; }
+    }
+
+    ValueModel Model = new();
+
+    protected override void OnInitialized()
+    {
+        Model.Value = InitialValue;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _numericInput != null)
+        {
+            await _numericInput.FocusAsync();
+        }
+    }
+
+    private void OnOk()
+    {
+        DialogService.Close(Model.Value);
+    }
+}

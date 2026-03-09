@@ -41,6 +41,12 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Insurer> Insurers { get; set; }
 
+    public virtual DbSet<Intervention> Interventions { get; set; }
+
+    public virtual DbSet<InterventionCategory> InterventionCategories { get; set; }
+
+    public virtual DbSet<InterventionLocation> InterventionLocations { get; set; }
+
     public virtual DbSet<Lab> Labs { get; set; }
 
     public virtual DbSet<LookupValue> LookupValues { get; set; }
@@ -76,6 +82,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<Rx> Rxes { get; set; }
 
     public virtual DbSet<RxFill> RxFills { get; set; }
+
+    public virtual DbSet<Staff> Staff { get; set; }
 
     public virtual DbSet<Tiu> Tius { get; set; }
 
@@ -505,6 +513,65 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Zip)
                 .HasMaxLength(250)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<Intervention>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__interven__3213E83FFCFEE8BA");
+
+            entity.ToTable("Intervention");
+
+            entity.HasIndex(e => e.CategoryId, "Intervention_Category_id_5f412f86");
+
+            entity.HasIndex(e => e.LocationId, "Intervention_Location_id_343d9a71");
+
+            entity.HasIndex(e => e.DrugId, "intervention_intervention_Drug_id_35c84b29");
+
+            entity.HasIndex(e => e.ProviderId, "intervention_intervention_Provider_id_8290fcf8");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CategoryId).HasColumnName("Category_id");
+            entity.Property(e => e.ChartNumber).HasMaxLength(400);
+            entity.Property(e => e.DrugId).HasColumnName("Drug_id");
+            entity.Property(e => e.LocationId).HasColumnName("Location_id");
+            entity.Property(e => e.LocationType).HasMaxLength(500);
+            entity.Property(e => e.ProviderId).HasColumnName("Provider_id");
+            entity.Property(e => e.UserName).HasMaxLength(200);
+
+            entity.HasOne(d => d.Category).WithMany(p => p.Interventions)
+                .HasForeignKey(d => d.CategoryId)
+                .HasConstraintName("FK_Intervention_Category_id");
+
+            entity.HasOne(d => d.Location).WithMany(p => p.Interventions)
+                .HasForeignKey(d => d.LocationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Intervention_Location_id");
+        });
+
+        modelBuilder.Entity<InterventionCategory>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__interven__3213E83F058ACDDB");
+
+            entity.ToTable("intervention_category");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Active).HasColumnName("active");
+            entity.Property(e => e.Name)
+                .HasMaxLength(500)
+                .HasColumnName("name");
+        });
+
+        modelBuilder.Entity<InterventionLocation>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__interven__3213E83F622AA6A4");
+
+            entity.ToTable("intervention_location");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Active).HasColumnName("active");
+            entity.Property(e => e.Name)
+                .HasMaxLength(500)
+                .HasColumnName("name");
         });
 
         modelBuilder.Entity<Lab>(entity =>
@@ -960,6 +1027,39 @@ public partial class mainContext : DbContext
                 .HasForeignKey(d => d.RxId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_RxFill_RxId");
+        });
+
+        modelBuilder.Entity<Staff>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Staff__3213E83FE932EC06");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.AuthorizedToWriteMedOrders).IsUnicode(false);
+            entity.Property(e => e.Dea)
+                .IsUnicode(false)
+                .HasColumnName("DEA");
+            entity.Property(e => e.Disuser).IsUnicode(false);
+            entity.Property(e => e.Division).IsUnicode(false);
+            entity.Property(e => e.Dob)
+                .IsUnicode(false)
+                .HasColumnName("DOB");
+            entity.Property(e => e.EmailAddress).IsUnicode(false);
+            entity.Property(e => e.InactiveDate).HasColumnType("datetime");
+            entity.Property(e => e.Initial).IsUnicode(false);
+            entity.Property(e => e.Keys).IsUnicode(false);
+            entity.Property(e => e.Name).IsUnicode(false);
+            entity.Property(e => e.PositionTitle).IsUnicode(false);
+            entity.Property(e => e.PrimaryMenuOption).IsUnicode(false);
+            entity.Property(e => e.ProviderClass).IsUnicode(false);
+            entity.Property(e => e.ProviderType).IsUnicode(false);
+            entity.Property(e => e.SecondaryMenuOptions).IsUnicode(false);
+            entity.Property(e => e.ServiceSection).IsUnicode(false);
+            entity.Property(e => e.Sex).IsUnicode(false);
+            entity.Property(e => e.TerminationDate).HasColumnType("datetime");
+            entity.Property(e => e.Title).IsUnicode(false);
+            entity.Property(e => e.VaNum).IsUnicode(false);
         });
 
         modelBuilder.Entity<Tiu>(entity =>
