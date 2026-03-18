@@ -318,7 +318,7 @@
             var continueAnyway = await DialogService.ProceedAnyway("There are still severe problems, are you sure you wish to continue?");
             if (!continueAnyway) return;
         }
-        await JS.DialogShow();
+        await JS.XtermDialogShow();
         await RunMenuUpdate();
     }
 

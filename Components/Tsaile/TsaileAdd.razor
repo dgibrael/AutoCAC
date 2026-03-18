@@ -13,7 +13,7 @@
 
 <LoadingContent LoadState="@(LoadState)">
 	<h3>@($"Ticket for {selectedPatient?.Name} ({selectedPatient?.TsaileChartNumber})")</h3>
-	<RadzenTemplateForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
+	<VanillaForm TItem="TsaileBetterq" Data="item" Submit="OnSubmit">
 		<VanillaFormField Label="Waiter">
 			<RadzenCheckBox @bind-Value="item.Waiting" />
 		</VanillaFormField>
@@ -32,8 +32,7 @@
 		</VanillaFormField>
 		<CommentTemplate Title="Patient Comments" TItem="TsailePatientcomment" CommentQueryFactory="CommentQueryFactoryPatient"
 							MapToEntity="MapCommentPatient" Print="false" AllowDeleteAll="true" />
-		<StandardButtons />
-	</RadzenTemplateForm>
+	</VanillaForm>
 </LoadingContent>
 
 @code{

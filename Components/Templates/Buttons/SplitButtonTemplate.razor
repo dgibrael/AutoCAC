@@ -22,7 +22,6 @@
 </div>
 
 @code {
-    bool _isBusy;
     [Parameter] public Func<Task> DefaultAction { get; set; }
     [Parameter] public string DefaultButtonValue { get; set; }
     [Parameter] public string ButtonText { get; set; } = "";
@@ -32,30 +31,38 @@
     [Parameter] public bool Disabled { get; set; } = false;
     [Parameter] public ButtonStyle ButtonStyle { get; set; } = ButtonStyle.Primary;
     [Parameter] public ButtonSize ButtonSize { get; set; } = ButtonSize.Medium;
+    bool _isBusy;
     private Func<Task> _resolvedDefaultAction;
+    private List<SplitButtonItem> _buttons = new();
+    private SplitButtonItem _defaultItem;
 
     protected override void OnParametersSet()
     {
+        _buttons = Buttons?.ToList() ?? new();
+        _defaultItem = string.IsNullOrWhiteSpace(DefaultButtonValue)
+            ? null
+            : _buttons.FirstOrDefault(b => b.Value == DefaultButtonValue);
+
         if (string.IsNullOrWhiteSpace(ButtonText))
         {
-            ButtonText = string.IsNullOrWhiteSpace(DefaultButtonValue) ? "Edit"
-            : Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Text;
+            ButtonText = string.IsNullOrWhiteSpace(DefaultButtonValue)
+                ? "Edit"
+                : _defaultItem?.Text;
         }
-        if (MainIcon == null && !string.IsNullOrWhiteSpace(DefaultButtonValue))
+
+        if (MainIcon == null && _defaultItem != null)
         {
-            MainIcon = Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Icon;
+            MainIcon = _defaultItem.Icon;
         }
-        // Priority: explicit DefaultAction > DefaultButtonValue match > null
-        _resolvedDefaultAction = DefaultAction
-            ?? (string.IsNullOrWhiteSpace(DefaultButtonValue)
-                ? null
-                : Buttons?.FirstOrDefault(b => b.Value == DefaultButtonValue)?.Action);
+
+        _resolvedDefaultAction = DefaultAction ?? _defaultItem?.Action;
     }
 
     private async Task OnClick(RadzenSplitButtonItem item)
     {
         if (_isBusy) return;
         _isBusy = true;
+        StateHasChanged();
         try
         {
             if (item is null)
@@ -71,6 +78,10 @@
                     await match.Action();
             }
         }
-        finally { _isBusy = false; }
+        finally 
+        { 
+            _isBusy = false;
+            StateHasChanged();
+        }
     }
 }

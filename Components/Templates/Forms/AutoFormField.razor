@@ -1,0 +1,104 @@
+﻿@typeparam TItem
+@typeparam TValue
+@using System.Reflection
+
+<RadzenRow Style="width: 100%;">
+    <RadzenColumn Size="2">
+        <RadzenLabel Component="@_name" Text="@_name"/>
+    </RadzenColumn>
+    <RadzenColumn Size="10">
+        @switch (Type.GetTypeCode(ActualType))
+        {
+            case TypeCode.String:
+                <RadzenTextBox Name="@_name"
+                               Value="@ValueString"
+                               ValueChanged="@StringValueChanged"
+                               Style="width:100%" />
+                break;
+
+            case TypeCode.Boolean:
+                <RadzenCheckBox TValue="TValue"
+                                Name="@_name"
+                                Value="@Value"
+                                ValueChanged="@ValueChanged" Style="width:100%" />
+                break;
+
+            case TypeCode.DateTime:
+                <RadzenDatePicker TValue="TValue"
+                                  Name="@_name"
+                                  Value="@Value"
+                                  ValueChanged="@ValueChanged"
+                                  Style="width:100%" />
+                break;
+
+            case TypeCode.Int16:
+            case TypeCode.Int32:
+            case TypeCode.Int64:
+            case TypeCode.Decimal:
+            case TypeCode.Double:
+            case TypeCode.Single:
+                <RadzenNumeric TValue="TValue"
+                               Name="@_name"
+                               Value="@Value"
+                               ValueChanged="@ValueChanged"
+                               Style="width:100%" />
+                break;
+
+            default:
+                if (ActualType.IsEnum)
+                {
+                    <RadzenDropDown TValue="TValue"
+                                    Name="@_name"
+                                    Data="@EnumValues"
+                                    Value="@Value"
+                                    ValueChanged="@ValueChanged"
+                                    Style="width:100%" />
+                }
+                else
+                {
+                    <RadzenTextBox Name="@_name"
+                                   Value="@ValueString"
+                                   ValueChanged="@StringValueChanged"
+                                   Style="width:100%" />
+                }
+                break;
+        }
+    </RadzenColumn>
+</RadzenRow>
+<RadzenRow>
+    @if(Required)
+    {
+            <RadzenRequiredValidator Component="@_name" />
+    }
+</RadzenRow>
+@code {
+    [Parameter] public TItem Item { get; set; }
+    [Parameter] public PropertyInfo Property { get; set; }
+    [Parameter] public bool Required { get; set; }
+    string _name;
+    protected override void OnParametersSet()
+    {
+        _name = Property.Name;
+    }
+	private Type ActualType => Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+
+    private TValue Value
+    {
+        get
+        {
+            var value = Property.GetValue(Item);
+            return value == null ? default : (TValue)value;
+        }
+    }
+
+    private string ValueString => (string)(Property.GetValue(Item) ?? "");
+
+    private EventCallback<TValue> ValueChanged
+        => EventCallback.Factory.Create<TValue>(this, value => Property.SetValue(Item, value));
+
+    private EventCallback StringValueChanged
+        => EventCallback.Factory.Create(this, value => Property.SetValue(Item, value));
+
+    private IEnumerable<TValue> EnumValues =>
+        Enum.GetValues(ActualType).Cast<TValue>();
+}

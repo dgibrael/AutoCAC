@@ -56,7 +56,7 @@ else
         {
             if (selectedDrug.Id == 0)
             {
-                await JS.DialogShow();
+                await JS.XtermDialogShow();
                 try
                 {
                     await NewDrug();
@@ -77,11 +77,12 @@ else
             {
                 return;
             }
-            await JS.DialogShow();
+            await JS.XtermDialogShow();
             await NdcChange();
             await RPMS.SendAsync(selectedNdf.Ndc);
             await RPMS.SendAsync(price);
             await RPMS.SendAsync(qty);
+            await JS.XtermDialogHide();
         }
     }
 

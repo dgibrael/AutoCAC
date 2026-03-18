@@ -1,21 +1,23 @@
 ﻿@using AutoCAC.Extensions
 @inject NavigationManager Nav
 <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Start" Visible="@Visible" class="rz-my-2">
-    <RadzenButton Click="@CancelClick" ButtonType="ButtonType.Button" Text="Cancel" Size="ButtonSize.Medium"
-                  ButtonStyle="ButtonStyle.Base" />
-    <RadzenButton ButtonType="ButtonType.Submit" Text="@SubmitText" ButtonStyle="ButtonStyle.Primary" />
+    <RadzenButton Click="@CancelInternal" ButtonType="ButtonType.Button" Text="Cancel" Size="ButtonSize.Medium"
+                  ButtonStyle="ButtonStyle.Base" IsBusy="Busy" />
+    <RadzenButton ButtonType="ButtonType.Submit" Text="@SubmitText" ButtonStyle="ButtonStyle.Primary" IsBusy="Busy" />
 </RadzenStack>
 
 @code{
     [Parameter] public bool Visible { get; set; } = true;
     [Parameter] public EventCallback CancelClick { get; set; }
     [Parameter] public string SubmitText { get; set; } = "Submit";
-
-    protected override void OnInitialized()
+    [Parameter] public bool Busy { get; set; }
+    private async Task CancelInternal()
     {
-        if (!CancelClick.HasDelegate)
+        if (CancelClick.HasDelegate)
         {
-            CancelClick = EventCallback.Factory.Create(this, () => Nav.NavigateToRelative(fromParent: true));
+            await CancelClick.InvokeAsync();
+            return;
         }
+        Nav.NavigateToRelative(fromParent: true);
     }
 }

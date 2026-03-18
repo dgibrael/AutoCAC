@@ -9,10 +9,10 @@
     @ChildContent(_item)
 
     <RadzenRow>
-        <RadzenButton Text="Submit" ButtonType="ButtonType.Submit" />
+        <RadzenButton Text="Submit" ButtonType="ButtonType.Submit" IsBusy="_isBusy" />
         <RadzenButton Text="Cancel"
                       ButtonStyle="ButtonStyle.Secondary"
-                      Click="@(() => DialogService.Close(null))" />
+                      Click="@(() => DialogService.Close(null))" IsBusy="_isBusy" />
     </RadzenRow>
 </RadzenTemplateForm>
 
@@ -21,7 +21,7 @@
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     [Parameter] public bool SaveToDb { get; set; } = true;
     private TItem _item = new();
-
+    bool _isBusy;
     protected override void OnParametersSet()
     {
         _item = Item ?? new TItem();
@@ -29,19 +29,29 @@
 
     private async Task OnValidSubmit()
     {
-        if (SaveToDb)
-        {
-            try
+        if (_isBusy) return;
+        _isBusy = true;
+        StateHasChanged();
+        try
+        {            
+            if (SaveToDb)
             {
-                await DbFactory.UpdateItemAsync(_item);
-                Notifications.Success("Saved Successfully");
-            }
-            catch
-            {
-                Notifications.Error("Error Occured when attempting to save");
-                _item = null;
+                try
+                {
+                    await DbFactory.UpdateItemAsync(_item);
+                    Notifications.Success("Saved Successfully");
+                }
+                catch
+                {
+                    Notifications.Error("Error Occured when attempting to save");
+                    _item = null;
+                }
             }
         }
-        DialogService.Close(_item);
+        finally
+        {
+            _isBusy = false;
+            DialogService.Close(_item);
+        }
     }
 }

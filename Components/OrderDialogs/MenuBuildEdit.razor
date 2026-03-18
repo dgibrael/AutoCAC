@@ -499,7 +499,7 @@
     {
         await RPMSRef.UpdateFromRPMS(RPMSReport.OrderDialog, async () =>
         {
-            await JS.DialogHide();
+            await JS.XtermDialogHide();
             foreach (var item in newItems.Where(i => i.DisplayOnly == "PLACEHOLDER").ToList())
             {
                 await OrderDialogEdit(item);

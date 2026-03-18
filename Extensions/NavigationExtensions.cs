@@ -33,6 +33,17 @@ namespace AutoCAC.Extensions
             return !string.IsNullOrWhiteSpace(qry) ? qry : "";
         }
 
+        public static string GetPathWithQuery(this NavigationManager navigationManager, string url)
+        {
+            var qry = navigationManager.GetQueryString();
+            var uri = url.TrimEnd('/');
+            if (!string.IsNullOrWhiteSpace(qry))
+            {
+                uri += $"?{qry}";
+            }
+            return uri;
+        }
+
         public static void NavigateToWithExistingQry(this NavigationManager navigationManager, string url)
         {
             var qry = navigationManager.GetQueryString();

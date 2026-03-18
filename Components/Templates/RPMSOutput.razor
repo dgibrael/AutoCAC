@@ -52,12 +52,12 @@
     private Func<Task> _onUpdateComplete;
     public async Task UpdateFromRPMS(RPMSReport tableName, Func<Task> OnComplete = null)
     {
-        await JS.DialogShow();
+        await JS.XtermDialogShow();
         TableName = tableName;
         await RPMS.GoToMenu("UPD");
         await RPMS.SendAsync(tableName.FullName);
         await RPMS.SendAsync();
-        await JS.DialogHide();
+        await JS.XtermDialogHide();
         var _outputLst = RPMS.Output.Buffered.Split("\r\n").ToList();
         var taskLine = _outputLst.FirstOrDefault(line => line.StartsWith("Task number:"));
         if (taskLine != null && int.TryParse(taskLine.Split(":").Last().Trim(), out int taskNumber))

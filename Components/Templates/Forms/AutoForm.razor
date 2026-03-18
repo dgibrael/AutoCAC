@@ -1,0 +1,162 @@
+﻿@typeparam TItem where TItem : class, new()
+@using System.Reflection
+@using System.ComponentModel.DataAnnotations
+
+<VanillaForm TItem="TItem"
+             Data="Data"
+             CancelClick="CancelClick"
+             AfterSubmit="AfterSubmit"
+             Submit="Submit"
+             Style="Style">
+    <ChildContent Context="item">
+        @foreach (var prop in _properties)
+        {
+            var actualType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+            var required = IsRequired(prop);
+
+            @switch (Type.GetTypeCode(actualType))
+            {
+                case TypeCode.String:
+                    <AutoFormField TItem="TItem" TValue="string" Item="item" Property="prop" Required="required" />
+                    break;
+
+                case TypeCode.Boolean:
+                    @if (prop.PropertyType == typeof(bool))
+                    {
+                        <AutoFormField TItem="TItem" TValue="bool" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="bool?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.DateTime:
+                    @if (prop.PropertyType == typeof(DateTime))
+                    {
+                        <AutoFormField TItem="TItem" TValue="DateTime" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="DateTime?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Int16:
+                    @if (prop.PropertyType == typeof(short))
+                    {
+                        <AutoFormField TItem="TItem" TValue="short" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="short?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Int32:
+                    @if (prop.PropertyType == typeof(int))
+                    {
+                        <AutoFormField TItem="TItem" TValue="int" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="int?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Int64:
+                    @if (prop.PropertyType == typeof(long))
+                    {
+                        <AutoFormField TItem="TItem" TValue="long" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="long?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Decimal:
+                    @if (prop.PropertyType == typeof(decimal))
+                    {
+                        <AutoFormField TItem="TItem" TValue="decimal" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="decimal?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Double:
+                    @if (prop.PropertyType == typeof(double))
+                    {
+                        <AutoFormField TItem="TItem" TValue="double" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="double?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                case TypeCode.Single:
+                    @if (prop.PropertyType == typeof(float))
+                    {
+                        <AutoFormField TItem="TItem" TValue="float" Item="item" Property="prop" Required="required" />
+                    }
+                    else
+                    {
+                        <AutoFormField TItem="TItem" TValue="float?" Item="item" Property="prop" Required="required" />
+                    }
+                    break;
+
+                default:
+                    @if (actualType.IsEnum)
+                    {
+                        <DynamicComponent Type="@typeof(AutoFormField<,>).MakeGenericType(typeof(TItem), prop.PropertyType)"
+                                          Parameters="@(new Dictionary<string, object>
+                                          {
+                                              ["Item"] = item,
+                                              ["Property"] = prop,
+                                              ["Required"] = required
+                                          })" />
+                    }
+                    break;
+            }
+        }
+    </ChildContent>
+</VanillaForm>
+
+@code {
+    [Parameter] public TItem Data { get; set; }
+    [Parameter] public EventCallback CancelClick { get; set; }
+    [Parameter] public EventCallback<TItem> AfterSubmit { get; set; }
+    [Parameter] public EventCallback Submit { get; set; }
+    [Parameter] public string Style { get; set; }
+
+    private static readonly PropertyInfo[] _properties =
+        typeof(TItem)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(p => p.CanRead && p.CanWrite)
+            .Where(p => p.GetIndexParameters().Length == 0)
+            .Where(p => IsSupported(p.PropertyType))
+            .ToArray();
+
+    private static bool IsSupported(Type type)
+    {
+        var actualType = Nullable.GetUnderlyingType(type) ?? type;
+
+        return actualType == typeof(string)
+            || actualType == typeof(bool)
+            || actualType == typeof(DateTime)
+            || actualType == typeof(short)
+            || actualType == typeof(int)
+            || actualType == typeof(long)
+            || actualType == typeof(decimal)
+            || actualType == typeof(double)
+            || actualType == typeof(float)
+            || actualType.IsEnum;
+    }
+
+    private static bool IsRequired(PropertyInfo property)
+        => property.GetCustomAttribute<RequiredAttribute>() != null;
+
+}

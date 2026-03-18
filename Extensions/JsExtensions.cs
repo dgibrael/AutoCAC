@@ -51,12 +51,12 @@ namespace AutoCAC.Extensions
             await js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef, mimeType);
         }
 
-        public static async Task DialogShow(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
+        public static async Task XtermDialogShow(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
         {
             await js.InvokeVoidAsync("showDialog", dialogId);
         }
 
-        public static async Task DialogHide(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
+        public static async Task XtermDialogHide(this IJSRuntime js, string dialogId = "RPMSOutputDiv")
         {
             await js.InvokeVoidAsync("hideDialog", dialogId);
         }

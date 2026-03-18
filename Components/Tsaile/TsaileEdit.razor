@@ -16,7 +16,7 @@
 @implements IAsyncDisposable
 @using AutoCAC.Extensions.Tsaile
 <LoadingContent LoadState="@LoadState" >
-	<a href="javascript:history.back()">Back</a>
+	<RadzenLink Path="@_backPath" />
 	<PrintContent PrintOnly="false">
 		<h2>@($"Ticket# {Id}")</h2>
 		@if (item?.Waiting == true)
@@ -80,6 +80,7 @@
 	private IDisposable _unlockSubscription;
 	private bool _promptOpen;
 	private int? Age => item?.Patient?.Dob?.DateOnly.GetAge();
+	string _backPath;
 	DateTime _initialLock;
 	LoadingState LoadState = LoadingState.Loading;
 	void CallNow(TsaileBetterq row)
@@ -91,6 +92,7 @@
 	{
 		if (firstRender)
 		{
+			_backPath = Nav.GetPathWithQuery("/tsaile");
 			_batchChoices = Lookup.GetValues(LookupValueService.CommonOptionSet.TsaileBatchTo);
 			await LoadItem();
 			if (item == null)
