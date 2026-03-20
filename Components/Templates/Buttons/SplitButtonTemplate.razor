@@ -13,7 +13,7 @@
         @foreach (var btn in Buttons)
         {
             <RadzenSplitButtonItem Value="@btn.Value"
-                                    Text="@btn.Text"
+                                    Text="@(btn.Text ?? btn.Value)"
                                     Icon="@btn.Icon"
                                     IconColor="@btn.IconColor"
                                     Disabled="@(btn.Disabled?.Invoke() ?? false)" />

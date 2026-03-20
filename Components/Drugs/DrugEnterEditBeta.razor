@@ -1,4 +1,4 @@
-﻿@page "/drugenteredit"
+﻿@page "/drugentereditbeta"
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
 @inject DialogService DialogService
@@ -16,10 +16,13 @@
 @inject RPMSService RPMS
 
 <PageTitle>Drug Enter Edit</PageTitle>
-
-<NdfLookup SelectionChanged="OnNdfSelected" />
+<RadzenTemplateForm TItem="string" Data="@_ndc" Submit="@NdcSearch">
+    <span>Enter full 11 digit ndc below to search (xxxxx-xxxx-xx)</span>
+    <RadzenTextBox @bind-Value="@_ndc" Trim="true" />
+    <RadzenButton Text="Search" ButtonType="ButtonType.Submit" />
+</RadzenTemplateForm>
 <hr>
-@if(selectedNdf != null)
+@if (selectedNdf != null)
 {
     <DrugLookupTbl SelectionChanged="OnDrugSelected" SelectedNdf="selectedNdf" @ref="DrugsTblRef" />
 }
@@ -35,11 +38,17 @@ else
     private DrugLookupTbl DrugsTblRef;
     private Ndf selectedNdf;
     private Drug selectedDrug;
-
-    private Task OnNdfSelected(Ndf selected)
+    private string _ndc = "";
+    private async Task NdcSearch()
     {
-        selectedNdf = selected;
-        return Task.CompletedTask;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc).FirstOrDefaultAsync();
+        if (selectedNdf == null)
+        {
+            NotificationService.Info("Ndc not found. Unmatched ndcs must be updated manually in RPMS");
+            return;
+        }
+        StateHasChanged();
     }
 
     private async Task OnDrugSelected(Drug selected)
@@ -58,58 +67,65 @@ else
     {
         if (selectedDrug != null)
         {
-            if (selectedDrug.Id == 0)
+            try
             {
-                await JS.XtermDialogShow();
-                try
+                if (selectedDrug.Id == 0)
                 {
                     await NewDrug();
                 }
-                catch (Exception ex)
+                else
                 {
-                    NotificationService.Error(ex);
+                    await NdcChange();
                 }
-                return;
             }
-            var ndfPackageSize = !string.IsNullOrWhiteSpace(selectedNdf.PackageSize) ? selectedNdf.PackageSize : 
-                                    selectedDrug.PackageSize ?? "";
-            ndfPackageSize = ndfPackageSize.Trim();
-            NdcChangeDto ndcInitial = new NdcChangeDto()
-                {
-                    PackageSize = ndfPackageSize.EndsWith(".0")
-                        ? ndfPackageSize[..^2]
-                        : ndfPackageSize
-                };
-            var ndcResult = await DialogService.OpenAutoFormAsync<NdcChangeDto>(ndcInitial
-                , title: $"Enter the Purchase Price and Size of the order (in {selectedDrug.DispenseUnit})");
-            if (ndcResult is null || string.IsNullOrWhiteSpace(ndcResult.PurchasePrice))
+            catch (Exception ex)
             {
-                return;
+                NotificationService.Error(ex);
             }
-            await JS.XtermDialogShow();
-            await NdcChange();
-            await RPMS.SendAsync(selectedNdf.Ndc);
-            await RPMS.SendAsync(ndcResult.PurchasePrice);
-            await RPMS.SendAsync(ndcResult.PackageSize);
-            await JS.XtermDialogHide();
         }
+    }
+
+    private async Task NdcChange()
+    {
+        var ndfPackageSize = !string.IsNullOrWhiteSpace(selectedNdf.PackageSize) ? selectedNdf.PackageSize :
+                                selectedDrug.PackageSize ?? "";
+        ndfPackageSize = ndfPackageSize.Trim();
+        NdcChangeDto ndcInitial = new NdcChangeDto()
+        {
+            PackageSize = ndfPackageSize.EndsWith(".0")
+                    ? ndfPackageSize[..^2]
+                    : ndfPackageSize
+        };
+        var ndcResult = await DialogService.OpenAutoFormAsync<NdcChangeDto>(ndcInitial
+            , title: $"Enter the Purchase Price and Size of the order (in {selectedDrug.DispenseUnit})");
+        if (ndcResult is null || string.IsNullOrWhiteSpace(ndcResult.PurchasePrice))
+        {
+            return;
+        }
+        await JS.XtermDialogShow();
+        await GoToNdcChangeMenu();
+        await RPMS.SendAsync(selectedNdf.Ndc);
+        await RPMS.SendAsync(ndcResult.PurchasePrice);
+        await RPMS.SendAsync(ndcResult.PackageSize);
+        await JS.XtermDialogHide();
     }
 
     private async Task NewDrug()
     {
+        await JS.XtermDialogShow();
         await RPMS.GoToMenu("DRUG");
         await RPMS.SendAsync(selectedDrug.Name);
         for (int i = 0; i < 20; i++)
         {
-            string prompt = RPMS.CheckPrompt( "Yes//", "No//", "CHOOSE");
-            switch(prompt)
+            string prompt = RPMS.CheckPrompt("Yes//", "No//", "CHOOSE");
+            switch (prompt)
             {
                 case "No//":
                     await CreateNewDrug();
                     return;
                 case "Yes//":
                     string lastStr = RPMS.Output.Buffered;
-                    if(lastStr.Contains("Lookup: GENERIC NAME"))
+                    if (lastStr.Contains("Lookup: GENERIC NAME"))
                     {
                         var parameters = new Dictionary<string, object>
                         {
@@ -118,7 +134,7 @@ else
                             { "nullOnCancel", true}
                         };
                         selectedDrug = await DialogService.OpenAsync<DrugForm>($"The name {selectedDrug.Name} already exists", parameters);
-                        if (selectedDrug==null)
+                        if (selectedDrug == null)
                         {
                             await DrugsTblRef.ClearSelection();
                             await InvokeAsync(StateHasChanged);
@@ -169,13 +185,13 @@ else
             await RPMS.EnterUntil("Enter your choice(s) separated by commas");
             await RPMS.SendAsync(selectedDrug.ApplicationPackage);
             await RPMS.PromptLoopAsync(new Dictionary<string, Func<Task<bool>>>
-                {
-                    ["AN Outpatient Pharmacy ITEM"] = OutpatientPackage,
-                    ["AN Unit Dose ITEM"] = UDPackage,
-                    ["A Non-VA Med ITEM"] = YesOnly,
-                    ["AN IV ITEM"] = YesAndUphat,
-                    ["Orderable Item"] = async () => { return true; }
-                }, 10);
+            {
+                ["AN Outpatient Pharmacy ITEM"] = OutpatientPackage,
+                ["AN Unit Dose ITEM"] = UDPackage,
+                ["A Non-VA Med ITEM"] = YesOnly,
+                ["AN IV ITEM"] = YesAndUphat,
+                ["Orderable Item"] = async () => { return true; }
+            }, 10);
         }
         catch (Exception ex)
         {
@@ -190,13 +206,13 @@ else
         await RPMS.SendAsync("NO");
         await RPMS.SendAsync("NO");
         return false;
-    }    
+    }
     
     private async Task<bool> UDPackage()
     {
         await RPMS.SendAsync("YES", "^", "^");
         return false;
-    }    
+    }
     
     private async Task<bool> YesAndUphat()
     {
@@ -210,14 +226,14 @@ else
         return false;
     }
 
-    private async Task NdcChange()
+    private async Task GoToNdcChangeMenu()
     {
         await RPMS.GoToMenu("NDC");
         for (int i = 0; i < 3; i++)
         {
             await RPMS.SendAsync(selectedDrug.Id.ToString());
             string prompt = RPMS.CheckPrompt("NDC:", "Select DRUG GENERIC NAME");
-            switch(prompt)
+            switch (prompt)
             {
                 case "NDC:":
                     return;

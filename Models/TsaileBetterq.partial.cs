@@ -47,8 +47,17 @@ public static class TsaileTicketStatusExtensions
 
 public partial class TsaileBetterq
 {
-    public TsaileTicketStatus StatusEnum =>
-        Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
+    public TsaileTicketStatus StatusEnum
+    {
+        get
+        {
+            return Enum.Parse<TsaileTicketStatus>(Status, ignoreCase: true);
+        }
+        set
+        {
+            Status = value.ToString();
+        }
+    }
     public TsaileTicketStatus NextStatusEnum
     {
         get

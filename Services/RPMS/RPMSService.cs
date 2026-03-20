@@ -347,7 +347,7 @@ public class RPMSService : IDisposable
             await WaitUntilModeAsync();
     }
 
-    public async Task GoToMenu(string menu = null, int attempts = 30)
+    public async Task GoToMenu(string menu = null, int attempts = 10)
     {
         for (int i = 0; i < attempts; i++)
         {
@@ -397,7 +397,7 @@ public class RPMSService : IDisposable
                     await SendAsync("^");
                 }
 
-                if (attempts - i <= 3)
+                if (attempts - i <= 5)
                 {
                     await Task.Delay(200);
                 }

@@ -1,0 +1,55 @@
+﻿@typeparam TItem where TItem : class, new()
+@using System.Reflection
+@using System.ComponentModel.DataAnnotations
+
+<VanillaForm TItem="TItem"
+             Data="Data"
+             CancelClick="CancelClick"
+             AfterSubmit="AfterSubmit"
+             Submit="Submit"
+             Style="@Style">
+    <ChildContent Context="item">
+        @foreach (var prop in PropertiesToRender)
+        {
+            var fieldType = GetFieldComponentType(prop);
+
+            if (fieldType is not null)
+            {
+                <DynamicComponent Type="fieldType"
+                                  Parameters="GetFieldParameters(item, prop)" />
+            }
+        }
+    </ChildContent>
+</VanillaForm>
+
+@code {
+    [Parameter] public TItem Data { get; set; }
+    [Parameter] public EventCallback CancelClick { get; set; }
+    [Parameter] public EventCallback<TItem> AfterSubmit { get; set; }
+    [Parameter] public EventCallback Submit { get; set; }
+    [Parameter] public string Style { get; set; }
+    [Parameter] public HashSet<string> IncludedProperties { get; set; }
+
+    private static readonly PropertyInfo[] _allSupportedProperties =
+        typeof(TItem)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(p => p.GetIndexParameters().Length == 0)
+            .ToArray();
+
+    private IEnumerable<PropertyInfo> PropertiesToRender =>
+        IncludedProperties == null || IncludedProperties.Count == 0
+            ? _allSupportedProperties
+            : _allSupportedProperties.Where(p => IncludedProperties.Contains(p.Name));
+
+    private static Dictionary<string, object> GetFieldParameters(TItem item, PropertyInfo prop)
+        => new()
+        {
+            ["Item"] = item,
+            ["Property"] = prop
+        };
+
+    private static Type GetFieldComponentType(PropertyInfo prop)
+    {
+        return typeof(AutoFormField<,>).MakeGenericType(typeof(TItem), prop.PropertyType);
+    }
+}

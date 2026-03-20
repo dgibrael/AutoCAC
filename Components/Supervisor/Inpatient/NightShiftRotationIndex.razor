@@ -30,10 +30,10 @@
             {
                 StaffUserName = g.Key,
                 LastEndDate = g.Max(x => x.EndDate),
-                TotalDays = g.Sum(x => EF.Functions.DateDiffDay(x.StartDate, x.EndDate)),
+                TotalDays = g.Sum(x => EF.Functions.DateDiffDay(x.StartDate, x.EndDate)+1),
                 TotalDaysYear = g.Sum(x =>
                     x.EndDate.Year == DateTime.Now.Year
-                        ? EF.Functions.DateDiffDay(x.StartDate, x.EndDate)
+                        ? EF.Functions.DateDiffDay(x.StartDate, x.EndDate)+1
                         : 0)
             })
             .OrderBy(x => x.LastEndDate)

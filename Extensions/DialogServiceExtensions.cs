@@ -73,6 +73,7 @@ namespace AutoCAC.Extensions
                 parameters,
                 options ?? new DialogOptions
                 {
+                    AutoFocusFirstElement = true,
                     Width = "75%",
                     CloseDialogOnOverlayClick = true,
                     Resizable = true,
@@ -107,6 +108,7 @@ namespace AutoCAC.Extensions
                 parameters,
                 options ?? new DialogOptions
                 {
+                    AutoFocusFirstElement = true,
                     Width = "75%",
                     CloseDialogOnOverlayClick = true,
                     Resizable = true,
@@ -387,6 +389,41 @@ namespace AutoCAC.Extensions
                 ShowTitle = true,
             };
             var result = await dialogService.OpenAsync<VanillaDialogForm<TItem>>(
+                title: title,
+                parameters: parameters,
+                options: options
+                );
+
+            return result is TItem typed ? typed : null;
+        }
+        public static async Task<TItem> OpenAutoFormAsync<TItem>(
+            this DialogService dialogService,
+            TItem Data = null,
+            HashSet<string> IncludedProperties = default,
+            bool SaveToDb = false,
+            string title = "",
+            IEnumerable<SplitButtonItem> OtherActions = null
+            )
+            where TItem : class, new()
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                ["Data"] = Data,
+                ["IncludedProperties"] = IncludedProperties,
+                ["SaveToDb"] = SaveToDb,
+                ["OtherActions"] = OtherActions
+            };
+            var options = new DialogOptions
+            {
+                AutoFocusFirstElement = true,
+                Width = "75%",
+                CloseDialogOnOverlayClick = true,
+                Resizable = true,
+                Draggable = true,
+                ShowClose = true,
+                ShowTitle = true,
+            };
+            var result = await dialogService.OpenAsync<AutoFormDialog<TItem>>(
                 title: title,
                 parameters: parameters,
                 options: options

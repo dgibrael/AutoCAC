@@ -21,7 +21,7 @@
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     [Parameter] public EventCallback CancelClick { get; set; }
     [Parameter] public EventCallback<TItem> AfterSubmit { get; set; }
-    [Parameter] public EventCallback Submit { get; set; }
+    [Parameter] public EventCallback<TItem> Submit { get; set; }
     [Parameter] public string Style { get; set; }
     private bool _newItem = true;
     bool _isbusy;
