@@ -28,18 +28,16 @@
 
         </ChildContent>
         <ExpandContentView Context="q">
-            @if (q.ParsedItems is List<ResponseItem> responses)
+            @foreach (var childItem in q.ChildItems)
             {
-                @foreach (var item in responses)
+                if (childItem.Count() > 0)
                 {
-                    if (!string.IsNullOrWhiteSpace(item.Value) || !string.IsNullOrWhiteSpace(item.Text))
+                    foreach (var x in childItem)
                     {
-                        <div>
-                            <strong>@item.Dialog.Replace("OR GTX ", "")</strong>:
-                            <span style="white-space: normal">@(!string.IsNullOrWhiteSpace(item.Value) ? item.Value : item.Text)</span>
-                        </div>
+                        <strong>@x.Key</strong>
+                        <span style="white-space: normal">@x.Value</span>
                     }
-                }                
+                }
             }
         </ExpandContentView>
     </DataGridVanilla>

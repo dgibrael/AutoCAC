@@ -47,6 +47,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<InterventionLocation> InterventionLocations { get; set; }
 
+    public virtual DbSet<IvcompoundingLog> IvcompoundingLogs { get; set; }
+
     public virtual DbSet<Lab> Labs { get; set; }
 
     public virtual DbSet<LookupValue> LookupValues { get; set; }
@@ -72,6 +74,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<PiVerification> PiVerifications { get; set; }
 
     public virtual DbSet<PiVerificationComment> PiVerificationComments { get; set; }
+
+    public virtual DbSet<QuickOrderContent> QuickOrderContents { get; set; }
 
     public virtual DbSet<RejectCode> RejectCodes { get; set; }
 
@@ -574,6 +578,13 @@ public partial class mainContext : DbContext
                 .HasColumnName("name");
         });
 
+        modelBuilder.Entity<IvcompoundingLog>(entity =>
+        {
+            entity.HasKey(e => e.DateCompounded).HasName("PK__IVCompou__6B5679CD518D00CE");
+
+            entity.ToTable("IVCompoundingLog");
+        });
+
         modelBuilder.Entity<Lab>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Lab__3213E83F93B2805C");
@@ -759,9 +770,7 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Item).HasMaxLength(4000);
             entity.Property(e => e.ItemDisplay).IsUnicode(false);
             entity.Property(e => e.Mnemonic).HasMaxLength(4000);
-            entity.Property(e => e.OrderDialogId)
-                .HasMaxLength(4000)
-                .HasColumnName("OrderDialogID");
+            entity.Property(e => e.OrderDialogId).HasColumnName("OrderDialogID");
             entity.Property(e => e.Seq).HasMaxLength(4000);
         });
 
@@ -892,6 +901,26 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.PiVerification).WithMany(p => p.PiVerificationComments)
                 .HasForeignKey(d => d.PiVerificationId)
                 .HasConstraintName("FK_PI_VerificationComment_PI_Verification");
+        });
+
+        modelBuilder.Entity<QuickOrderContent>(entity =>
+        {
+            entity
+                .HasNoKey()
+                .ToView("QuickOrderContents");
+
+            entity.Property(e => e.EntryType).HasMaxLength(4000);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.QodisplayGroup)
+                .IsUnicode(false)
+                .HasColumnName("QODisplayGroup");
+            entity.Property(e => e.QodisplayName)
+                .IsUnicode(false)
+                .HasColumnName("QODisplayName");
+            entity.Property(e => e.Qoname)
+                .IsUnicode(false)
+                .HasColumnName("QOName");
+            entity.Property(e => e.Value).HasMaxLength(4000);
         });
 
         modelBuilder.Entity<RejectCode>(entity =>

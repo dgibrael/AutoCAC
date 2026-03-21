@@ -10,7 +10,6 @@ window.setRPMSDotNetRef = function (dotNetRef) {
 window.writeRPMSXterm = function (text) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
-        console.warn("Target div not found:", rpmsTxtDivId);
         return;
     }
     if (!rpmsTerm._core || !rpmsTerm._core._renderService?.dimensions) {
@@ -30,7 +29,6 @@ window.clearRPMSXterm = function () {
 window.reinitRPMSXterm = function (enabled = false) {
     const container = document.getElementById(rpmsTxtDivId);
     if (!container) {
-        console.warn("Target div not found:", rpmsTxtDivId);
         return;
     }
 
@@ -78,7 +76,7 @@ window.scrollToTop = function () {
     }
 };
 
-// wwwroot/js/index.js
+
 window.downloadTextFile = function (data, filename = "output.txt", mimeType = "text/plain;charset=utf-8", addBom = false) {
     const parts = [];
     if (addBom) {

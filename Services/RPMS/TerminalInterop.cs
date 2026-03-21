@@ -14,7 +14,7 @@ public class TerminalInterop
     [JSInvokable]
     public async Task UserInput(string input)
     {
-        if (!_user.IsAllowedRPMSInput) return;
+        if (!_user.IsAllowedRPMSInput || _rpms.BlockUserInput) return;
         if (!_rpms.CurrentMode.SignedIn)
         {
             await _rpms.Login();

@@ -19,6 +19,13 @@
                             Value="@Value" AllowClear="@_nullable"
                             ValueChanged="@ValueChanged" />
         }
+        else if (_actualType == typeof(DateOnly))
+        {
+            <RadzenDatePicker TValue="TValue"
+                              Name="@_name"
+                              Value="@Value" ShowTime="false" ShowTimeOkButton="false"
+                              ValueChanged="@ValueChanged" />
+        }
         else
         {            
             @switch (Type.GetTypeCode(_actualType))

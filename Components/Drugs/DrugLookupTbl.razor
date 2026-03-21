@@ -10,7 +10,11 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @using AutoCAC.Components.Drugs
 <RadzenStack>
-    @if (selectedRow != null)
+    @if (SelectedNdf == null)
+    {
+        <span>Choose NDF NDC Entry to Match First</span>
+    }
+    else if (selectedRow != null)
     {
         <RadzenButton Click="ClearSelection" ButtonStyle="ButtonStyle.Base" Variant="Variant.Text" Text="@GetSelectedLabel()"
         Style="text-transform: none" />
@@ -59,8 +63,13 @@
     [Parameter] public Ndf SelectedNdf { get; set; }
     private DataGridHelper<AutoCAC.Models.Drug> GridModel = new();
 
-    protected override void OnInitialized()
+    protected override async Task OnParametersSetAsync()
     {
+        if (SelectedNdf?.PrintName == null) 
+        {
+            StateHasChanged();
+            return;
+        }
         GridModel.QueryFactory = ctx =>
             {
                 var q = ctx.Drugs.AsQueryable().Where(d => d.VaPrintName == SelectedNdf.PrintName);
@@ -69,6 +78,7 @@
 
                 return q;
             };
+        StateHasChanged();
     }
 
     async Task OnShowOnlyActiveChanged(bool _)

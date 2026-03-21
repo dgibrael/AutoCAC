@@ -1,0 +1,70 @@
+﻿@page "/inpatient/ivcompoundinglog"
+@using AutoCAC.Models
+@inject DialogService Dialog
+@inject IDbContextFactory<mainContext> DbFactory
+<h3>IV Compounding Log</h3>
+<DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
+<h3>@($"Total For Selected Date Range: {_periodSum}")</h3>
+<DataGridVanilla TItem="IvcompoundingLog" AddButtonClick="@Add" GridModel="GridModel">
+	<TrailingColumns>
+		<ActionColumn TItem="IvcompoundingLog" Context="x">
+			<RadzenButton Text="Edit" Click="@(() => Edit(x))"/>
+		</ActionColumn>
+	</TrailingColumns>
+</DataGridVanilla>
+
+@code {
+	PeriodSelection selectedPeriod = new(PeriodOption.Custom);
+	private int _periodSum = 0;
+	DataGridHelper<IvcompoundingLog> GridModel = new();
+	protected override async Task OnInitializedAsync()
+	{
+		GridModel.QueryFactory = db =>
+		{
+			var start = selectedPeriod.CurrentStart;
+			var end = selectedPeriod.CurrentEnd;
+			return db.IvcompoundingLogs
+					.Where(x => x.DateCompounded >= start && x.DateCompounded <= end);
+		};
+		await GetSum();
+	}
+	private async Task GetSum()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		_periodSum = await GridModel.QueryFactory(db).SumAsync(x => x.CompoundedQty);
+	}
+	private async Task RefreshAsync()
+	{
+		await GetSum();
+		await GridModel.ReloadAsync();
+	}
+	private async Task Add()
+	{
+		IvcompoundingLog initItem = new()
+		{
+			DateCompounded = DateTime.Today.DateOnly
+		};
+		await Upsert(initItem, false);
+	}
+	private async Task Edit(IvcompoundingLog selected)
+	{
+		await Upsert(selected, true);
+	}
+	private async Task Upsert(IvcompoundingLog initialData, bool alwaysUpdate)
+	{
+		var data = await Dialog.OpenAutoFormAsync<IvcompoundingLog>(initialData);
+		if (data == null)
+			return;
+
+		var shouldUpdate =
+			alwaysUpdate ||
+			await DbFactory.ExistsAsync<IvcompoundingLog>(x => x.DateCompounded == data.DateCompounded);
+
+		if (shouldUpdate)
+			await DbFactory.UpdateItemAsync<IvcompoundingLog>(data);
+		else
+			await DbFactory.AddItemAsync<IvcompoundingLog>(data);
+
+		await RefreshAsync();
+	}
+}

@@ -11,7 +11,7 @@ public partial class OrderMenu
 
     public string? Seq { get; set; }
 
-    public string? OrderDialogId { get; set; }
+    public int? OrderDialogId { get; set; }
 
     public string? Item { get; set; }
 

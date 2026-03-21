@@ -16,6 +16,7 @@ public class RPMSService : IDisposable
     private readonly IJSRuntime _js;
     public ShellOutput Output;
     private readonly RpmsOptions _options;
+    public bool BlockUserInput { get; set;  } = false;
     public RPMSService(IJSRuntime js, IOptions<RpmsOptions> options)
     {
         _js = js;
@@ -222,7 +223,7 @@ public class RPMSService : IDisposable
                 }
                 if (data.Contains(EndOfFeedStr))
                 {
-                    if (Output.Prompt().Contains("DEVICE:"))
+                    if (Output.Prompt.Contains("DEVICE:"))
                     {
                         SetMode(RPMSMode.ReportPrompt);
                     }
@@ -353,7 +354,7 @@ public class RPMSService : IDisposable
         {
             try
             {
-                var curPrompt = Output.Prompt();
+                var curPrompt = Output.Prompt;
                 if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
                 {
                     if (menu != null)
@@ -413,7 +414,7 @@ public class RPMSService : IDisposable
 
     public string CheckPrompt(StringComparison comparison, params string[] expectedPrompts)
     {
-        string prompt = Output.Prompt();
+        string prompt = Output.Prompt;
 
         foreach (var expected in expectedPrompts)
         {
@@ -428,7 +429,7 @@ public class RPMSService : IDisposable
 
     public void CheckPromptAndThrow(string expectedPrompt, StringComparison comparison = StringComparison.Ordinal)
     {
-        string prompt = Output.Prompt();
+        string prompt = Output.Prompt;
         if (!prompt.Contains(expectedPrompt, comparison))
         {
             throw new RPMSException();
@@ -544,7 +545,7 @@ public class RPMSService : IDisposable
         Func<Task> onNoMatch = null,
         StringComparison comparison = StringComparison.Ordinal)
     {
-        string prompt = Output.Prompt();
+        string prompt = Output.Prompt;
         foreach (var (expectedPrompt, action) in promptActions)
         {
             if (prompt.Contains(expectedPrompt, comparison))

@@ -83,6 +83,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[IVCompoundingLog]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Lab]",
          "ObjectType": 0
       },
@@ -216,6 +220,10 @@
       },
       {
          "Name": "[dbo].[OrderMenu]",
+         "ObjectType": 3
+      },
+      {
+         "Name": "[dbo].[QuickOrderContents]",
          "ObjectType": 3
       },
       {

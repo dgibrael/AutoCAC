@@ -43,29 +43,32 @@ public class ShellOutput
         }
     }
 
-    public string Prompt() => Buffered.LastLine();
-    public string CurrentValue()
+    public string Prompt => Buffered.LastLine();
+    public string CurrentValue
     {
-        string lastStr = Buffered;
-        int colonIdx = lastStr.IndexOf(':')+1;
-        if (colonIdx<=0)
+        get
         {
+            string lastStr = Buffered;
+            int colonIdx = lastStr.IndexOf(':')+1;
+            if (colonIdx<=0)
+            {
+                return "";
+            }
+
+            int replaceIdx = lastStr.LastIndexOf("Replace");
+            if (replaceIdx>colonIdx)
+            {
+                return lastStr[colonIdx..replaceIdx].Trim();
+            }
+
+            int slashIdx = lastStr.LastIndexOf("//");
+            if (slashIdx>colonIdx)
+            {
+                return lastStr[colonIdx..slashIdx].Trim();
+            }
+
             return "";
         }
-
-        int replaceIdx = lastStr.LastIndexOf("Replace");
-        if (replaceIdx>colonIdx)
-        {
-            return lastStr[colonIdx..replaceIdx].Trim();
-        }
-
-        int slashIdx = lastStr.LastIndexOf("//");
-        if (slashIdx>colonIdx)
-        {
-            return lastStr[colonIdx..slashIdx].Trim();
-        }
-
-        return "";
     }
 
     private async Task WriteToTerminalAsync(string data)

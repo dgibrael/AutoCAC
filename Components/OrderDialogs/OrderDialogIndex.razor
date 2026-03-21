@@ -5,12 +5,27 @@
 
 <PageTitle>Order Dialogs</PageTitle>
 
-<DataGridVanilla TItem="Models.OrderDialog" GridModel="GridModel" />
+<DataGridVanilla TItem="Models.OrderDialog" GridModel="GridModel" >
+    <ChildContent>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Name" Title="Name" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayText" Title="DisplayText" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Type" Title="Type"
+                    FilterMode="FilterMode.CheckBoxList"/>
+        <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="DisplayGroup" Title="DisplayGroup"
+                              FilterMode="FilterMode.CheckBoxList" />
+        <RadzenDataGridColumn TItem="AutoCAC.Models.OrderDialog" Property="Package" Title="Package"
+                              FilterMode="FilterMode.CheckBoxList" />
+    </ChildContent>
+    <TrailingColumns>
+        <ActionColumn TItem="Models.OrderDialog" Context="x">
+            <RadzenLink Text="Details" Path="@($"/orderdialogs/{x?.Id}")" />
+        </ActionColumn>
+    </TrailingColumns>
+</DataGridVanilla>
 
 @code{
     private DataGridHelper<AutoCAC.Models.OrderDialog> GridModel = new()
     {
-        IncludeColumns = new[] { "Name", "DisplayText", "Type", "DisplayGroup", "Package" },
         SearchColumns=new[] { "Name", "DisplayText" }
     };
 }

@@ -125,6 +125,7 @@ else
 
     private async Task RunRPMSCommands()
     {
+        RPMS.BlockUserInput = true;
         await RPMS.GoToMenu("AAC");
         RPMS.CheckPromptAndThrow("DO YOU WISH TO CONTINUE");
         await RPMS.SendAsync("YES");
@@ -139,5 +140,6 @@ else
             ("ENTER THE NAME OF THE ACTUAL ACQUISTION FILE", async () => { await RPMS.SendAsync(fileName); })
         });
         await RPMS.SendAsync();
+        RPMS.BlockUserInput = false;
     }
 }

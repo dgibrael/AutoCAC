@@ -1,0 +1,103 @@
+﻿@page "/orderdialogs/{Id:int}"
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@using System.Collections.Generic
+@using System.Text.Json
+
+<LoadingContent LoadState="@(item == null ? LoadingState.Loading : LoadingState.Loaded)">
+	<h3>@($"Order Dialog Details for {item?.DisplayText} ({item?.Name})")</h3>
+	<span>@($"IEN: {item?.Id}")</span>
+	<RadzenCard>
+		<h4>Found In</h4>
+		@if(foundIn == null || foundIn.Count() == 0)
+		{
+			<span>@($"No menus contain {item?.DisplayText} ({item?.Name})")</span>
+		}
+		else
+		{
+			<RadzenDataList Data="@foundIn">
+				<Template Context="x">
+					<RadzenLink Text="@($"{x?.DisplayText} ({x?.Name})")" Path="@($"/orderdialogs/{x?.Id}")" />
+				</Template>
+			</RadzenDataList>
+		}
+
+	</RadzenCard>
+	<RadzenCard class="rz-mt-5">
+		<h3>Contents</h3>
+		@if(item.UseItemsList)
+		{
+			var maxCol = item.LastColumn;
+			int colWidth = (int)(12 / maxCol);
+				<RadzenDataList Data="item.ItemsListByRow" WrapItems="true">
+					<Template Context="x">
+					<RadzenRow Style="width: 100%;">
+						@{
+							var emptyCols = maxCol - x.Max(x => x.Column);
+						}
+						@foreach(var c in x)
+						{
+							<RadzenColumn Size="@colWidth">
+								<RadzenCard>
+									@switch (c.DisplayOnly)
+									{
+										case ("YES-HEADER"):
+											<strong>@c?.DisplayText</strong>
+											break;
+										case ("YES"):
+											<span>@c?.DisplayText</span>
+											break;
+										default:
+											var dispStr = c?.Item ?? "";
+											dispStr += string.IsNullOrWhiteSpace(c?.DisplayText) ? "" : $" ({c.DisplayText})";
+											<RadzenLink Text="@dispStr" Path="@($"/orderdialogs/{c?.OrderDialogID}")" />
+											break;
+									}
+								</RadzenCard>
+							</RadzenColumn>
+						}
+						@for(var i = 0; i < emptyCols; i++)
+						{
+							<RadzenColumn Size="@colWidth"></RadzenColumn>
+						}
+					</RadzenRow>
+					</Template>
+				</RadzenDataList>
+		}
+		else
+		{
+			<RadzenDataList Data="item.ResponsesList" WrapItems="true">
+				<Template Context="x">
+					@if(!string.IsNullOrWhiteSpace(x?.ValueResolved))
+					{
+						<RadzenCard Style="max-width: 500px;">
+							<strong>@($"{x.ResponseType}: ")</strong><span>@x.ValueResolved</span>
+						</RadzenCard>
+					}
+				</Template>
+			</RadzenDataList>
+		}
+	</RadzenCard>
+</LoadingContent>
+
+	@code {
+	[Parameter] public int Id { get; set; }
+	OrderDialog item;
+	IEnumerable<OrderDialog> foundIn;
+	List<Dictionary<string, string>> _childItems;
+	HashSet<string> itemsTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dialog", "menu", "order set" };
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			item = await db.OrderDialogs.FirstOrDefaultAsync(x => x.Id == Id);
+			HashSet<int> menuHash = await db.OrderMenus
+							.Where(x => x.OrderDialogId == item.Id)
+							.Select(x => x.Id)
+							.ToHashSetAsync();
+			foundIn = await db.OrderDialogs.Where(x => menuHash.Contains(x.Id)).ToListAsync();
+			StateHasChanged();
+		}
+	}
+}
