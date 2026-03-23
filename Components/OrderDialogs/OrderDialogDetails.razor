@@ -3,10 +3,17 @@
 @inject IDbContextFactory<mainContext> DbFactory
 @using System.Collections.Generic
 @using System.Text.Json
-
+@inject UserContextService User
+@inject NavigationManager Nav
 <LoadingContent LoadState="@(item == null ? LoadingState.Loading : LoadingState.Loaded)">
 	<h3>@($"Order Dialog Details for {item?.DisplayText} ({item?.Name})")</h3>
 	<span>@($"IEN: {item?.Id}")</span>
+	@if(IsMenu)
+	{
+		<RadzenRow>
+			<RadzenButton Text="Request Changes to this Menu" Click="MenuEdit" />
+		</RadzenRow>
+	}
 	<RadzenCard>
 		<h4>Found In</h4>
 		@if(foundIn == null || foundIn.Count() == 0)
@@ -29,40 +36,35 @@
 		{
 			var maxCol = item.LastColumn;
 			int colWidth = (int)(12 / maxCol);
-				<RadzenDataList Data="item.ItemsListByRow" WrapItems="true">
-					<Template Context="x">
-					<RadzenRow Style="width: 100%;">
-						@{
-							var emptyCols = maxCol - x.Max(x => x.Column);
-						}
-						@foreach(var c in x)
-						{
-							<RadzenColumn Size="@colWidth">
-								<RadzenCard>
-									@switch (c.DisplayOnly)
-									{
-										case ("YES-HEADER"):
-											<strong>@c?.DisplayText</strong>
-											break;
-										case ("YES"):
-											<span>@c?.DisplayText</span>
-											break;
-										default:
-											var dispStr = c?.Item ?? "";
-											dispStr += string.IsNullOrWhiteSpace(c?.DisplayText) ? "" : $" ({c.DisplayText})";
-											<RadzenLink Text="@dispStr" Path="@($"/orderdialogs/{c?.OrderDialogID}")" />
-											break;
-									}
-								</RadzenCard>
-							</RadzenColumn>
-						}
-						@for(var i = 0; i < emptyCols; i++)
-						{
-							<RadzenColumn Size="@colWidth"></RadzenColumn>
-						}
-					</RadzenRow>
-					</Template>
-				</RadzenDataList>
+			<RadzenDataList Data="item.ItemsListByRow" WrapItems="true">
+				<Template Context="x">
+				<RadzenRow Style="width: 100%;">
+					@foreach(var c in x)
+					{
+						<RadzenColumn Size="@colWidth">
+							<RadzenCard Style="height: 100%">
+								@switch (c.DisplayOnly)
+								{
+									case ("EMPTY"):
+										break;
+									case ("YES-HEADER"):
+										<strong>@c?.DisplayText</strong>
+										break;
+									case ("YES"):
+										<span>@c?.DisplayText</span>
+										break;
+									default:
+										var dispStr = c?.Item ?? "";
+										dispStr += string.IsNullOrWhiteSpace(c?.DisplayText) ? "" : $" ({c.DisplayText})";
+										<RadzenLink Text="@dispStr" Path="@($"/orderdialogs/{c?.OrderDialogID}")" />
+										break;
+								}
+							</RadzenCard>
+						</RadzenColumn>
+					}
+				</RadzenRow>
+				</Template>
+			</RadzenDataList>
 		}
 		else
 		{
@@ -83,8 +85,9 @@
 	@code {
 	[Parameter] public int Id { get; set; }
 	OrderDialog item;
+	bool IsMenu => item?.Type.Equals("menu", StringComparison.OrdinalIgnoreCase) == true;
+	bool menuEditBusy;
 	IEnumerable<OrderDialog> foundIn;
-	List<Dictionary<string, string>> _childItems;
 	HashSet<string> itemsTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "dialog", "menu", "order set" };
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
@@ -99,5 +102,32 @@
 			foundIn = await db.OrderDialogs.Where(x => menuHash.Contains(x.Id)).ToListAsync();
 			StateHasChanged();
 		}
+	}
+	private async Task MenuEdit()
+	{
+		menuEditBusy = true;
+		StateHasChanged();
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var menuRequest = await db.MenuBuildMeta.FirstOrDefaultAsync(x => x.ExistingMenu == Id);
+		if (menuRequest == null)
+		{
+			menuRequest = new MenuBuildMetum()
+								{
+									ExistingMenu = Id,
+									DisplayText = item.DisplayText,
+									Name = item.DisplayText,
+									Columns = (byte)item.LastColumn,
+									CreatedBy = User.Username
+								};
+			await db.AddItemAsync<MenuBuildMetum>(menuRequest);
+			await db.SaveChangesAsync();
+			FormattableString sql = $@"Insert Into MenuBuild ([Menu_id], [Item_id], [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum])
+                                          SELECT {menuRequest.Id} Menu_id ,[OrderDialogID] Item_id, [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum]
+                                          FROM [main].[dbo].[OrderMenu]
+                                          Where id={Id}";
+			await DbFactory.ExecuteSqlAsync(sql);
+		}
+		menuEditBusy = false;
+		Nav.NavigateTo($"menubuild/{menuRequest.Id}");
 	}
 }

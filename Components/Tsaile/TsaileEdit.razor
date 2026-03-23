@@ -16,7 +16,7 @@
 @implements IAsyncDisposable
 @using AutoCAC.Extensions.Tsaile
 <LoadingContent LoadState="@LoadState" >
-	<RadzenLink Path="@_backPath" />
+	<RadzenLink Text="Back" Path="@_backPath" />
 	<PrintContent PrintOnly="false">
 		<h2>@($"Ticket# {Id}")</h2>
 		@if (item?.Waiting == true)

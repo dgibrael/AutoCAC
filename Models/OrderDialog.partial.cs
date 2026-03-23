@@ -31,7 +31,28 @@ public partial class OrderDialog
         {
             var lst = JsonSerializer.Deserialize<List<OrderDialogItem>>(Items);
             if (lst == null || lst.Count() <= 0) return new List<OrderDialogItem>();
+            var maxRow = lst.Max(x => x.Row);
+            var maxColumn = lst.Max(x => x.Column);
 
+            var existingSequences = lst
+                .Select(x => x.Sequence)
+                .ToHashSet();
+
+            for (var row = 1; row <= maxRow; row++)
+            {
+                for (var column = 1; column <= maxColumn; column++)
+                {
+                    var seq = $"{row}.{column}";
+                    if (!existingSequences.Contains(seq))
+                    {
+                        lst.Add(new OrderDialogItem
+                        {
+                            Sequence = seq,
+                            DisplayOnly = "EMPTY"
+                        });
+                    }
+                }
+            }
             return lst.OrderBy(x => x.Row).ThenBy(x => x.Column).ToList();
         }
     }
@@ -61,10 +82,6 @@ public class OrderDialogItem
     public string Mnemonic { get; set; }
     public string DisplayText { get; set; }
     public string DisplayOnly { get; set; }
-    public string Title { get; set; }
-    public string Prompt { get; set; }
-    public string Default { get; set; }
-    public string DefaultWordProcessingText { get; set; }
     public int Row
     {
         get
