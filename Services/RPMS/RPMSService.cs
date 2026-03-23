@@ -9,6 +9,7 @@ using Microsoft.JSInterop;
 using Radzen;
 using Renci.SshNet;
 using Renci.SshNet.Common;
+using System.Text.RegularExpressions;
 namespace AutoCAC.Services;
 
 public class RPMSService : IDisposable
@@ -497,22 +498,32 @@ public class RPMSService : IDisposable
         return buffer;
     }
 
-    public async Task<List<string>> GetOptions(int maxLoops = 20)
+    public async Task<List<string>> GetOptionsRawAsync(int maxLoops = 100)
     {
         await SendAsync("??");
         Output.BufferFrozen = true;
-        for (int i = 0; i<maxLoops; i++)
+        for (int i = 0; i < maxLoops; i++)
         {
             if (!CurrentPromptContains("to stop", StringComparison.OrdinalIgnoreCase))
             {
                 Output.BufferFrozen = false;
                 return Output.BufferList();
             }
+
             await SendAsync();
         }
-        Output.BufferFrozen = false;
-        await SendAsync("^");
-        return Output.BufferList();
+        throw new RPMSException("Max loops reached");
+    }
+
+    public async Task<List<string>> GetOptionsAsync(int maxLoops = 20, string startAfter = null, string endBefore = null,
+        StringComparison startCompare = StringComparison.Ordinal, StringComparison endCompare = StringComparison.Ordinal)
+    {
+        var optionlst = await GetOptionsRawAsync(maxLoops);
+        if (startAfter != null || endBefore != null)
+        {
+            optionlst.TrimBetween(startAfter, endBefore, startCompare, endCompare);
+        }
+        return optionlst;
     }
 
     public void SendEndOfFeed()
@@ -599,6 +610,39 @@ public class RPMSService : IDisposable
             if (_client.IsConnected) _client.Disconnect();
             _client.Dispose();
             _client = null;
+        }
+    }
+
+    public async Task<List<string>> GetOrderDialogSequences(int menuId)
+    {
+        await GoToMenu("Menu Items Edit");
+        await SendAsync($"`{menuId}");
+        CheckPromptAndThrow("Select SEQUENCE:");
+        List<string> optionlst = await GetOptionsAsync(50, startAfter: "Choose from:", endBefore: "You may enter a new ITEMS");
+        return optionlst
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s =>
+            {
+                var normalized = Regex.Replace(s, @"\s+", " ").Trim();
+                var match = Regex.Match(normalized, @"\b\d+\.\d+\b");
+                var token = match.Success ? match.Value : null;
+                return token;
+            })
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToList();
+    }
+
+    public async Task ClearOrderDialogContents(int menuId)
+    {
+        var optionlst = await GetOrderDialogSequences(menuId);
+        foreach (var opt in optionlst)
+        {
+            CheckPromptAndThrow("Select SEQUENCE:");
+            await SendAsync(opt);
+            CheckPromptAndThrow("SEQUENCE:");
+            await SendAsync("@");
+            CheckPromptAndThrow("SEQUENCE?");
+            await SendAsync("YES");
         }
     }
 

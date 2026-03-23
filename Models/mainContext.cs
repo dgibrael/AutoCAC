@@ -65,6 +65,10 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<OrderDialog> OrderDialogs { get; set; }
 
+    public virtual DbSet<OrderDialogItem> OrderDialogItems { get; set; }
+
+    public virtual DbSet<OrderDialogResponse> OrderDialogResponses { get; set; }
+
     public virtual DbSet<OrderMenu> OrderMenus { get; set; }
 
     public virtual DbSet<Patient> Patients { get; set; }
@@ -82,6 +86,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<RestrictedPage> RestrictedPages { get; set; }
 
     public virtual DbSet<RestrictedPageGroup> RestrictedPageGroups { get; set; }
+
+    public virtual DbSet<RpmsactivityLog> RpmsactivityLogs { get; set; }
 
     public virtual DbSet<Rx> Rxes { get; set; }
 
@@ -744,7 +750,7 @@ public partial class mainContext : DbContext
         {
             entity.HasKey(e => e.Id).HasName("PK__OrderDia__3213E83F092BEE58");
 
-            entity.ToTable("OrderDialog");
+            entity.ToTable("OrderDialog", tb => tb.HasTrigger("tr_OrderDialog_OrderDialogChildren"));
 
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
@@ -756,6 +762,44 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Package).IsUnicode(false);
             entity.Property(e => e.Responses).IsUnicode(false);
             entity.Property(e => e.Type).IsUnicode(false);
+        });
+
+        modelBuilder.Entity<OrderDialogItem>(entity =>
+        {
+            entity.HasKey(e => new { e.ParentOrderDialogId, e.RowNum, e.ColNum });
+
+            entity.ToTable("OrderDialogItem");
+
+            entity.Property(e => e.DisplayOnly)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.DisplayText)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+            entity.Property(e => e.Mnemonic)
+                .HasMaxLength(250)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.ChildOrderDialog).WithMany(p => p.OrderDialogItemChildOrderDialogs)
+                .HasForeignKey(d => d.ChildOrderDialogId)
+                .HasConstraintName("FK_OrderDialogItem_ChildOrderDialogId");
+
+            entity.HasOne(d => d.ParentOrderDialog).WithMany(p => p.OrderDialogItemParentOrderDialogs)
+                .HasForeignKey(d => d.ParentOrderDialogId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderDialogItem_ParentOrderDialogId");
+        });
+
+        modelBuilder.Entity<OrderDialogResponse>(entity =>
+        {
+            entity.HasKey(e => new { e.ParentOrderDialogId, e.ItemEntry, e.Instance });
+
+            entity.ToTable("OrderDialogResponse");
+
+            entity.HasOne(d => d.ParentOrderDialog).WithMany(p => p.OrderDialogResponses)
+                .HasForeignKey(d => d.ParentOrderDialogId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_OrderDialogResponse_ParentOrderDialogId");
         });
 
         modelBuilder.Entity<OrderMenu>(entity =>
@@ -971,6 +1015,25 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.RestrictedPage).WithMany(p => p.RestrictedPageGroups)
                 .HasForeignKey(d => d.RestrictedPageId)
                 .HasConstraintName("FK_RestrictedPageGroup_RestrictedPage");
+        });
+
+        modelBuilder.Entity<RpmsactivityLog>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__RPMSActi__3213E83F6B711D49");
+
+            entity.ToTable("RPMSActivityLog");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ActivityAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ActivityDescription)
+                .HasMaxLength(500)
+                .IsUnicode(false);
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.RpmsactivityLogs)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_RPMSActivityLog_auth_user");
         });
 
         modelBuilder.Entity<Rx>(entity =>

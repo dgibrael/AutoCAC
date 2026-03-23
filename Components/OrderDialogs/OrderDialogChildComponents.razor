@@ -1,0 +1,115 @@
+﻿@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+
+@if(items != null)
+{
+	<RadzenDataList Data="ItemsListByRow" WrapItems="true">
+		<Template Context="x">
+			<RadzenRow Style="width: 100%;">
+				@foreach(var c in x)
+				{
+					<RadzenColumn Size="@colWidth">
+						<RadzenCard Style="height: 100%">
+							@switch (c.DisplayOnly)
+							{
+								case ("EMPTY"):
+									break;
+								case ("YES-HEADER"):
+									<strong>@c?.DisplayText</strong>
+									break;
+								case ("YES"):
+									<span>@c?.DisplayText</span>
+									break;
+								default:
+									var dispStr = $"{c?.ActualDisplayedText} [{c?.ChildOrderDialog?.Name}]";
+									<RadzenLink Text="@dispStr" Path="@($"/orderdialogs/{c?.ChildOrderDialogId}")" />
+									break;
+							}
+						</RadzenCard>
+					</RadzenColumn>
+				}
+			</RadzenRow>
+		</Template>
+	</RadzenDataList>
+}
+@if (responses != null)
+{
+	<RadzenDataList Data="responses" WrapItems="true">
+		<Template Context="x">
+			@if(!string.IsNullOrWhiteSpace(x?.Value))
+			{
+				<RadzenCard Style="max-width: 500px;">
+					<strong>@($"{x?.ItemEntry}: ")</strong><span>@x?.Value</span>
+				</RadzenCard>
+			}
+		</Template>
+	</RadzenDataList>
+}
+
+@code {
+	[Parameter, EditorRequired] public OrderDialog ParentDialog { get; set; }
+	IEnumerable<OrderDialogItem> items;
+	IEnumerable<OrderDialogResponse> responses;
+	int maxRow;
+	int maxColumn;
+	int colWidth;
+	public ILookup<int, OrderDialogItem> ItemsListByRow =>
+		items.ToLookup(x => x.RowNum);
+	protected override async Task OnParametersSetAsync()
+	{
+		items = null;
+		responses = null;
+		if (ParentDialog.UseItemsList)
+		{
+			await GetItems();
+		}
+		else
+		{
+			await GetResponses();
+		}
+	}
+	private async Task GetResponses()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		responses = await db.OrderDialogResponses
+					.Where(x => x.ParentOrderDialogId == ParentDialog.Id)
+					.ToListAsync();
+	}
+	private async Task GetItems()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var lst = await db.OrderDialogItems
+					.Where(x => x.ParentOrderDialogId == ParentDialog.Id)
+					.Include(x => x.ChildOrderDialog)
+					.ToListAsync();
+		if (lst == null | lst.Count() <= 0)
+		{
+			items = null;
+			return;
+		}
+		maxRow = lst.Max(x => x.RowNum);
+		maxColumn = lst.Max(x => x.ColNum);
+		colWidth = (int)(12 / maxColumn);
+		var existingSequences = lst
+			.Select(x => $"{x.RowNum}.{x.ColNum}")
+			.ToHashSet();
+
+		for (var row = 1; row <= maxRow; row++)
+		{
+			for (var column = 1; column <= maxColumn; column++)
+			{
+				var seq = $"{row}.{column}";
+				if (!existingSequences.Contains(seq))
+				{
+					lst.Add(new OrderDialogItem
+					{
+						RowNum = row,
+						ColNum = column,
+						DisplayOnly = "EMPTY"
+					});
+				}
+			}
+		}
+		items = lst.OrderBy(x => x.RowNum).ThenBy(x => x.ColNum).ToList();
+	}
+}

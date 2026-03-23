@@ -119,6 +119,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[OrderDialogItem]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[OrderDialogResponse]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Patient]",
          "ObjectType": 0
       },
@@ -144,6 +152,10 @@
       },
       {
          "Name": "[dbo].[RestrictedPageGroup]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[RPMSActivityLog]",
          "ObjectType": 0
       },
       {

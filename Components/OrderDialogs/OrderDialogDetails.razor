@@ -1,10 +1,14 @@
 ﻿@page "/orderdialogs/{Id:int}"
+@using AutoCAC.Components.Templates.Buttons
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
 @using System.Collections.Generic
 @using System.Text.Json
+@using Radzen.Blazor.Rendering
 @inject UserContextService User
 @inject NavigationManager Nav
+@inject DialogService Dialogs
+@inject RPMSService RPMS
 <LoadingContent LoadState="@(item == null ? LoadingState.Loading : LoadingState.Loaded)">
 	<h3>@($"Order Dialog Details for {item?.DisplayText} ({item?.Name})")</h3>
 	<span>@($"IEN: {item?.Id}")</span>
@@ -13,6 +17,13 @@
 		<RadzenRow>
 			<RadzenButton Text="Request Changes to this Menu" Click="MenuEdit" />
 		</RadzenRow>
+	}
+	@if(User?.UserProfile?.IsSuperuser == true)
+	{
+		<RadzenRow>
+			<RadzenButton Click="ClearContentsInRpms" Text="@($"Clear Contents of {item?.Name} in RPMS")" ButtonStyle="ButtonStyle.Danger"/>
+		</RadzenRow>
+		<RPMSOutput />
 	}
 	<RadzenCard>
 		<h4>Found In</h4>
@@ -32,57 +43,11 @@
 	</RadzenCard>
 	<RadzenCard class="rz-mt-5">
 		<h3>Contents</h3>
-		@if(item.UseItemsList)
-		{
-			var maxCol = item.LastColumn;
-			int colWidth = (int)(12 / maxCol);
-			<RadzenDataList Data="item.ItemsListByRow" WrapItems="true">
-				<Template Context="x">
-				<RadzenRow Style="width: 100%;">
-					@foreach(var c in x)
-					{
-						<RadzenColumn Size="@colWidth">
-							<RadzenCard Style="height: 100%">
-								@switch (c.DisplayOnly)
-								{
-									case ("EMPTY"):
-										break;
-									case ("YES-HEADER"):
-										<strong>@c?.DisplayText</strong>
-										break;
-									case ("YES"):
-										<span>@c?.DisplayText</span>
-										break;
-									default:
-										var dispStr = c?.Item ?? "";
-										dispStr += string.IsNullOrWhiteSpace(c?.DisplayText) ? "" : $" ({c.DisplayText})";
-										<RadzenLink Text="@dispStr" Path="@($"/orderdialogs/{c?.OrderDialogID}")" />
-										break;
-								}
-							</RadzenCard>
-						</RadzenColumn>
-					}
-				</RadzenRow>
-				</Template>
-			</RadzenDataList>
-		}
-		else
-		{
-			<RadzenDataList Data="item.ResponsesList" WrapItems="true">
-				<Template Context="x">
-					@if(!string.IsNullOrWhiteSpace(x?.ValueResolved))
-					{
-						<RadzenCard Style="max-width: 500px;">
-							<strong>@($"{x.ResponseType}: ")</strong><span>@x.ValueResolved</span>
-						</RadzenCard>
-					}
-				</Template>
-			</RadzenDataList>
-		}
+		<OrderDialogChildComponents ParentDialog="item" />
 	</RadzenCard>
 </LoadingContent>
 
-	@code {
+@code {
 	[Parameter] public int Id { get; set; }
 	OrderDialog item;
 	bool IsMenu => item?.Type.Equals("menu", StringComparison.OrdinalIgnoreCase) == true;
@@ -116,18 +81,53 @@
 									ExistingMenu = Id,
 									DisplayText = item.DisplayText,
 									Name = item.DisplayText,
-									Columns = (byte)item.LastColumn,
+									Columns = item.Columns,
 									CreatedBy = User.Username
 								};
 			await db.AddItemAsync<MenuBuildMetum>(menuRequest);
 			await db.SaveChangesAsync();
 			FormattableString sql = $@"Insert Into MenuBuild ([Menu_id], [Item_id], [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum])
-                                          SELECT {menuRequest.Id} Menu_id ,[OrderDialogID] Item_id, [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum]
-                                          FROM [main].[dbo].[OrderMenu]
-                                          Where id={Id}";
+                                          SELECT {menuRequest.Id} Menu_id ,[ChildOrderDialogId] Item_id, [Mnemonic], [DisplayText], [DisplayOnly], [RowNum], [ColNum]
+										  FROM [OrderDialogItem]
+                                          Where ParentOrderDialogId={Id}";
 			await DbFactory.ExecuteSqlAsync(sql);
 		}
 		menuEditBusy = false;
 		Nav.NavigateTo($"menubuild/{menuRequest.Id}");
+	}
+	private async Task DeactivateInRpms()
+	{
+		var ok = await Confirm("deactivate");
+		if (!ok) return;
+	}
+	private async Task RecordActivity(string msg)
+	{
+		var rpmsactivity = new RpmsactivityLog()
+		{
+			AuthUserId = User.UserProfile.Id,
+			ActivityAt = DateTime.Now,
+			ActivityDescription = msg
+		};
+		await DbFactory.AddItemAsync<RpmsactivityLog>(rpmsactivity);
+	}
+	private async Task ClearContentsInRpms()
+	{
+		if (!User.UserProfile.IsSuperuser) return;
+		var ok = await Confirm("clear contents of");
+		if (!ok) return;
+		await RecordActivity($"Cleared contents of Order dialog ien {item.Id} in RPMS");
+		await RPMS.ClearOrderDialogContents(Id);
+		StateHasChanged();
+	}
+	private async Task RemoveOccurencesInRPMS()
+	{
+		var ok = await Confirm("remove all occurences of");
+		if (!ok) return;
+	}
+	private async Task<bool> Confirm(string actionStr)
+	{
+		var msg = $"Are you sure you wish to continue? This will {actionStr} {item.Name} in RPMS and your windows username will be logged";
+		bool ok = await Dialogs.YesNoDialog("Clear Contents in RPMS?", msg) ?? false;
+		return ok;
 	}
 }

@@ -35,6 +35,8 @@ public partial class AuthUser
 
     public virtual ICollection<NurseCompoundTraining> NurseCompoundTrainings { get; set; } = new List<NurseCompoundTraining>();
 
+    public virtual ICollection<RpmsactivityLog> RpmsactivityLogs { get; set; } = new List<RpmsactivityLog>();
+
     public virtual ICollection<TsaileActivitylog> TsaileActivitylogs { get; set; } = new List<TsaileActivitylog>();
 
     public virtual ICollection<TsaileBetterq> TsaileBetterqs { get; set; } = new List<TsaileBetterq>();

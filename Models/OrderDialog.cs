@@ -28,4 +28,10 @@ public partial class OrderDialog
     public virtual ICollection<MenuBuildMetum> MenuBuildMeta { get; set; } = new List<MenuBuildMetum>();
 
     public virtual ICollection<MenuBuild> MenuBuilds { get; set; } = new List<MenuBuild>();
+
+    public virtual ICollection<OrderDialogItem> OrderDialogItemChildOrderDialogs { get; set; } = new List<OrderDialogItem>();
+
+    public virtual ICollection<OrderDialogItem> OrderDialogItemParentOrderDialogs { get; set; } = new List<OrderDialogItem>();
+
+    public virtual ICollection<OrderDialogResponse> OrderDialogResponses { get; set; } = new List<OrderDialogResponse>();
 }

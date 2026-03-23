@@ -99,17 +99,28 @@ namespace AutoCAC.Utilities
                 .MakeGenericMethod(propertyExpr.Type);
             var distinctQuery = (IQueryable)distinctM.Invoke(null, new object[] { valuesQuery })!;
 
+            var orderByM = typeof(Queryable)
+                .GetMethods()
+                .First(m => m.Name == nameof(Queryable.OrderBy) && m.GetParameters().Length == 2)
+                .MakeGenericMethod(propertyExpr.Type, propertyExpr.Type);
+
+            var valueParam = Expression.Parameter(propertyExpr.Type, "x");
+            var valueKeySelector = Expression.Lambda(valueParam, valueParam);
+
+            var orderedQuery = (IQueryable)orderByM.Invoke(
+                null,
+                new object[] { distinctQuery, valueKeySelector })!;
+
             // Materialize stub entities with the distinct values
             var prop = typeof(T).GetProperty(propertyName)!;
             var list = new List<T>();
-            foreach (var val in await EntityFrameworkQueryableExtensions.ToListAsync((dynamic)distinctQuery))
+            foreach (var val in await EntityFrameworkQueryableExtensions.ToListAsync((dynamic)orderedQuery))
             {
                 var stub = Activator.CreateInstance<T>();
                 prop.SetValue(stub, val);
                 list.Add(stub);
             }
             var finalQuery = list.AsQueryable().AsNoTracking();
-            // --- END CHANGED SECTION ---
 
             if (top == -1)
             {
