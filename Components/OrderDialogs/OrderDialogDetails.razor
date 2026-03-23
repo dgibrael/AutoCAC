@@ -18,7 +18,7 @@
 			<RadzenButton Text="Request Changes to this Menu" Click="MenuEdit" />
 		</RadzenRow>
 	}
-	@if(User?.UserProfile?.IsSuperuser == true)
+	@if(User?.UserProfile?.IsSuperuser == true && item?.UseItemsList == true)
 	{
 		<RadzenRow>
 			<RadzenButton Click="ClearContentsInRpms" Text="@($"Clear Contents of {item?.Name} in RPMS")" ButtonStyle="ButtonStyle.Danger"/>
