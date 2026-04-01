@@ -58,16 +58,16 @@
 </RadzenStack>
     @code {
     [Parameter] public EventCallback<AutoCAC.Models.Drug> SelectionChanged { get; set; }
+    [Parameter] public Ndf SelectedNdf { get; set; }
     private Drug selectedRow;
     bool showOnlyActive = true;
-    [Parameter] public Ndf SelectedNdf { get; set; }
     private DataGridHelper<AutoCAC.Models.Drug> GridModel = new();
 
     protected override async Task OnParametersSetAsync()
     {
         if (SelectedNdf?.PrintName == null) 
         {
-            StateHasChanged();
+            selectedRow = null;
             return;
         }
         GridModel.QueryFactory = ctx =>
@@ -78,7 +78,6 @@
 
                 return q;
             };
-        StateHasChanged();
     }
 
     async Task OnShowOnlyActiveChanged(bool _)

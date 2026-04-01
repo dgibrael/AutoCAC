@@ -14,6 +14,7 @@
 @using AutoCAC.Services
 @using AutoCAC.Exceptions
 @inject RPMSService RPMS
+@using System.Text.RegularExpressions
 
 <PageTitle>Drug Enter Edit</PageTitle>
 <RadzenTemplateForm TItem="string" Data="@_ndc" Submit="@NdcNdfSearch">
@@ -36,8 +37,14 @@
     private string _ndc = "";
     private async Task NdcNdfSearch()
     {
-        selectedDrug = null;
+        selectedNdf = null;
         StateHasChanged();
+        var isMatch = Regex.IsMatch(_ndc, @"^\d{5}-\d{4}-\d{2}$");
+        if (!isMatch)
+        {
+            NotificationService.Error("NDC must match 11 digit format xxxxx-xxxx-xx");
+            return;
+        }
         await using var db = await DbFactory.CreateDbContextAsync();
         selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc).FirstOrDefaultAsync();
         if (selectedNdf == null)
@@ -75,8 +82,7 @@
                 }
                 else
                 {
-                    await NdcChange();
-                    msg = $"Successfully saved changes to {selectedDrug.Name} (ien: {selectedDrug.Id})";
+                    msg = await NdcChange();
                 }
             }
             catch (Exception ex)
@@ -87,7 +93,7 @@
             {
                 await JS.XtermDialogHide();
                 RPMS.BlockUserInput = false;
-                msg += ". Type NDC to Enter/Edit another drug, otherwise press cancel.";
+                msg += ". Type another NDC (xxxxx-xxxx-xx) to Enter/Edit another drug, otherwise press cancel.";
                 _ndc = await DialogService.TextPromptAsync("Enter/Edit Additional?", msg);
                 if (!string.IsNullOrWhiteSpace(_ndc))
                 {
@@ -97,7 +103,7 @@
         }
     }
 
-    private async Task NdcChange()
+    private async Task<string> NdcChange()
     {
         var ndfPackageSize = !string.IsNullOrWhiteSpace(selectedNdf.PackageSize) ? selectedNdf.PackageSize :
                                 selectedDrug.PackageSize ?? "";
@@ -112,13 +118,14 @@
             , title: $"Enter the Purchase Price and Size of the order (in {selectedDrug.DispenseUnit})");
         if (ndcResult is null || string.IsNullOrWhiteSpace(ndcResult.PurchasePrice))
         {
-            return;
+            return $"Cancelled changes to {selectedDrug.Name} (ien: {selectedDrug.Id})";
         }
         await JS.XtermDialogShow();
         await GoToNdcChangeMenu();
         await RPMS.SendAsync(selectedNdf.Ndc);
         await RPMS.SendAsync(ndcResult.PurchasePrice);
         await RPMS.SendAsync(ndcResult.PackageSize);
+        return $"Successfully saved changes to {selectedDrug.Name} (ien: {selectedDrug.Id})";
     }
 
     private async Task NewDrug()
