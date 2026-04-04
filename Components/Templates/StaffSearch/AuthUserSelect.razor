@@ -1,0 +1,67 @@
+﻿@using AutoCAC.Models
+@using AutoCAC.Services
+@inject IDbContextFactory<mainContext> DbFactory
+@inject IAdSearch adSearch
+@inject DialogService Dialog
+<DataGridVanilla TItem="AuthUser" GridModel="GridModel" RowSelect="@AuthUserSelected"/>
+<hr>
+<RadzenTemplateForm TItem="string" Data="userQry" Submit="AdSearch">
+	<h4>Can’t find the user? Search the full directory (You can search by name, d1 username, or by email in the box below)</h4>
+	<RadzenTextBox @bind-Value="userQry" Placeholder="Search by name, d1 username, or email here"/>
+    <RadzenButton Text="Full Directory Search" ButtonType="ButtonType.Submit" IsBusy="loadingAd" />
+</RadzenTemplateForm>
+<RadzenDataGrid TItem="AdUserDto" Data="adData" AllowPaging="true" AllowSorting="true" PageSize="5" RowSelect="@AdUserSelected" IsLoading="loadingAd">
+	<Columns>
+		<RadzenDataGridColumn TItem="AdUserDto" Property="@nameof(AdUserDto.SamAccountName)" Title="UserName" />
+		<RadzenDataGridColumn TItem="AdUserDto" Property="@nameof(AdUserDto.Email)" Title="Email" />
+		<RadzenDataGridColumn TItem="AdUserDto" Property="@nameof(AdUserDto.DisplayName)" Title="Full Name" />
+	</Columns>
+</RadzenDataGrid>
+@code {
+    private string userQry = "";
+    private IEnumerable<AdUserDto> adData;
+    private bool loadingAd;
+    DataGridHelper<AuthUser> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(AuthUser.LastName), nameof(AuthUser.FirstName), nameof(AuthUser.Email), nameof(AuthUser.Username)},
+		SearchColumns = new[] { nameof(AuthUser.LastName), nameof(AuthUser.FirstName), nameof(AuthUser.Email), nameof(AuthUser.Username)}
+	};
+    private async Task AdSearch()
+    {
+        if (string.IsNullOrWhiteSpace(userQry)) return;
+        loadingAd = true;
+        StateHasChanged();
+        adData = await adSearch.Users()
+                .EnabledOnly()
+                .UserContains(userQry)
+                .ToListAsync();
+        loadingAd = false;
+        StateHasChanged();
+    }
+    private async Task AuthUserSelected(AuthUser selected)
+    {
+        Dialog.Close(selected);
+    }
+    private async Task AdUserSelected(AdUserDto selected)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var existingUser = await db.AuthUsers.FirstOrDefaultAsync(x => x.Username == selected.D1Username);
+        bool needUpdate = false;
+        if (existingUser == null)
+        {
+            existingUser = selected.ToNewAuthUser();
+            db.AuthUsers.Add(existingUser);
+            needUpdate = true;
+        }
+        else
+        {
+            needUpdate = selected.ModifyAuthUser(existingUser);
+            if (needUpdate)
+            {
+                db.AuthUsers.Update(existingUser);
+            }
+        }
+        if (needUpdate) await db.SaveChangesAsync();
+        await AuthUserSelected(existingUser);
+    }
+}

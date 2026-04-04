@@ -109,7 +109,7 @@ public sealed class UsersQuery
     {
         if (string.IsNullOrWhiteSpace(fragment)) return this;
         var f = Ldap.Escape(fragment);
-        _and.Add($"(|(cn=*{f}*)(displayName=*{f}*)(givenName=*{f}*)(sn=*{f}*)(sAMAccountName=*{f}*)(userPrincipalName=*{f}*))");
+        _and.Add($"(|(cn=*{f}*)(displayName=*{f}*)(givenName=*{f}*)(sn=*{f}*)(sAMAccountName=*{f}*)(userPrincipalName=*{f}*)(mail=*{f}*))");
         return this;
     }
 

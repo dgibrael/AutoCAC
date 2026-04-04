@@ -2,7 +2,30 @@
 
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Models
+@inject AutoCAC.Services.EmailService Email
+@inject AutoCAC.Services.IAdSearch adSearch
+@inject DialogService Dialog
 
+<RadzenMask Mask="*****-****-**"
+            CharacterPattern="[0-9]"
+            Placeholder="00000-0000-00" />
+
+<RadzenButton Text="Search" Click="Click" />
 @code {
+    AuthUser selectedUser;
+    private async Task Click()
+    {
+        selectedUser = await Dialog.StaffSearch();
+        if (selectedUser != null)
+        {
+            Console.WriteLine(selectedUser.DisplayName);
+        }
+        //await Email.SendEmailAsync(
+        //    "Hello World",
+        //    "Hello World",
+        //    "david.gibrael@ihs.gov"
+        //);
+    }
+
 }
 

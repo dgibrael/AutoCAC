@@ -67,5 +67,7 @@ public partial class Drug
 
     public string? Nf { get; set; }
 
+    public virtual ICollection<DrugRequest> DrugRequests { get; set; } = new List<DrugRequest>();
+
     public virtual ICollection<WardstockItem> WardstockItems { get; set; } = new List<WardstockItem>();
 }

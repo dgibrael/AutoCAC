@@ -47,6 +47,18 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[DrugRequest]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[EmailNotificationConfig]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[EmailNotificationRecipient]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[FilemanPrintTemplate]",
          "ObjectType": 0
       },

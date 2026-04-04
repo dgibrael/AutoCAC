@@ -1,17 +1,19 @@
 ﻿using AutoCAC.Components.Templates;
 using AutoCAC.Components.Templates.DataGrids;
 using AutoCAC.Components.Templates.DrugSearch;
+using AutoCAC.Components.Templates.Forms;
 using AutoCAC.Components.Templates.PatientSearch;
 using AutoCAC.Components.Templates.StaffSearch;
-using AutoCAC.Components.Templates.Forms;
 using AutoCAC.Models;
 using ClosedXML.Excel;
+using DocumentFormat.OpenXml.InkML;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Radzen;
+using Radzen.Blazor;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 using System.Numerics;
+using System.Threading.Tasks;
 
 namespace AutoCAC.Extensions
 {
@@ -56,7 +58,10 @@ namespace AutoCAC.Extensions
             string placeholder = "",
             string message = "",
             string disallowedChars = "",
-            DialogOptions options = null)
+            DialogOptions options = null,
+            string mask = null,
+            string characterPattern = null
+            )
         {
             var parameters = new Dictionary<string, object>
             {
@@ -65,7 +70,9 @@ namespace AutoCAC.Extensions
                 ["InitialValue"] = initial,
                 ["Placeholder"] = placeholder,
                 ["MaxLength"] = maxLength,
-                ["DisallowedChars"] = disallowedChars
+                ["DisallowedChars"] = disallowedChars,
+                ["Mask"] = mask,
+                ["CharacterPattern"] = characterPattern
             };
 
             var result = await dialogService.OpenAsync<Components.Templates.TextDialog>(
@@ -83,6 +90,12 @@ namespace AutoCAC.Extensions
             // OK → string (may be ""), Cancel → null
             return result as string;
         }
+
+        public static async Task<string> Ndc(this DialogService dialogService)
+        {
+            return await dialogService.TextPromptAsync("Enter NDC", "Enter 11 digit ndc below to continue", mask: "*****-****-**", characterPattern: "[0-9]");
+        }
+
         public static async Task<TValue?> NumericPromptAsync<TValue>(
             this DialogService dialogService,
             string title = "Enter Value",
@@ -174,6 +187,21 @@ namespace AutoCAC.Extensions
                 parameters: parameters,
                 options: new DialogOptions
                 {
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true
+                });
+            return result as AutoCAC.Models.AuthUser;
+        }
+        public static async Task<AutoCAC.Models.AuthUser> StaffSearch(
+            this DialogService dialogService)
+        {
+            var result = await dialogService.OpenAsync<AuthUserSelect>(
+                title: "Staff Search",
+                options: new DialogOptions
+                {
+                    AutoFocusFirstElement = true,
+                    Width = "75%",
                     CloseDialogOnOverlayClick = true,
                     Resizable = true,
                     Draggable = true
@@ -336,6 +364,44 @@ namespace AutoCAC.Extensions
 
             return result as TItem;
         }
+
+        public static async Task DataGridViewAsync<TItem>(
+            this DialogService dialogService,
+            Func<AutoCAC.Models.mainContext, IQueryable<TItem>> queryFactory = null,
+            IEnumerable<string> includeColumns = null,
+            IEnumerable<string> excludeColumns = null,
+            string[] searchColumns = null,
+            string header = null
+            )
+            where TItem : class
+        {
+            var parameters = new Dictionary<string, object>();
+            DataGridHelper<TItem> gridModel = new()
+            {
+                QueryFactory = queryFactory,
+                IncludeColumns = includeColumns,
+                ExcludeColumns = excludeColumns,
+                SearchColumns = searchColumns,
+            };
+
+            parameters[nameof(DataGridDialog<TItem>.GridModel)] = gridModel;
+            parameters["ViewOnly"] = true;
+            var options = new DialogOptions
+            {
+                AutoFocusFirstElement = true,
+                Width = "75%",
+                CloseDialogOnOverlayClick = true,
+                Resizable = true,
+                Draggable = true
+            };
+
+            await dialogService.OpenAsync<DataGridDialog<TItem>>(
+                title: header ?? $"Select {typeof(TItem).Name}",
+                parameters: parameters,
+                options: options
+                );
+        }
+
         public static async Task ViewComments(
             this DialogService dialogService,
             IEnumerable<CommentModel> Comments,

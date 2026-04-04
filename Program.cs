@@ -77,6 +77,12 @@ builder.Services.AddSingleton<CacheService>();
 builder.Services.AddSingleton<TsaileTicketWatcher>();
 builder.Services.AddSingleton<LookupValueService>();
 builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();
+
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
+builder.Services.AddScoped<EmailService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

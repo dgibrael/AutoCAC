@@ -1,0 +1,72 @@
+﻿@page "/drugrequest/{Id:Int}"
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject UserContextService User
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+@inject NavigationManager Nav
+@using AutoCAC.Common
+<h3>Drug Enter/Edit Request</h3>
+<LoadingContent LoadState="@(data == null ? LoadingState.Loading : LoadingState.Loaded)">
+	<VanillaForm TItem="DrugRequest" Data="data" >
+		<VanillaFormField Label="NDC">
+			<RadzenButton Text="@($"{data?.Ndc} (Click to change)")" />
+		</VanillaFormField>
+		<VanillaFormField Label="Drug">
+			<RadzenButton Text="@drugMsg" />
+		</VanillaFormField>
+	</VanillaForm>
+</LoadingContent>
+
+@code {
+	[Parameter] public int Id { get; set; }
+	DrugRequest data;
+	Ndf ndfEntry;
+	private string drugMsg = "";
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await ReloadData();
+		}
+	}
+	private async Task ReloadData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		data = await db.DrugRequests
+				.Include(x => x.Drug)
+				.FirstOrDefaultAsync(x => x.Id == Id);
+	}
+	private async Task ChangeNdc()
+	{
+		var ndc = await Dialogs.Ndc();
+		if (string.IsNullOrWhiteSpace(ndc)) return;
+		data.Ndc = ndc;
+		var selectedDrug = await SelectDrug(ndc);
+		if (selectedDrug?.Id != null)
+		{
+			data.DrugId = selectedDrug.Id;
+		}
+		await UpdateData();
+	}
+	private async Task UpdateData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		await db.UpdateItemAsync(data);
+		await ReloadData();
+		StateHasChanged();
+	}
+	private async Task<Drug> SelectDrug(string ndc) => await Dialogs.OpenAsync<DrugReqMatchExisting>("Drug Search", 
+				parameters: new Dictionary<string, object> { ["Ndc"] = ndc }, 
+				options: DialogDefaults.Options);
+	private async Task ChangeDrug()
+	{
+		var selectedDrug = SelectDrug(data.Ndc);
+		if (selectedDrug?.Id != null)
+		{
+			data.DrugId = selectedDrug.Id;
+			await UpdateData();
+		}
+	}
+}

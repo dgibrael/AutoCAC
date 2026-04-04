@@ -17,10 +17,12 @@
 @using System.Text.RegularExpressions
 
 <PageTitle>Drug Enter Edit</PageTitle>
-<RadzenTemplateForm TItem="string" Data="@_ndc" Submit="@NdcNdfSearch">
+<RadzenTemplateForm TItem="NdcString" Data="@_ndc" Submit="@NdcNdfSearch">
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.Left">
         <RadzenLabel Text="Enter full 11 digit ndc to search (xxxxx-xxxx-xx)" />
-        <RadzenTextBox @bind-Value="@_ndc" Trim="true" />
+        <RadzenMask Mask="*****-****-**" Name="NdcField"
+                    CharacterPattern="[0-9]"
+                    Placeholder="00000-0000-00" @bind-Value="@_ndc.Ndc" Immediate="true"/>
         <RadzenButton Text="Search" ButtonType="ButtonType.Submit" />
     </RadzenStack>
 </RadzenTemplateForm>
@@ -34,19 +36,23 @@
     private DrugLookupTbl DrugsTblRef;
     private Ndf selectedNdf;
     private Drug selectedDrug;
-    private string _ndc = "";
+    public class NdcString
+    {
+        public string Ndc { get; set; }
+    }
+    private NdcString _ndc = new();
     private async Task NdcNdfSearch()
     {
         selectedNdf = null;
         StateHasChanged();
-        var isMatch = Regex.IsMatch(_ndc, @"^\d{5}-\d{4}-\d{2}$");
+        var isMatch = _ndc.Ndc.Length == 13;
         if (!isMatch)
         {
             NotificationService.Error("NDC must match 11 digit format xxxxx-xxxx-xx");
             return;
         }
         await using var db = await DbFactory.CreateDbContextAsync();
-        selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc).FirstOrDefaultAsync();
+        selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc.Ndc).FirstOrDefaultAsync();
         if (selectedNdf == null)
         {
             NotificationService.Info("Ndc not found. Unmatched ndcs must be updated manually in RPMS");
@@ -94,8 +100,8 @@
                 await JS.XtermDialogHide();
                 RPMS.BlockUserInput = false;
                 msg += ". Type another NDC (xxxxx-xxxx-xx) to Enter/Edit another drug, otherwise press cancel.";
-                _ndc = await DialogService.TextPromptAsync("Enter/Edit Additional?", msg);
-                if (!string.IsNullOrWhiteSpace(_ndc))
+                _ndc.Ndc = await DialogService.TextPromptAsync("Enter/Edit Additional?", msg, mask: "*****-****-**", characterPattern: "[0-9]");
+                if (!string.IsNullOrWhiteSpace(_ndc.Ndc))
                 {
                     await NdcNdfSearch();
                 }

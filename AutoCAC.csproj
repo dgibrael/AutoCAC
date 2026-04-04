@@ -5,6 +5,7 @@
     <NuGetAuditMode>direct</NuGetAuditMode>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>3cc696f0-3488-4e9b-97d7-590def950e46</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -15,7 +15,7 @@
 	@if(IsMenu)
 	{
 		<RadzenRow>
-			<RadzenButton Text="Request Changes to this Menu" Click="MenuEdit" />
+			<RadzenButton Text="Request Changes to this Menu" Click="MenuEdit" IsBusy="menuEditBusy"/>
 		</RadzenRow>
 	}
 	@if(User?.UserProfile?.IsSuperuser == true && item?.UseItemsList == true)

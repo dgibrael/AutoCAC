@@ -208,6 +208,11 @@ public class RPMSService : IDisposable
     }
     private void ReceiveComplete(string data)
     {
+        if (data.Contains("\r\n\r\n\r\nLogged out at "))
+        {
+            SetMode(RPMSMode.Disconnected);
+            return;
+        }
         switch (CurrentMode)
         {
             case RPMSMode.Disconnected when data.Contains("ACCESS CODE"):
@@ -355,6 +360,11 @@ public class RPMSService : IDisposable
         {
             try
             {
+                if (CurrentMode == RPMSMode.Disconnected)
+                {
+                    await Login();
+                    continue;
+                }
                 var curPrompt = Output.Prompt;
                 if (curPrompt.Contains("AutoCAC App Main Menu Option:"))
                 {

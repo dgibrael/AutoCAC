@@ -27,5 +27,12 @@
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
     [Parameter] public RenderFragment EmptyTemplate { get; set; }
-    public void OnSelect(TItem selected) => DialogService.Close(selected);
+    [Parameter] public bool ViewOnly { get; set; } = false;
+    public void OnSelect(TItem selected)
+    {
+        if (ViewOnly)
+            return;
+
+        DialogService.Close(selected);
+    }
 }

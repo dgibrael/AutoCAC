@@ -82,9 +82,9 @@
             );
             var addUsersHash = new HashSet<string>(
                 results
-                    .Where(x => !string.IsNullOrEmpty(x.d1Username))
-                    .Where(x => !existingUsernames.Contains(x.d1Username.ToLowerInvariant()))
-                    .Select(x => x.d1Username)
+                    .Where(x => !string.IsNullOrEmpty(x.D1Username))
+                    .Where(x => !existingUsernames.Contains(x.D1Username.ToLowerInvariant()))
+                    .Select(x => x.D1Username)
             );
             if (addUsersHash.Count == 0)
                 continue;

@@ -16,7 +16,7 @@
 										{ "wardstock/admin/locations", "Edit Locations" }
     						 		})" />
 </AuthVanilla>
-
+<RadzenButton Text="View Available Items" Click="ViewItems"/>
 <DataGridVanilla TItem="AutoCAC.Models.WardstockDto" GridModel="GridModel" AddButtonClick="@AddBtnClick">
 	<ChildContent>
 		<RadzenDataGridColumn TItem="AutoCAC.Models.WardstockDto" Property="Status" Title="Status" FilterMode="FilterMode.CheckBoxList" />
@@ -78,6 +78,44 @@
 		await using var db = await DbFactory.CreateDbContextAsync();
 		_myLocations = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId).Select(x => x.LocationId).ToHashSetAsync<int>();
 	}
+
+	private async Task<int> SelectLocationId()
+	{
+		var locCount = _myLocations.Count;
+		if (locCount == 0) return 0;
+		if (locCount == 1)
+		{
+			return _myLocations.FirstOrDefault();
+		}
+		else
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId && x.Location.InactiveDate == null)
+							.Select(x => x.Location.LocationName)
+							.Order()
+							.ToHashSetAsync();
+			var selectedName = await DialogService.ListDialogAsync(locNames);
+			if (selectedName == null) return 0;
+			var selectedLocFull = await db.WardstockUserlocations
+									.FirstOrDefaultAsync(x => x.AuthUserId == _userId && x.Location.LocationName == selectedName);
+			return selectedLocFull.LocationId;
+		}
+	}
+
+	private async Task ViewItems()
+	{
+		var locId = await SelectLocationId();
+		if (locId == 0) return;
+		await DialogService.DataGridViewAsync<WardstockItem>(
+						db => db.WardstockItems
+								.Where(wi =>
+									wi.LocationId == locId)
+								.OrderBy(x => x.DisplayName)
+						, new[] { "DisplayName", "Par" }
+						, searchColumns: new[] { "DisplayName" }
+						);
+	}
+
 	private async Task AddBtnClick()
 	{
 		var locCount = _myLocations.Count;
@@ -92,28 +130,9 @@
 				StatusEnum = WardstockOrderStatus.New,
 				OrderDateTime = DateTime.Now
 			};
-		int selectedLoc;
-		if (locCount == 1)
-		{
-			selectedLoc = _myLocations.FirstOrDefault();
-			newOrder.LocationId = selectedLoc;
-		}
-		else
-		{
-			await using var db = await DbFactory.CreateDbContextAsync();
-			var locNames = await db.WardstockUserlocations.Where(x => x.AuthUserId == _userId && x.Location.InactiveDate == null)
-							.Select(x => x.Location.LocationName)
-							.Order()
-							.ToHashSetAsync();
-			var selectedName = await DialogService.ListDialogAsync(locNames);
-			if (selectedName != null)
-			{
-				var selectedLocFull = await db.WardstockUserlocations
-										.FirstOrDefaultAsync(x => x.AuthUserId == _userId && x.Location.LocationName == selectedName);
-				selectedLoc = selectedLocFull.LocationId;
-				newOrder.LocationId = selectedLoc;
-			}
-		}
+		int selectedLoc = await SelectLocationId();
+		if (selectedLoc == 0) return;
+		newOrder.LocationId = selectedLoc;
 		newOrder = await DbFactory.AddItemAsync(newOrder);
 		var activity = new WardstockActivitylog
 		{

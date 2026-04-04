@@ -1,0 +1,65 @@
+﻿@page "/drugrequest"
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject UserContextService User
+@inject NotificationService Notifications
+@inject DialogService Dialogs
+@inject NavigationManager Nav
+<EnumDropdown TEnum="DrugReqStatusChoice" @bind-Value="drugReqStatus" @bind-Value:after="@(() => GridModel.ReloadAsync())"/>
+<DataGridVanilla TItem="DrugRequest" GridModel="GridModel" AddButtonClick="Add"/>
+
+
+@code {
+	public enum DrugReqStatusChoice
+	{
+		All,
+		Complete,
+		Incomplete
+	}
+	DrugReqStatusChoice drugReqStatus = DrugReqStatusChoice.All;
+	DataGridHelper<DrugRequest> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(DrugRequest.CreatedAt), "Drug.Name", nameof(DrugRequest.CompletedAt), nameof(DrugRequest.Comments) }
+	};
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db =>
+		{
+			var query = db.DrugRequests
+							.Include(x => x.Drug)
+							.AsQueryable();
+			if (drugReqStatus == DrugReqStatusChoice.Complete)
+			{
+				query = query.Where(x => x.CompletedAt != null);
+			}
+			else if (drugReqStatus == DrugReqStatusChoice.Incomplete)
+			{
+				query = query.Where(x => x.CompletedAt == null);
+			}
+			return query;
+		};
+	}
+	private async Task Add()
+	{
+		var allowed = User.IsInGroupOrSuperuser("SupplyTech", "PharmacistSupervisor", "PharmacyTechSupervisor");
+		if (!allowed)
+		{
+			Notifications.Error("You must be a superuser or belong to one of the following groups to enter a request: SupplyTech, PharmacistSupervisor, PharmacyTechSupervisor");
+			return;
+		}
+		var ndc = await Dialogs.Ndc();
+		if (string.IsNullOrWhiteSpace(ndc))
+		{
+			return;
+		}
+		var newRequest = new DrugRequest()
+		{
+			Ndc = ndc,
+			CreatedAt = DateTime.Now,
+			CreatedById = User.UserProfile.Id
+		};
+		await using var db = await DbFactory.CreateDbContextAsync();
+		await db.AddItemAsync(newRequest);
+		Nav.NavigateToRelative(newRequest.Id.ToString());
+	}
+}

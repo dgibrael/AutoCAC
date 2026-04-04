@@ -1,0 +1,34 @@
+﻿@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+
+<h3>Match to Existing Drug</h3>
+<VanillaFormField Label="Search only Drugs matcing NDF entry">
+	<RadzenCheckBox @bind-Value="onlyNdf" @bind-Value:after="@(() => GridModel.ReloadAsync())"/>
+</VanillaFormField>
+<DataGridDialog TItem="Drug" GridModel="GridModel"/>
+
+@code {
+	[Parameter] public string Ndc { get; set; }
+	bool onlyNdf = true;
+	DataGridHelper<Drug> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(Drug.Name), nameof(Drug.ApplicationPackage), nameof(Drug.Ndc) },
+		SearchColumns = new[] { nameof(Drug.Name) }
+	};
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db =>
+		{
+			var qry = db.Drugs.AsQueryable();
+			if (onlyNdf && !string.IsNullOrWhiteSpace(Ndc))
+			{
+				qry =
+					from drug in qry
+					join ndf in db.Ndfs.Where(x => x.Ndc == Ndc)
+						on drug.VaPrintName equals ndf.PrintName
+					select drug;
+			}
+			return qry;
+		};
+	}
+}
