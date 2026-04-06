@@ -1,0 +1,84 @@
+﻿@page "/settings/admin/users/{Id:int}"
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Components.Templates.PickList
+@using AutoCAC.Models
+@inject IDbContextFactory<mainContext> DbFactory
+@inject NotificationService Notifications
+@inject NavigationManager Nav
+<RadzenTemplateForm Data="@data" Submit="@Click" TItem="AuthUser">
+	<VanillaFormField Label="SuperUser">
+		<RadzenCheckBox @bind-Value="@data.IsSuperuser" @bind-Value:after="@SetDirty" />
+	</VanillaFormField>
+	<VanillaFormField Label="Active">
+		<RadzenCheckBox @bind-Value="@data.IsActive" @bind-Value:after="@SetDirty" />
+	</VanillaFormField>
+	<VanillaFormField Label="Last Name">
+		<RadzenTextBox @bind-Value="@data.LastName" @bind-Value:after="@SetDirty" />
+	</VanillaFormField>
+	<VanillaFormField Label="First Name">
+		<RadzenTextBox @bind-Value="@data.FirstName" @bind-Value:after="@SetDirty" />
+	</VanillaFormField>
+	<VanillaFormField Label="Email">
+		<RadzenTextBox @bind-Value="@data.Email" @bind-Value:after="@SetDirty" />
+	</VanillaFormField>
+	<PickListVanilla PickListModel="pickListModel"/>
+	<RadzenStack Orientation="Orientation.Horizontal">
+		<RadzenButton Text="Save" Disabled="@_saveDisabled" ButtonType="ButtonType.Submit" ButtonStyle="ButtonStyle.Primary" Icon="save"/>
+		<RadzenButton Text="Undo Changes" Click="LoadData" Disabled="@_saveDisabled" ButtonStyle="ButtonStyle.Base" Icon="undo"/>
+		<RadzenButton Text="Cancel" Click="@(() => Nav.NavigateToWithExistingQry("/users/"))" ButtonStyle="ButtonStyle.Base" Icon="cancel" />
+	</RadzenStack>
+</RadzenTemplateForm>
+@code {
+	[Parameter] public int Id { get; set; }
+	AuthUser data;
+	PickListHelper<AuthGroup, int> pickListModel;
+	bool _otherFieldsDirty;
+	bool _saveDisabled => pickListModel?.IsDirty != true && !_otherFieldsDirty;
+	IEnumerable<AuthGroup> allGroups;
+	protected override async Task OnParametersSetAsync()
+	{
+		await LoadData();
+	}
+	private async Task SetDirty()
+	{
+		if (_otherFieldsDirty) return;
+		_otherFieldsDirty = true;
+		StateHasChanged();
+	}
+	private async Task LoadData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		data = await db.AuthUsers
+							.Include(x => x.AuthUserGroups)
+								.ThenInclude(x => x.Group)
+							.FirstOrDefaultAsync(x => x.Id == Id);
+
+		allGroups = await db.AuthGroups.ToListAsync();
+		var selected = data.AuthUserGroups.Select(x => x.Group.Id).ToHashSet();
+		pickListModel = new(allAllowed: allGroups, originalSelectedKeys: selected, keySelector: x => x.Id, textProperty: "Name", changed: StateHasChanged);
+		_otherFieldsDirty = false;
+	}
+
+	private async Task Click()
+	{
+		if (_saveDisabled)
+		{
+			return;
+		}
+		await using var db = await DbFactory.CreateDbContextAsync();
+		if (_otherFieldsDirty)
+		{
+			await db.UpdateItemAsync(data);
+		}
+		if (pickListModel?.IsDirty == true)
+		{			
+			var removed = pickListModel.GetRemovedItems(data.AuthUserGroups, x => x.GroupId);
+			var added = pickListModel.GetAddedItems(x => new AuthUserGroup { UserId = Id, GroupId = x.Id });
+			db.AddRange(added);
+			db.RemoveRange(removed);
+		}
+		await db.SaveChangesAsync();
+		Notifications.Success("Changes Saved");
+		await LoadData();
+	}
+}

@@ -6,6 +6,13 @@ namespace AutoCAC.Extensions
 {
     public static class StringExtensions
     {
+        extension(string value)
+        {
+            public bool IsEmpty =>
+                string.IsNullOrWhiteSpace(value);
+            public int LengthOrZero =>
+                value?.Length ?? 0;
+        }
         public static int ReverseIndex(this string data, int endIndex)
         {
             return data.Length - endIndex;

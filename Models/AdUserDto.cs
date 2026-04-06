@@ -20,9 +20,9 @@ public sealed record AdUserDto(
         return new AuthUser
         {
             Username = D1Username,
-            FirstName = FirstName ?? "",
-            LastName = LastName ?? "",
-            Email = Email ?? "",
+            FirstName = FirstName?.Trim() ?? "",
+            LastName = LastName?.Trim() ?? "",
+            Email = Email?.Trim() ?? "",
             IsActive = true,
             IsStaff = false,
             IsSuperuser = false,
@@ -38,19 +38,19 @@ public sealed record AdUserDto(
 
         if (string.IsNullOrWhiteSpace(authUser.FirstName) && !string.IsNullOrWhiteSpace(FirstName))
         {
-            authUser.FirstName = FirstName;
+            authUser.FirstName = FirstName.Trim();
             changed = true;
         }
 
         if (string.IsNullOrWhiteSpace(authUser.LastName) && !string.IsNullOrWhiteSpace(LastName))
         {
-            authUser.LastName = LastName;
+            authUser.LastName = LastName.Trim();
             changed = true;
         }
 
         if (string.IsNullOrWhiteSpace(authUser.Email) && !string.IsNullOrWhiteSpace(Email))
         {
-            authUser.Email = Email;
+            authUser.Email = Email.Trim();
             changed = true;
         }
 

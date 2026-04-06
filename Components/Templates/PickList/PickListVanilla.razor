@@ -1,0 +1,52 @@
+﻿@typeparam TItem where TItem : class
+@typeparam TKey
+
+<LoadingContent LoadState="@(PickListModel == null ? Models.LoadingState.Loading : Models.LoadingState.Loaded)">
+    <RadzenPickList TItem="TItem"
+                    @bind-Source="_source"
+                    @bind-Target="_target"
+                    TextProperty="@PickListModel.TextProperty"
+                    Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true"
+                    @bind-Target:after="@OnChanged" />
+</LoadingContent>
+
+@code {
+    [Parameter, EditorRequired] public PickListHelper<TItem, TKey> PickListModel { get; set; }
+
+    private IEnumerable<TItem> _source = Enumerable.Empty<TItem>();
+    private IEnumerable<TItem> _target = Enumerable.Empty<TItem>();
+
+    private HashSet<TKey> _lastRenderedKeys = new();
+
+    private bool _listsBuilt;
+
+    protected override void OnParametersSet()
+    {
+        if (PickListModel?.CurrentSelectedKeys == null) return;
+        var incomingKeys = new HashSet<TKey>(PickListModel.CurrentSelectedKeys);
+
+        if (_listsBuilt && _lastRenderedKeys.SetEquals(incomingKeys))
+        {
+            return;
+        }
+
+        _target = PickListModel.AllAllowed
+            .Where(item => incomingKeys.Contains(PickListModel.KeySelector(item)))
+            .ToList();
+
+        _source = PickListModel.AllAllowed
+            .Where(item => !incomingKeys.Contains(PickListModel.KeySelector(item)))
+            .ToList();
+
+        _lastRenderedKeys = incomingKeys;
+        _listsBuilt = true;
+    }
+
+    private void OnChanged()
+    {
+        _lastRenderedKeys = _target
+            ?.Select(PickListModel.KeySelector)
+            ?.ToHashSet() ?? new HashSet<TKey>();
+        PickListModel.SetCurrentSelectedKeys(_lastRenderedKeys);
+    }
+}

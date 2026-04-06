@@ -61,16 +61,6 @@ else
     {
         var selectedUsername = selected?.SamAccountName;
         if (string.IsNullOrWhiteSpace(selectedUsername)) return;
-        selectedUsername = "D1_" + selectedUsername;
-        string lastName = "";
-        string firstName = "";
-        var fullName = selected?.DisplayName;
-        if (!string.IsNullOrWhiteSpace(fullName))
-        {
-            fullName = fullName.GetBeforeLastDelimiter("(");
-            lastName = fullName.GetBeforeLastDelimiter(",");
-            firstName = fullName.GetAfterLastDelimiter(",");
-        }
         await using var db = await DbFactory.CreateDbContextAsync();
         var existingUser = await db.AuthUsers
                             .Where(x => selectedUsername.ToLower() == x.Username.ToLower())
@@ -79,44 +69,12 @@ else
         bool needUpdate = false;
         if (newUserCreated)
         {
-            existingUser = new AuthUser
-            {
-                Username = selectedUsername,
-                FirstName = firstName,
-                LastName = lastName,
-                Email = selected?.Email ?? "",
-                IsActive = true,
-                IsStaff = false,
-                IsSuperuser = false,
-                DateJoined = DateTimeOffset.Now,
-                // Placeholder; not used for authentication. Keep non-null to satisfy schema.
-                Password = "!"
-            };
-
+            existingUser = selected.ToNewAuthUser();
             db.AuthUsers.Add(existingUser);
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(existingUser.FirstName))
-            {
-                existingUser.FirstName = firstName;
-                needUpdate = true;
-            }
-            if (string.IsNullOrWhiteSpace(existingUser.LastName))
-            {
-                existingUser.LastName = lastName;
-                needUpdate = true;
-            }
-            if (string.IsNullOrWhiteSpace(existingUser.Email))
-            {
-                existingUser.Email = selected?.Email ?? "";
-                needUpdate = true;
-            }
-            if (!existingUser.IsActive)
-            {
-                existingUser.IsActive = true;
-                needUpdate = true;
-            }
+            needUpdate = selected.ModifyAuthUser(existingUser);
             if (needUpdate)
             {
                 db.AuthUsers.Update(existingUser);

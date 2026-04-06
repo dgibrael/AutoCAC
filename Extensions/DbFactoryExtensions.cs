@@ -103,7 +103,6 @@ namespace AutoCAC.Extensions
             where TEntity : class
         {
             await using var db = await factory.CreateDbContextAsync(cancellationToken);
-            db.Attach(item);
             db.Remove(item);
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -115,7 +114,6 @@ namespace AutoCAC.Extensions
             where TEntity : class
         {
             await using var db = await factory.CreateDbContextAsync(cancellationToken);
-            db.AttachRange(items);
             db.RemoveRange(items);
             await db.SaveChangesAsync(cancellationToken);
         }

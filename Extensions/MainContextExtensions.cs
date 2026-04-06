@@ -141,7 +141,21 @@ namespace AutoCAC.Extensions
             foreach (var propMeta in entry.Metadata.GetProperties())
             {
                 if (!propMeta.IsPrimaryKey())
-                    entry.Property(propMeta.Name).IsModified = true;
+                {
+                    try
+                    {
+                        entry.Property(propMeta.Name).IsModified = true;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        if (!ex.Message.Contains("is part of a key"))
+                        {
+                            throw;
+                        }
+
+                        // Ignore only key-related modification errors
+                    }
+                }
             }
         }
 
@@ -240,15 +254,6 @@ namespace AutoCAC.Extensions
                 }
             }
             await db.Set<TEntity>().AddAsync(item, cancellationToken);
-        }
-
-        public static async Task DeleteItemAsync<TEntity>(
-            this mainContext db,
-            TEntity item)
-            where TEntity : class
-        {
-            db.Attach(item);
-            db.Remove(item);
         }
 
         public static IQueryable<T> SqlToIQueryable<T>(this mainContext db, FormattableString sql)

@@ -1,0 +1,49 @@
+﻿@page "/settings/admin/users"
+@using AutoCAC.Models
+@inject DialogService Dialogs
+@inject NavigationManager Nav
+@inject IDbContextFactory<mainContext> DbFactory
+@inject IAdSearch AdSearch
+@inject NotificationService Notifications
+<DataGridVanilla TItem="AuthUser" GridModel="GridModel">
+	<TrailingColumns>
+		<ActionDefaultColumn GridModel="GridModel" ShowDelete="false" />
+	</TrailingColumns>
+</DataGridVanilla>
+<RadzenButton Text="Fill from active directory" Click="AdMatch" IsBusy="adUpdateBusy" />
+@code {
+	bool adUpdateBusy;
+	DataGridHelper<AuthUser> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(AuthUser.LastName), nameof(AuthUser.FirstName), nameof(AuthUser.Email), nameof(AuthUser.Username) },
+		SearchColumns = new[] { nameof(AuthUser.LastName), nameof(AuthUser.FirstName), nameof(AuthUser.Email), nameof(AuthUser.Username) }
+	};
+	private async Task Add()
+	{
+		var result = await Dialogs.StaffAdDialog(AdGroupHelper.AllIhs);
+		if (result == null) return;
+		Nav.NavigateToRelative(result.Id.ToString());
+	}
+
+	private async Task AdMatch()
+	{
+		adUpdateBusy = true;
+		StateHasChanged();
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var missingData = await db.AuthUsers.Where(x => (x.LastName.Trim() == "" || x.FirstName.Trim() == "" || x.Email.Trim() == "") && EF.Functions.Like(x.Username, "D1_%")).ToListAsync();
+		foreach(var x in missingData)
+		{
+			var username = x.Username.RemovePrefix("D1_", StringComparison.OrdinalIgnoreCase);
+			var adRecordLst = await AdSearch.Users().UserNameEquals(username).ToListAsync();
+			var adRecord = adRecordLst.FirstOrDefault();
+			if (adRecord != null)
+			{
+				adRecord.ModifyAuthUser(x);
+			}
+		}
+		await db.SaveChangesAsync();
+		Notifications.Success("Updated");
+		adUpdateBusy = false;
+		await GridModel.ReloadAsync();
+	}
+}

@@ -122,9 +122,9 @@ namespace AutoCAC.Services
                     var newUser = new AuthUser
                     {
                         Username = Username,
-                        FirstName = AdFirstName ?? "",
-                        LastName = AdLastName ?? "",
-                        Email = AdEmail ?? "",
+                        FirstName = AdFirstName?.Trim() ?? "",
+                        LastName = AdLastName?.Trim() ?? "",
+                        Email = AdEmail?.Trim() ?? "",
                         IsActive = true,
                         IsStaff = false,
                         IsSuperuser = false,
@@ -157,19 +157,19 @@ namespace AutoCAC.Services
 
                     if (string.IsNullOrWhiteSpace(UserProfile.FirstName) && !string.IsNullOrWhiteSpace(AdFirstName))
                     {
-                        UserProfile.FirstName = AdFirstName;
+                        UserProfile.FirstName = AdFirstName.Trim();
                         needsUpdate = true;
                     }
 
                     if (string.IsNullOrWhiteSpace(UserProfile.LastName) && !string.IsNullOrWhiteSpace(AdLastName))
                     {
-                        UserProfile.LastName = AdLastName;
+                        UserProfile.LastName = AdLastName.Trim();
                         needsUpdate = true;
                     }
 
                     if (string.IsNullOrWhiteSpace(UserProfile.Email) && !string.IsNullOrWhiteSpace(AdEmail))
                     {
-                        UserProfile.Email = AdEmail;
+                        UserProfile.Email = AdEmail.Trim();
                         needsUpdate = true;
                     }
 

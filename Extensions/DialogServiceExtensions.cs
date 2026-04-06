@@ -7,6 +7,7 @@ using AutoCAC.Components.Templates.StaffSearch;
 using AutoCAC.Models;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.InkML;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Radzen;
@@ -208,6 +209,28 @@ namespace AutoCAC.Extensions
                 });
             return result as AutoCAC.Models.AuthUser;
         }
+
+        public static DialogOptions GetDefaultOptions(this DialogService dialogService) => new()
+        {
+            AutoFocusFirstElement = true,
+            Width = "75%",
+            CloseDialogOnOverlayClick = true,
+            Resizable = true,
+            Draggable = true
+        };
+
+        public static Task<dynamic> OpenDefaultAsync<TTemplate>(
+            this DialogService dialogService,
+            string title = "",
+            Dictionary<string, object> parameters = null
+            ) where TTemplate : ComponentBase
+        {
+            return dialogService.OpenAsync<TTemplate>(
+                title: title,
+                parameters: parameters,
+                options: dialogService.GetDefaultOptions());
+        }
+
         public static async Task<AutoCAC.Models.Patient> PatientSelectDialogAsync(
             this DialogService dialogService,
             DialogOptions options = null)
