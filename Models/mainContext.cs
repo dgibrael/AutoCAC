@@ -29,6 +29,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<DrugRequest> DrugRequests { get; set; }
 
+    public virtual DbSet<DrugRequestActivity> DrugRequestActivities { get; set; }
+
     public virtual DbSet<EmailNotificationConfig> EmailNotificationConfigs { get; set; }
 
     public virtual DbSet<EmailNotificationRecipient> EmailNotificationRecipients { get; set; }
@@ -334,34 +336,53 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<DrugRequest>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__DrugRequ__3213E83FBE641D82");
+            entity.HasKey(e => e.Id).HasName("PK__DrugRequ__3213E83FD9D1C12D");
 
             entity.ToTable("DrugRequest");
 
-            entity.Property(e => e.Id)
-                .ValueGeneratedNever()
-                .HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Comments).IsUnicode(false);
-            entity.Property(e => e.CompletedById).HasColumnName("CompletedBy_id");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.CreatedById).HasColumnName("CreatedBy_id");
+            entity.Property(e => e.CurrentStatus)
+                .HasMaxLength(50)
+                .IsUnicode(false);
             entity.Property(e => e.DrugId).HasColumnName("Drug_id");
             entity.Property(e => e.Ndc)
                 .HasMaxLength(13)
                 .IsUnicode(false)
                 .HasColumnName("NDC");
 
-            entity.HasOne(d => d.CompletedBy).WithMany(p => p.DrugRequestCompletedBies)
-                .HasForeignKey(d => d.CompletedById)
-                .HasConstraintName("FK_DrugRequest_CompletedBy_id");
-
-            entity.HasOne(d => d.CreatedBy).WithMany(p => p.DrugRequestCreatedBies)
-                .HasForeignKey(d => d.CreatedById)
-                .HasConstraintName("FK_DrugRequest_CreatedBy_id");
-
             entity.HasOne(d => d.Drug).WithMany(p => p.DrugRequests)
                 .HasForeignKey(d => d.DrugId)
                 .HasConstraintName("FK_DrugRequest_Drug_id");
+        });
+
+        modelBuilder.Entity<DrugRequestActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__DrugRequ__3213E83F53C52113");
+
+            entity.ToTable("DrugRequestActivity");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ActivityAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.DrugRequestId).HasColumnName("DrugRequest_id");
+            entity.Property(e => e.NewStatus)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.PreviousStatus)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.DrugRequestActivities)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_DrugRequestActivity_auth_user");
+
+            entity.HasOne(d => d.DrugRequest).WithMany(p => p.DrugRequestActivities)
+                .HasForeignKey(d => d.DrugRequestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_DrugRequestActivity_DrugRequest");
         });
 
         modelBuilder.Entity<EmailNotificationConfig>(entity =>

@@ -51,6 +51,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[DrugRequestActivity]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[EmailNotificationConfig]",
          "ObjectType": 0
       },

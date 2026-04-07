@@ -5,21 +5,23 @@
 @inject NotificationService Notifications
 @inject DialogService Dialogs
 @inject NavigationManager Nav
-<EnumDropdown TEnum="DrugReqStatusChoice" @bind-Value="drugReqStatus" @bind-Value:after="@(() => GridModel.ReloadAsync())"/>
-<DataGridVanilla TItem="DrugRequest" GridModel="GridModel" AddButtonClick="Add"/>
+
+<DataGridVanilla TItem="DrugRequest" GridModel="GridModel" AddButtonClick="Add">
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="Drug.Name" Title="Drug" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="Ndc" Title="Ndc" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="PricePerOrder" Title="PricePerOrder" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="OrderQty" Title="OrderQty" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="CurrentStatus" Title="CurrentStatus" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="Comments" Title="Comments" />
+	<RadzenDataGridColumn TItem="AutoCAC.Models.DrugRequest" Property="CreatedAt" Title="CreatedAt" />
+</DataGridVanilla>
 
 
 @code {
-	public enum DrugReqStatusChoice
-	{
-		All,
-		Complete,
-		Incomplete
-	}
-	DrugReqStatusChoice drugReqStatus = DrugReqStatusChoice.All;
+	DrugReqStatusEnum drugReqStatus = DrugReqStatusEnum.UnSubmitted;
 	DataGridHelper<DrugRequest> GridModel = new()
 	{
-		IncludeColumns = new[] { nameof(DrugRequest.CreatedAt), "Drug.Name", nameof(DrugRequest.CompletedAt), nameof(DrugRequest.Comments) }
+		IncludeColumns = new[] { nameof(DrugRequest.CreatedAt), "Drug.Name", nameof(DrugRequest.Comments) }
 	};
 	protected override void OnInitialized()
 	{
@@ -27,24 +29,17 @@
 		{
 			var query = db.DrugRequests
 							.Include(x => x.Drug)
+							.OrderBy(x => x.CreatedAt)
 							.AsQueryable();
-			if (drugReqStatus == DrugReqStatusChoice.Complete)
-			{
-				query = query.Where(x => x.CompletedAt != null);
-			}
-			else if (drugReqStatus == DrugReqStatusChoice.Incomplete)
-			{
-				query = query.Where(x => x.CompletedAt == null);
-			}
 			return query;
 		};
 	}
 	private async Task Add()
 	{
-		var allowed = User.IsInGroupOrSuperuser("SupplyTech", "PharmacistSupervisor", "PharmacyTechSupervisor");
+		var allowed = User.IsInGroupOrSuperuser("SupplyTech", "PharmacistSupervisor", "PharmacyTechSupervisor", "DrugEnterEditView", "DrugEnterEditRequest");
 		if (!allowed)
 		{
-			Notifications.Error("You must be a superuser or belong to one of the following groups to enter a request: SupplyTech, PharmacistSupervisor, PharmacyTechSupervisor");
+			Notifications.Error("You must be a superuser or belong to one of the following groups to enter a request: SupplyTech, PharmacistSupervisor, PharmacyTechSupervisor, DrugEnterEditView");
 			return;
 		}
 		var ndc = await Dialogs.Ndc();
@@ -52,14 +47,7 @@
 		{
 			return;
 		}
-		var newRequest = new DrugRequest()
-		{
-			Ndc = ndc,
-			CreatedAt = DateTime.Now,
-			CreatedById = User.UserProfile.Id
-		};
-		await using var db = await DbFactory.CreateDbContextAsync();
-		await db.AddItemAsync(newRequest);
+		var newRequest = await DrugRequest.Create(DbFactory, ndc, User.UserProfile.Id);
 		Nav.NavigateToRelative(newRequest.Id.ToString());
 	}
 }

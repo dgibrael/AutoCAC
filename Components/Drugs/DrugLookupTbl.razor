@@ -65,14 +65,15 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        if (SelectedNdf?.PrintName == null) 
+        if (SelectedNdf == null) 
         {
             selectedRow = null;
             return;
         }
         GridModel.QueryFactory = ctx =>
             {
-                var q = ctx.Drugs.AsQueryable().Where(d => d.VaPrintName == SelectedNdf.PrintName);
+                var q = ctx.Drugs.AsQueryable().Where(d => (SelectedNdf.PrintName == null && SelectedNdf.Generic != null && d.Generic == SelectedNdf.Generic) ||
+                                                            (SelectedNdf.PrintName != null && d.VaPrintName == SelectedNdf.PrintName));
                 if (showOnlyActive)
                     q = q.Where(d => d.InactiveDate == null);
 

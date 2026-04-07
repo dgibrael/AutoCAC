@@ -20,14 +20,18 @@
 		GridModel.QueryFactory = db =>
 		{
 			var qry = db.Drugs.AsQueryable();
+
 			if (onlyNdf && !string.IsNullOrWhiteSpace(Ndc))
 			{
-				qry =
-					from drug in qry
-					join ndf in db.Ndfs.Where(x => x.Ndc == Ndc)
-						on drug.VaPrintName equals ndf.PrintName
-					select drug;
+				qry = qry.Where(drug =>
+					db.Ndfs.Any(ndf =>
+						ndf.Ndc == Ndc &&
+						(
+							(ndf.PrintName != null && drug.VaPrintName == ndf.PrintName) ||
+							(ndf.PrintName == null && drug.Generic == ndf.Generic)
+						)));
 			}
+
 			return qry;
 		};
 	}

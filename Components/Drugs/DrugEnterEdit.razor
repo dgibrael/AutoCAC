@@ -52,7 +52,7 @@
             return;
         }
         await using var db = await DbFactory.CreateDbContextAsync();
-        selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc.Ndc).FirstOrDefaultAsync();
+        selectedNdf = await db.Ndfs.Where(x => x.Ndc == _ndc.Ndc).OrderByDescending(x => x.PrintName).FirstOrDefaultAsync();
         if (selectedNdf == null)
         {
             NotificationService.Info("Ndc not found. Unmatched ndcs must be updated manually in RPMS");

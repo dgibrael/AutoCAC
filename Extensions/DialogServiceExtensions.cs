@@ -92,9 +92,9 @@ namespace AutoCAC.Extensions
             return result as string;
         }
 
-        public static async Task<string> Ndc(this DialogService dialogService)
+        public static async Task<string> Ndc(this DialogService dialogService, string initial = "")
         {
-            return await dialogService.TextPromptAsync("Enter NDC", "Enter 11 digit ndc below to continue", mask: "*****-****-**", characterPattern: "[0-9]");
+            return await dialogService.TextPromptAsync("Enter NDC", "Enter 11 digit ndc below to continue", mask: "*****-****-**", characterPattern: "[0-9]", initial: initial);
         }
 
         public static async Task<TValue?> NumericPromptAsync<TValue>(

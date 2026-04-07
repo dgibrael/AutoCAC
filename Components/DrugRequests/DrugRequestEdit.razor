@@ -1,4 +1,4 @@
-﻿@page "/drugrequest/{Id:Int}"
+﻿@page "/drugrequest/{Id:int}"
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Models
 @inject IDbContextFactory<mainContext> DbFactory
@@ -7,14 +7,25 @@
 @inject DialogService Dialogs
 @inject NavigationManager Nav
 @using AutoCAC.Common
+@inject EmailService Email
+@inject UserContextService User
 <h3>Drug Enter/Edit Request</h3>
 <LoadingContent LoadState="@(data == null ? LoadingState.Loading : LoadingState.Loaded)">
-	<VanillaForm TItem="DrugRequest" Data="data" >
+	<VanillaForm TItem="DrugRequest" Data="data" AfterSubmit="AfterSubmit">
 		<VanillaFormField Label="NDC">
-			<RadzenButton Text="@($"{data?.Ndc} (Click to change)")" />
+			<RadzenButton Text="@($"{data?.Ndc} (Click to change)")" Click="ChangeNdc"/>
 		</VanillaFormField>
 		<VanillaFormField Label="Drug">
-			<RadzenButton Text="@drugMsg" />
+			<RadzenButton Text="@drugDescription" Click="DrugClick"/>
+		</VanillaFormField>
+		<VanillaFormField Label="Purchase Price">
+			<RadzenNumeric @bind-Value="@data.PricePerOrder"/>
+		</VanillaFormField>
+		<VanillaFormField Label="Order Quantity">
+			<RadzenNumeric @bind-Value="@data.OrderQty"/>
+		</VanillaFormField>
+		<VanillaFormField Label="Comments">
+			<RadzenTextBox @bind-Value="@data.Comments"/>
 		</VanillaFormField>
 	</VanillaForm>
 </LoadingContent>
@@ -23,7 +34,7 @@
 	[Parameter] public int Id { get; set; }
 	DrugRequest data;
 	Ndf ndfEntry;
-	private string drugMsg = "";
+	private string drugDescription = "Click to match a drug or fill out comment below for new drug";
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
@@ -37,36 +48,61 @@
 		data = await db.DrugRequests
 				.Include(x => x.Drug)
 				.FirstOrDefaultAsync(x => x.Id == Id);
+		if (!string.IsNullOrWhiteSpace(data?.Drug?.Name))
+		{
+			drugDescription = $"{data.Drug.Name} (click to change)";
+		}
+		else
+		{			
+			drugDescription = "Click to match a drug or fill out comment below for new drug";
+		}
+		StateHasChanged();
 	}
+
 	private async Task ChangeNdc()
 	{
 		var ndc = await Dialogs.Ndc();
 		if (string.IsNullOrWhiteSpace(ndc)) return;
 		data.Ndc = ndc;
-		var selectedDrug = await SelectDrug(ndc);
-		if (selectedDrug?.Id != null)
-		{
-			data.DrugId = selectedDrug.Id;
-		}
+		await SelectDrug(ndc);
 		await UpdateData();
 	}
 	private async Task UpdateData()
 	{
-		await using var db = await DbFactory.CreateDbContextAsync();
-		await db.UpdateItemAsync(data);
+		await DbFactory.UpdateItemAsync(data);
 		await ReloadData();
 		StateHasChanged();
 	}
-	private async Task<Drug> SelectDrug(string ndc) => await Dialogs.OpenAsync<DrugReqMatchExisting>("Drug Search", 
-				parameters: new Dictionary<string, object> { ["Ndc"] = ndc }, 
-				options: DialogDefaults.Options);
+	private async Task SelectDrug(string ndc)
+	{
+		var drug = await Dialogs.OpenAsync<DrugReqMatchExisting>("Drug Search",
+					parameters: new Dictionary<string, object> { ["Ndc"] = ndc },
+					options: Dialogs.GetDefaultOptions());
+		data.DrugId = drug?.Id;
+	}
 	private async Task ChangeDrug()
 	{
-		var selectedDrug = SelectDrug(data.Ndc);
-		if (selectedDrug?.Id != null)
+		await SelectDrug(data.Ndc);
+		await UpdateData();
+	}
+
+	private async Task DrugClick()
+	{
+		if (data?.Ndc?.IsNotEmpty == true)
 		{
-			data.DrugId = selectedDrug.Id;
-			await UpdateData();
+			await ChangeDrug();
 		}
+		else
+		{
+			await ChangeNdc();
+		}
+	}
+
+	private async Task AfterSubmit()
+	{
+		var emailLst = new HashSet<string> { "david.gibrael@ihs.gov" };
+		await data.AddActivity(DbFactory, User.UserProfile.Id, "Submitted", "UnSubmitted", emailService: Email, emails: emailLst);
+		Notifications.Success("sent email");
+
 	}
 }

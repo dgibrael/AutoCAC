@@ -9,13 +9,7 @@ public partial class DrugRequest
 {
     public int Id { get; set; }
 
-    public int? CreatedById { get; set; }
-
     public DateTime CreatedAt { get; set; }
-
-    public int? CompletedById { get; set; }
-
-    public DateTime? CompletedAt { get; set; }
 
     public string? Ndc { get; set; }
 
@@ -25,11 +19,11 @@ public partial class DrugRequest
 
     public int? DrugId { get; set; }
 
+    public string CurrentStatus { get; set; } = null!;
+
     public string? Comments { get; set; }
 
-    public virtual AuthUser? CompletedBy { get; set; }
-
-    public virtual AuthUser? CreatedBy { get; set; }
-
     public virtual Drug? Drug { get; set; }
+
+    public virtual ICollection<DrugRequestActivity> DrugRequestActivities { get; set; } = new List<DrugRequestActivity>();
 }

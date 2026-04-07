@@ -10,6 +10,8 @@ namespace AutoCAC.Extensions
         {
             public bool IsEmpty =>
                 string.IsNullOrWhiteSpace(value);
+            public bool IsNotEmpty =>
+                !string.IsNullOrWhiteSpace(value);
             public int LengthOrZero =>
                 value?.Length ?? 0;
         }
