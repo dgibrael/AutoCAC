@@ -1,16 +1,22 @@
-﻿using System.Net;
-using System.Net.Mail;
+﻿using AutoCAC.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Net;
+using System.Net.Mail;
 
 namespace AutoCAC.Services;
 
 public class EmailService
 {
     private readonly EmailSettings _settings;
+    private readonly IDbContextFactory<mainContext> _contextFactory;
 
-    public EmailService(IOptions<EmailSettings> options)
+    public EmailService(
+        IOptions<EmailSettings> options,
+        IDbContextFactory<mainContext> contextFactory)
     {
         _settings = options.Value;
+        _contextFactory = contextFactory;
     }
 
     public async Task SendEmailAsync(string subject, string body, params string[] to)
@@ -35,6 +41,42 @@ public class EmailService
         };
 
         await client.SendMailAsync(message);
+    }
+
+    public async Task<string[]> GetEmailsByGroups(params string[] groupNames)
+    {
+        if (groupNames == null || groupNames.Length == 0)
+            return Array.Empty<string>();
+
+        var normalizedGroups = groupNames
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalizedGroups.Length == 0)
+            return Array.Empty<string>();
+
+        await using var db = await _contextFactory.CreateDbContextAsync();
+
+        var emails = await db.AuthUserGroups
+            .Where(x => normalizedGroups.Contains(x.Group.Name))
+            .Select(u => u.User.Email)
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Distinct()
+            .ToArrayAsync();
+
+        return emails;
+    }
+
+    public async Task SendEmailByGroupsAsync(string subject, string body, params string[] groupNames)
+    {
+        var emails = await GetEmailsByGroups(groupNames);
+
+        if (emails.Length == 0)
+            return;
+
+        await SendEmailAsync(subject, body, emails);
     }
 }
 

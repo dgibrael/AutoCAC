@@ -1,4 +1,6 @@
 ## Setup
 
-1. Copy `appsettings.json.example` to `appsettings.json`.
-2. Replace the placeholder values with your actual configuration (e.g., database connection string).
+1. To view current secrets on server: 
+	Production: C:\Windows\System32\inetsrv\appcmd.exe list apppool "AutoCAC" /config
+	Dev: dotnet user-secrets list --project "C:\Users\dgibrael\source\repos\AutoCAC\AutoCAC.csproj"
+

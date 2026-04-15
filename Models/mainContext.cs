@@ -101,6 +101,10 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<RxFill> RxFills { get; set; }
 
+    public virtual DbSet<ScheduledTask> ScheduledTasks { get; set; }
+
+    public virtual DbSet<ScheduledTaskSchedule> ScheduledTaskSchedules { get; set; }
+
     public virtual DbSet<Staff> Staff { get; set; }
 
     public virtual DbSet<Tiu> Tius { get; set; }
@@ -1217,6 +1221,47 @@ public partial class mainContext : DbContext
                 .HasForeignKey(d => d.RxId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_RxFill_RxId");
+        });
+
+        modelBuilder.Entity<ScheduledTask>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Schedule__3214EC071CD87282");
+
+            entity.ToTable("ScheduledTask");
+
+            entity.HasIndex(e => e.Name, "IX_ScheduledTask_Name").IsUnique();
+
+            entity.HasIndex(e => e.NextRunAt, "IX_ScheduledTask_NextRunAt");
+
+            entity.Property(e => e.HandlerKey).HasMaxLength(100);
+            entity.Property(e => e.LastModifiedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.LastRunAt).HasPrecision(2);
+            entity.Property(e => e.Name).HasMaxLength(200);
+            entity.Property(e => e.NextRunAt).HasPrecision(2);
+        });
+
+        modelBuilder.Entity<ScheduledTaskSchedule>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Schedule__3214EC0729B19BFB");
+
+            entity.ToTable("ScheduledTaskSchedule");
+
+            entity.HasIndex(e => e.ScheduledTaskId, "IX_ScheduledTaskSchedule_ScheduledTaskId");
+
+            entity.Property(e => e.LastModifiedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ScheduleType)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.ScheduledTaskId).HasColumnName("ScheduledTask_id");
+            entity.Property(e => e.TimeOfDay).HasPrecision(0);
+
+            entity.HasOne(d => d.ScheduledTask).WithMany(p => p.ScheduledTaskSchedules)
+                .HasForeignKey(d => d.ScheduledTaskId)
+                .HasConstraintName("FK_ScheduledTaskSchedule_ScheduledTask");
         });
 
         modelBuilder.Entity<Staff>(entity =>

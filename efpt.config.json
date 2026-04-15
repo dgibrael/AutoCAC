@@ -183,6 +183,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[ScheduledTask]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ScheduledTaskSchedule]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[Staff]",
          "ObjectType": 0
       },

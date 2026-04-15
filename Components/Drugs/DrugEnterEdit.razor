@@ -78,32 +78,34 @@
         if (selectedDrug != null)
         {
             RPMS.BlockUserInput = true;
-            string msg = "";
-            try
+            if (selectedDrug.Id == 0)
             {
-                if (selectedDrug.Id == 0)
-                {
-                    await NewDrug();
-                    msg = $"Successfully created {selectedDrug.Name} (ien: {selectedDrug.Id})";
-                }
-                else
+                await NewDrug();
+                RPMS.BlockUserInput = false;
+                return;
+            }
+            else
+            {
+                string msg = "";
+                try
                 {
                     msg = await NdcChange();
                 }
-            }
-            catch (Exception ex)
-            {
-                msg = $"Error: {ex.Message}";
-            }
-            finally
-            {
-                await JS.XtermDialogHide();
-                RPMS.BlockUserInput = false;
-                msg += ". Type another NDC (xxxxx-xxxx-xx) to Enter/Edit another drug, otherwise press cancel.";
-                _ndc.Ndc = await DialogService.TextPromptAsync("Enter/Edit Additional?", msg, mask: "*****-****-**", characterPattern: "[0-9]");
-                if (!string.IsNullOrWhiteSpace(_ndc.Ndc))
+                catch (Exception ex)
                 {
-                    await NdcNdfSearch();
+                    msg = $"Error: {ex.Message}";
+                }
+                finally
+                {
+                    RPMS.BlockUserInput = false;
+                    await JS.XtermDialogHide();
+                    msg += ". Type another NDC (xxxxx-xxxx-xx) to Enter/Edit another drug, otherwise press cancel.";
+
+                    _ndc.Ndc = await DialogService.TextPromptAsync("Enter/Edit Additional?", msg, mask: "*****-****-**", characterPattern: "[0-9]");
+                    if (!string.IsNullOrWhiteSpace(_ndc.Ndc))
+                    {
+                        await NdcNdfSearch();
+                    }
                 }
             }
         }
@@ -222,7 +224,6 @@
     {
         await RPMS.SendAsync("YES");
         await RPMS.EnterUntil("Enter Yes or No");
-        await RPMS.SendAsync("NO");
         await RPMS.SendAsync("NO");
         return false;
     }
