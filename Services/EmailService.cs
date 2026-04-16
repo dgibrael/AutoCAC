@@ -75,7 +75,6 @@ public class EmailService
 
         if (emails.Length == 0)
             return;
-
         await SendEmailAsync(subject, body, emails);
     }
 }

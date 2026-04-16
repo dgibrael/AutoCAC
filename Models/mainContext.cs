@@ -1244,7 +1244,7 @@ public partial class mainContext : DbContext
 
         modelBuilder.Entity<ScheduledTaskSchedule>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Schedule__3214EC0729B19BFB");
+            entity.HasKey(e => e.Id).HasName("PK__Schedule__3214EC0770C9FDC5");
 
             entity.ToTable("ScheduledTaskSchedule");
 
@@ -1254,7 +1254,7 @@ public partial class mainContext : DbContext
                 .HasPrecision(2)
                 .HasDefaultValueSql("(getdate())");
             entity.Property(e => e.ScheduleType)
-                .HasMaxLength(20)
+                .HasMaxLength(50)
                 .IsUnicode(false);
             entity.Property(e => e.ScheduledTaskId).HasColumnName("ScheduledTask_id");
             entity.Property(e => e.TimeOfDay).HasPrecision(0);

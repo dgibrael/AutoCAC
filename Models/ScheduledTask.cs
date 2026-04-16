@@ -21,5 +21,7 @@ public partial class ScheduledTask
 
     public DateTime LastModifiedAt { get; set; }
 
+    public byte FailureCount { get; set; }
+
     public virtual ICollection<ScheduledTaskSchedule> ScheduledTaskSchedules { get; set; } = new List<ScheduledTaskSchedule>();
 }

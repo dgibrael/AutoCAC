@@ -18,7 +18,7 @@
 
 
 @code {
-	DrugReqStatusEnum drugReqStatus = DrugReqStatusEnum.UnSubmitted;
+	DrugReqStatusEnum? drugReqStatus = null;
 	DataGridHelper<DrugRequest> GridModel = new()
 	{
 		IncludeColumns = new[] { nameof(DrugRequest.CreatedAt), "Drug.Name", nameof(DrugRequest.Comments) }

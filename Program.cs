@@ -2,6 +2,7 @@ using AutoCAC;
 using AutoCAC.Components;
 using AutoCAC.Options;
 using AutoCAC.Services;
+using AutoCAC.Services.TaskScheduling;
 using AutoCAC.Utilities;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 using Microsoft.AspNetCore.Authorization;
@@ -81,7 +82,9 @@ builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services.AddScoped<EmailService>();
+builder.Services.AddSingleton<EmailService>();
+//builder.Services.AddSingleton<ScheduledTaskScheduler>();
+//builder.Services.AddHostedService(sp => sp.GetRequiredService<ScheduledTaskScheduler>());
 
 var app = builder.Build();
 

@@ -13,11 +13,9 @@ public partial class ScheduledTaskSchedule
 
     public string ScheduleType { get; set; } = null!;
 
-    public TimeOnly TimeOfDay { get; set; }
+    public TimeOnly? TimeOfDay { get; set; }
 
-    public byte? DayOfWeek { get; set; }
-
-    public byte? DayOfMonth { get; set; }
+    public int? IntervalValue { get; set; }
 
     public DateTime LastModifiedAt { get; set; }
 
