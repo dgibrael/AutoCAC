@@ -8,22 +8,22 @@ namespace AutoCAC.Services;
 
 public class EmailService
 {
-    private readonly EmailSettings _settings;
     private readonly IDbContextFactory<mainContext> _contextFactory;
-
+    private readonly IOptionsMonitor<EmailSettings> _options;
     public EmailService(
-        IOptions<EmailSettings> options,
+        IOptionsMonitor<EmailSettings> options,
         IDbContextFactory<mainContext> contextFactory)
     {
-        _settings = options.Value;
+        _options = options;
         _contextFactory = contextFactory;
     }
 
     public async Task SendEmailAsync(string subject, string body, params string[] to)
     {
+        var settings = _options.CurrentValue;
         using var message = new MailMessage
         {
-            From = new MailAddress(_settings.Username),
+            From = new MailAddress(settings.Username),
             Subject = subject,
             Body = body,
             IsBodyHtml = true
@@ -34,10 +34,10 @@ public class EmailService
             message.To.Add(address);
         }
 
-        using var client = new SmtpClient(_settings.SmtpServer, _settings.Port)
+        using var client = new SmtpClient(settings.SmtpServer, settings.Port)
         {
-            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-            EnableSsl = _settings.UseSsl
+            Credentials = new NetworkCredential(settings.Username, settings.Password),
+            EnableSsl = settings.UseSsl
         };
 
         await client.SendMailAsync(message);

@@ -12,6 +12,7 @@
 @inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @using System.Security.Claims
+
 <PageTitle>Home</PageTitle>
 <LoadingContent LoadState="@(!UserContext.UserLoaded ? LoadingState.Loading : LoadingState.Loaded)">
     <h4>User Info</h4>

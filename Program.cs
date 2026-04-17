@@ -82,9 +82,9 @@ builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services.AddSingleton<EmailService>();
-//builder.Services.AddSingleton<ScheduledTaskScheduler>();
-//builder.Services.AddHostedService(sp => sp.GetRequiredService<ScheduledTaskScheduler>());
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddSingleton<ScheduledTaskScheduler>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ScheduledTaskScheduler>());
 
 var app = builder.Build();
 

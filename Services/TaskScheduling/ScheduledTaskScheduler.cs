@@ -10,7 +10,7 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
     private readonly IDbContextFactory<mainContext> _dbContextFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ScheduledTaskScheduler> _logger;
-    private readonly EmailService _emailService;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly SemaphoreSlim _refreshSignal = new(0, 1);
     private SqlWatcher _scheduledTaskScheduleWatcher;
     private bool _disposed;
@@ -19,13 +19,12 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
         IDbContextFactory<mainContext> dbContextFactory,
         IConfiguration configuration,
         ILogger<ScheduledTaskScheduler> logger,
-        EmailService emailService
-        )
+        IServiceScopeFactory scopeFactory)
     {
         _dbContextFactory = dbContextFactory;
         _configuration = configuration;
         _logger = logger;
-        _emailService = emailService;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -163,8 +162,10 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
         var fills = await db.RxFills
             .Where(x => x.ReleasedDateTime >= start && x.ReleasedDateTime < end && x.Rx.Division == "CHINLE HOSP PHARMACY")
             .CountAsync();
-        var msg = $"<ul><li>Total Revenue: {paid}</li><li>Total Rx Fills: {fills}</li><ul>";
-        await _emailService.SendEmailByGroupsAsync($"GB Data for {start.DateOnly} to {end.DateOnly}", msg, "GbReport");
+        var msg = $"<ul><li>Total Revenue: {paid}</li><li>Total Rx Count: {fills}</li><ul>";
+        using var scope = _scopeFactory.CreateScope();
+        var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
+        await emailService.SendEmailByGroupsAsync($"GB Data for {start.DateOnly} to {end.DateOnly}", msg, "GbReport");
     }
 
     private static TimeSpan GetDelayUntil(DateTime nextRunAt)
