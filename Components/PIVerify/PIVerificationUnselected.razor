@@ -1,0 +1,69 @@
+﻿@page "/piverify/unselected"
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@inject UserContextService UserContext
+@inject IDbContextFactory<mainContext> DbFactory
+@inject DialogService DialogService
+@inject NavigationManager Nav
+<h3>Select Patient from Below to Add to Private Insurance Verification Que</h3>
+<VanillaFormField Label="Only Patients with Rx in Past 365 Days">
+	<RadzenCheckBox TValue="bool" @bind-Value="onlyRecentRx" Change="@(() => GridModel.ReloadAsync())" />
+</VanillaFormField>
+<VanillaFormField Label="Only Patients Not in Que">
+	<RadzenCheckBox TValue="bool" @bind-Value="onlyUnselected" Change="@(() => GridModel.ReloadAsync())" />
+</VanillaFormField>
+<DataGridVanilla TItem="Patient" GridModel="GridModel">
+	<TrailingColumns>
+		<ActionColumn TItem="Patient" Context="x" Width="200px">
+			<RadzenButton Text="Send To PIVerification Que" Click="@(() => Send(x))"/>
+		</ActionColumn>
+	</TrailingColumns>
+</DataGridVanilla>
+@code {
+	bool onlyRecentRx = true;
+	bool onlyUnselected = true;
+	DataGridHelper<Patient> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(Patient.Name), nameof(Patient.ChartNumber), nameof(Patient.Dob) },
+		SearchColumns = new[] { nameof(Patient.Name), nameof(Patient.ChartNumber)}
+	}
+	;
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db =>
+		{
+			var yearAgo = DateTime.Now.AddDays(-365);
+			var qry = db.Patients.AsQueryable();
+			qry = qry.Where(x => !x.Insurances.Any());
+			if (onlyUnselected)
+				qry = qry.Where(x => !x.PiVerifications.Any());
+			if (onlyRecentRx)
+				qry = qry.Where(x => !x.Rxes.Any(y => y.IssueDate >= yearAgo));
+			qry = qry.OrderBy(x => x.Name);
+			return qry;
+		};
+	}
+	private async Task Send(AutoCAC.Models.Patient selected)
+	{
+		var existingRecord = await DbFactory.GetByExpressionAsync<PiVerification>(x => x.PatientId == selected.Id);
+		if (existingRecord != null)
+		{
+			var continueAnyway = await DialogService.YesNoDialog("Patient already exists. Click yes to create a new record anyway. Click no to view existing record.", "Duplicate");
+			if (continueAnyway != true)
+			{
+				Nav.NavigateTo(Nav.GetPath(existingRecord.Id.ToString(), fromParent: true));
+				return;
+			}
+		}
+		var piVerification = new Models.PiVerification
+		{
+			PatientId = selected.Id,
+			CreatedAt = DateTime.Now,
+			LastModified = DateTime.Now,
+			CreatedBy = UserContext.Username,
+			CurrentStatus = "New"
+		};
+		var dbRecord = await DbFactory.AddItemAsync(piVerification);
+		Nav.NavigateTo(Nav.GetPath(dbRecord.Id.ToString(), fromParent: true));
+	}
+}
