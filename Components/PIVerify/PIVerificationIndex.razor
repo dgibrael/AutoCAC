@@ -12,7 +12,10 @@
 <PageTitle>Private Insurance Verification</PageTitle>
 <div class="content-container--wide">
     <DataGridVanilla TItem="PiVerification" GridModel="GridModel">
-        <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> </HeaderContent>
+        <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> 
+            <RadzenButton Text="Add (Beta)" Click="@(() => Nav.NavigateToRelative("/unselected"))" 
+                ButtonStyle="ButtonStyle.Warning" />
+        </HeaderContent>
         <ChildContent>
             <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
                 <Template Context="x" ><RadzenButton title="@x?.Patient?.Name" Variant="Variant.Text" Text="@x?.Patient?.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>

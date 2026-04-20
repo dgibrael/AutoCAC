@@ -6,6 +6,7 @@
 @inject DialogService DialogService
 @inject NavigationManager Nav
 <h3>Select Patient from Below to Add to Private Insurance Verification Que</h3>
+<RadzenButton Icon="cancel" Text="Cancel" Click="@(() => Nav.NavigateToRelative(fromParent: true))" ButtonStyle="ButtonStyle.Base" />
 <RadzenPanel Collapsed="collapsed" AllowCollapse="true">
 	<HeaderTemplate>
 		<div @onclick="@(() => collapsed = !collapsed)" class="rz-w-100 rz-h-100 rz-my-0 rz-py-0">

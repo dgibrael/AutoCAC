@@ -6,6 +6,7 @@ public sealed class CommentModel
     public string Text { get; set; }
     public AuthUser AuthUser { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool SystemGenerated { get; set; } = false;
     public bool IsCurrentUser(int? userId)
         => AuthUser != null && AuthUser.Id == userId;
 }

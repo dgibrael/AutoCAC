@@ -45,7 +45,14 @@
                         overflow-wrap: anywhere;
                         word-break: break-word;
                         max-width: 100%;">
-                        @m.Text
+                        @if (m.SystemGenerated)
+                        {
+                            <i>@m.Text</i>
+                        }
+                        else
+                        {
+                            @m.Text
+                        }
                     </p>
                 </RadzenRow>
             </RadzenStack>

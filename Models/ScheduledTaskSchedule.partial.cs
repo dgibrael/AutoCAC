@@ -1,10 +1,14 @@
-﻿namespace AutoCAC.Models;
+﻿using AutoCAC.Extensions;
+using AutoCAC.Utilities;
+
+namespace AutoCAC.Models;
 
 public enum TaskScheduleType
 {
     Daily,
     Weekly,
     Monthly,
+    Quarterly,
     EveryXMinutes
 }
 
@@ -36,18 +40,81 @@ public partial class ScheduledTaskSchedule
 
             case TaskScheduleType.Monthly:
                 {
-                    if (!IntervalValue.HasValue || IntervalValue.Value < 1 || IntervalValue.Value > 31)
-                        throw new InvalidOperationException("Monthly schedule requires IntervalValue between 1 and 31.");
-
-                    var day = Math.Min(IntervalValue.Value, DateTime.DaysInMonth(current.Year, current.Month));
+                    var daysInMonth = DateTime.DaysInMonth(current.Year, current.Month);
+                    int day = 1;
+                    if (IntervalValue == null)
+                    {
+                        day = 1;
+                    }
+                    else if (IntervalValue > daysInMonth)
+                    {
+                        day = daysInMonth;
+                    }
+                    else if (IntervalValue <= 0)
+                    {
+                        day = daysInMonth - IntervalValue.Value + 1;
+                    }
+                    else
+                    {
+                        day = IntervalValue.Value;
+                    }
                     var candidate = new DateTime(current.Year, current.Month, day) + time;
 
                     if (candidate > current)
                         return candidate;
 
                     var nextMonth = current.AddMonths(1);
-                    day = Math.Min(IntervalValue.Value, DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month));
+                    daysInMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
+                    if (IntervalValue == null)
+                    {
+                        day = 1;
+                    }
+                    else if (IntervalValue > daysInMonth)
+                    {
+                        day = daysInMonth;
+                    }
+                    else if (IntervalValue <= 0)
+                    {
+                        day = daysInMonth - IntervalValue.Value + 1;
+                    }
                     return new DateTime(nextMonth.Year, nextMonth.Month, day) + time;
+                }
+            case TaskScheduleType.Quarterly:
+                {
+                    DateTime GetQuarterStart(DateTime date)
+                    {
+                        var quarterStartMonth = ((date.Month - 1) / 3) * 3 + 1;
+                        return new DateTime(date.Year, quarterStartMonth, 1);
+                    }
+
+                    int ResolveDayOfQuarter(DateTime quarterStart)
+                    {
+                        var quarterEnd = quarterStart.AddMonths(3).AddDays(-1);
+                        var daysInQuarter = (quarterEnd - quarterStart).Days + 1;
+
+                        if (IntervalValue == null)
+                            return 1;
+
+                        if (IntervalValue > daysInQuarter)
+                            return daysInQuarter;
+
+                        if (IntervalValue <= 0)
+                            return daysInQuarter + IntervalValue.Value + 1;
+
+                        return IntervalValue.Value;
+                    }
+
+                    var quarterStart = GetQuarterStart(current);
+                    var dayOfQuarter = ResolveDayOfQuarter(quarterStart);
+                    var candidate = quarterStart.AddDays(dayOfQuarter - 1).Date + time;
+
+                    if (candidate > current)
+                        return candidate;
+
+                    var nextQuarterStart = quarterStart.AddMonths(3);
+                    dayOfQuarter = ResolveDayOfQuarter(nextQuarterStart);
+
+                    return nextQuarterStart.AddDays(dayOfQuarter - 1).Date + time;
                 }
 
             case TaskScheduleType.EveryXMinutes:

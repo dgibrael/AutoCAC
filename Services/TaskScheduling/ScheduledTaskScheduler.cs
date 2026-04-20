@@ -14,7 +14,7 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
     private readonly SemaphoreSlim _refreshSignal = new(0, 1);
     private SqlWatcher _scheduledTaskScheduleWatcher;
     private bool _disposed;
-
+    private static readonly TimeSpan MaxPollingDelay = TimeSpan.FromMinutes(60);
     public ScheduledTaskScheduler(
         IDbContextFactory<mainContext> dbContextFactory,
         IConfiguration configuration,
@@ -35,10 +35,14 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
         while (!stoppingToken.IsCancellationRequested)
         {
             DateTime? nextRunAt = await RunDueTasksAndGetNextRunAtAsync(stoppingToken);
+            var delay = nextRunAt.HasValue
+                ? GetDelayUntil(nextRunAt.Value)
+                : MaxPollingDelay;
 
-            Task delayTask = nextRunAt.HasValue
-                ? Task.Delay(GetDelayUntil(nextRunAt.Value), stoppingToken)
-                : Task.Delay(TimeSpan.FromMinutes(60), stoppingToken);
+            if (delay > MaxPollingDelay)
+                delay = MaxPollingDelay;
+
+            Task delayTask = Task.Delay(delay, stoppingToken);
 
             Task refreshTask = _refreshSignal.WaitAsync(stoppingToken);
 
@@ -162,7 +166,7 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
         var fills = await db.RxFills
             .Where(x => x.ReleasedDateTime >= start && x.ReleasedDateTime < end && x.Rx.Division == "CHINLE HOSP PHARMACY")
             .CountAsync();
-        var msg = $"<ul><li>Total Revenue: {paid}</li><li>Total Rx Count: {fills}</li><ul>";
+        var msg = $"<ul><li>Total Revenue: {paid:N0}</li><li>Total Rx Count: {fills:N0}</li><ul>";
         using var scope = _scopeFactory.CreateScope();
         var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
         await emailService.SendEmailByGroupsAsync($"GB Data for {start.DateOnly} to {end.DateOnly}", msg, "GbReport");
