@@ -49,8 +49,9 @@
         }
         @if (GridModel?.SearchColumns != null)
         {
-            <RadzenColumn Size="4">
-                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync(ClearCache: false)" />
+            <RadzenColumn Size="5">
+                <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync(ClearCache: false)" 
+                   Placeholder="@GridModel?.SearchTextPlaceholder"/>
             </RadzenColumn>
         }
     </RadzenStack>
@@ -85,6 +86,7 @@
                     ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
                     Context="row"
                     EmptyTemplate="EmptyTemplate"
+                    ShowHeader="GridModel.ShowColumnHeaders"
                     >
         <GroupHeaderTemplate Context="group">
             @if (GroupHeaderCustom is not null)

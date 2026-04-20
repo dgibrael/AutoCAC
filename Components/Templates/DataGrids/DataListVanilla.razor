@@ -1,0 +1,158 @@
+﻿@typeparam TItem where TItem : class
+@implements IDisposable
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject AutoCAC.Services.UserContextService UserContext
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC
+@using AutoCAC.Extensions
+@using System.Text.Json
+@using System.Reflection
+@using AutoCAC.Components.Templates
+
+<LoadingContent LoadState="@(ListModel?.IsInitialized != true ? LoadingState.Loading : LoadingState.Loaded)">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start"
+    Wrap="FlexWrap.Wrap">
+        @HeaderContent
+        @if (!string.IsNullOrEmpty(ListModel?.AddButtonUrl) || AddButtonClick.HasDelegate)
+        {
+            <RadzenButton Icon="add_circle_outline"
+                          Text="Add"
+                          ButtonStyle="ButtonStyle.Success"
+                          Click="@OnAddClickInternal"
+                          Variant="Variant.Flat" />
+        }
+        @if (ListModel?.SearchColumns != null)
+        {
+            <RadzenColumn Size="4">
+                <QuickSearch @bind-Value="ListModel.SearchText" @bind-Value:after="() => _ = ListModel.ReloadAsync(ClearCache: false)" />
+            </RadzenColumn>
+        }
+    </RadzenStack>
+    <RadzenCardGroup>
+        <RadzenDataList @ref="DataList"
+                        Data="ListModel.Data"
+                        Count="ListModel.Count"
+                        LoadData="LoadData"
+                        TItem="TItem"
+                        IsLoading="IsLoading"
+                        AllowPaging="true"
+                        PageSize="@PageSize"
+                        ShowPagingSummary="true"
+                        PageSizeOptions="pageSizes"
+                        EmptyTemplate="EmptyTemplate"
+                        >
+            <Template Context="item">
+                @ChildContent(item)
+            </Template>
+        </RadzenDataList>
+    </RadzenCardGroup>
+</LoadingContent>
+
+@code {
+    // NEW: caller passes this, or we default to new()
+    [Parameter] public DataListHelper<TItem> ListModel { get; set; } = new();
+
+    // RenderFragments stay as parameters (as requested)
+    [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
+    [Parameter] public RenderFragment EmptyTemplate { get; set; }
+    [Parameter] public RenderFragment HeaderContent { get; set; }
+    [Parameter] public EventCallback AddButtonClick { get; set; }
+    private int[] pageSizes = { 5, 10, 20, 30, 50 };
+    int PageSize;
+    int OriginalPageSize;
+
+    private bool IsLoading;
+
+    public RadzenDataList<TItem> DataList;
+    private TItem row;
+
+    protected override void OnInitialized()
+    {
+        // Keep existing behavior, just sourced from Helper now
+        if (ListModel.AddButtonDefault &&
+            string.IsNullOrEmpty(ListModel.AddButtonUrl) &&
+            !AddButtonClick.HasDelegate)
+        {
+            ListModel.AddButtonUrl = NavigationManager.GetPath("new");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var height = await JSRuntime.GetWindowHeight();
+
+        if (height < 800)
+            PageSize = 5;      // small screens
+        else if (height < 1200)
+            PageSize = 10;     // medium
+        else
+            PageSize = 20;     // large
+
+        OriginalPageSize = PageSize;
+
+        // NEW: Initialize wires db/user + reload callback
+        ListModel.Initialize(
+            DbFactory,
+            reloadAsync: () => InvokeAsync(DataList.Reload),
+            notifyAsync: msg => InvokeAsync(() => NotificationService.Notify(msg))
+        );
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        // avoid Helper holding a reference to this component via reload callback
+        ListModel?.DetachReloadHandler();
+    }
+
+    private long _loadVersion;
+
+    public async Task LoadData(LoadDataArgs args)
+    {
+        var myVersion = Interlocked.Increment(ref _loadVersion);
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await ListModel.LoadAsync(args);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected if you cancel loads
+        }
+        catch (Exception ex)
+        {
+            await DialogService.Alert(ex.Message, "Load Error");
+        }
+        finally
+        {
+            // Only the newest load is allowed to clear the spinner
+            if (myVersion == Volatile.Read(ref _loadVersion))
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+    private async Task OnAddClickInternal()
+    {
+        if (AddButtonClick.HasDelegate)
+            await AddButtonClick.InvokeAsync(null);
+        else if (!string.IsNullOrEmpty(ListModel.AddButtonUrl))
+            NavigationManager.NavigateTo(ListModel.AddButtonUrl);
+    }
+}

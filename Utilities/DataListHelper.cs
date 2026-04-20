@@ -1,20 +1,14 @@
-﻿// Utilities/DataGridHelper.cs
+﻿// Utilities/DataListHelper.cs
 using AutoCAC.Extensions;
 using AutoCAC.Models;
-using AutoCAC.Utilities;
-using ClosedXML.Excel;
-using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 using Radzen;
-using Radzen.Blazor;
-using System.Linq;
 using System.Linq.Dynamic.Core;
-using System.Text.Json;
 
 namespace AutoCAC;
 
-public sealed class DataGridHelper<T> where T : class
+public sealed class DataListHelper<T> where T : class
 {
     private IDbContextFactory<mainContext> _db;
 
@@ -22,22 +16,16 @@ public sealed class DataGridHelper<T> where T : class
         db => db.Set<T>().AsQueryable().AsNoTracking();
 
     private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
-    private ColumnFilterChoices<T> _filterChoices;
-
-    // -------------------------
-    // Init + reload wiring
-    // -------------------------
     public bool IsInitialized { get; private set; }
 
     private Func<Task> _reloadAsync;
     private bool _reloadPending;
 
     Func<NotificationMessage, Task> _notifyAsync;
-    public void Initialize(IDbContextFactory<mainContext> dbFactory, string username, Func<Task> reloadAsync, Func<NotificationMessage, Task> notifyAsync)
+    public void Initialize(IDbContextFactory<mainContext> dbFactory, Func<Task> reloadAsync, Func<NotificationMessage, Task> notifyAsync)
     {
         // always refresh these (safe + predictable)
         _db = dbFactory;
-        UserName = username;
 
         if (!IsInitialized)
         {
@@ -116,48 +104,26 @@ public sealed class DataGridHelper<T> where T : class
     private void EnsureInitialized()
     {
         if (!IsInitialized || _db is null)
-            throw new InvalidOperationException("DataGridHelper is not initialized. Call Helper.Initialize(dbFactory, username, reloadAsync) first.");
+            throw new InvalidOperationException("DataListHelper is not initialized. Call Helper.Initialize(dbFactory, username, reloadAsync) first.");
     }
-
-    // -------------------------
-    // Former DataGridVanilla parameters (now Helper properties)
-    // -------------------------
-    public string DataGridName { get; set; }
+    public string DataListName { get; set; }
 
     public string AddButtonUrl { get; set; }
     public bool AddButtonDefault { get; set; } = false;
 
     public bool ActionColumnDefault { get; set; } = false;
-
-    public IEnumerable<string> ExcludeColumns { get; set; } = new List<string>();
-    public IEnumerable<string> IncludeColumns { get; set; }
-
     public string[] SearchColumns { get; set; }
     public Func<mainContext, IQueryable<T>> QueryFactory { get; set; }
 
     public bool UseClientSideData { get; set; } = false;
     public bool IgnoreFilter { get; set; } = false;
-
-    public DataGridTemplate InitialTemplate { get; set; }
     public string InitialSearchText { get; set; } = "";
-    public string SearchTextPlaceholder { get; set; } = "Quick search...";
 
     public Dictionary<string, IEnumerable<object>> CustomChoices { get; set; }
 
     public string PrintHeader { get; set; }
-
-    public bool AllowGrouping { get; set; } = true;
     public bool AllowSorting { get; set; } = true;
-    public bool AllowFiltering { get; set; } = true;
-    public bool AllowColumnReorder { get; set; } = true;
-    public bool AllowColumnPicking { get; set; } = true;
     public bool ShowDownloadButton { get; set; } = true;
-    public bool ShowColumnHeaders { get; set; } = true;
-    public bool ShowTemplates { get; set; } = true;
-
-    // -------------------------
-    // Existing helper state/output (kept close to your current code)
-    // -------------------------
     private string _lastFilter;
     private string _lastSearchText;
 
@@ -167,30 +133,19 @@ public sealed class DataGridHelper<T> where T : class
 
     public IEnumerable<T> Data { get; set; }
     public int Count { get; set; }
-
-    public DataGridSettings Settings { get; set; }
-    public PivotGridSettings PivotSettings { get; set; }
-
-    public DataGridTemplate LoadedTemplate { get; set; }
-    public string UserName { get; set; }
-
     private List<T> _cache;
-    public bool IsPivotTable { get; set; }
 
     public string PageName =>
-        !string.IsNullOrWhiteSpace(DataGridName)
-            ? DataGridName!
+        !string.IsNullOrWhiteSpace(DataListName)
+            ? DataListName!
             : typeof(T).Name;
 
-    // Parameterless constructor so DataGridVanilla can default to new()
-    public DataGridHelper()
+    // Parameterless constructor so DataListVanilla can default to new()
+    public DataListHelper()
     {
         ShouldCount = true;
     }
 
-    // -------------------------
-    // Query mutation API (caller changes QueryFactory, helper handles invalidation + reload)
-    // -------------------------
     public async Task SetQueryFactoryAsync(
         Func<mainContext, IQueryable<T>> queryFactory,
         bool clearClientCache = true,
@@ -218,9 +173,6 @@ public sealed class DataGridHelper<T> where T : class
         await ReloadAsync(ClearCache: false);
     }
 
-    // -------------------------
-    // Data loading
-    // -------------------------
     public async Task LoadAsync(LoadDataArgs args, CancellationToken ct = default)
     {
         EnsureInitialized();
@@ -308,34 +260,6 @@ public sealed class DataGridHelper<T> where T : class
         }
     }
 
-
-    public async Task LoadColumnFilterDataAsync(DataGridLoadColumnFilterDataEventArgs<T> args)
-    {
-        EnsureInitialized();
-
-        args.Top = null;
-        args.Skip = null;
-
-        var propertyName = args.Column.GetFilterProperty();
-
-        // CUSTOM CHOICES
-        if (CustomChoices != null && CustomChoices.TryGetValue(propertyName, out var values))
-        {
-            args.Data = ObjectFactoryHelpers.CreateStubs<T>(propertyName, values);
-            args.Count = values.Count();
-            return; // IMPORTANT: bypass DB
-        }
-
-        await using var ctx = await _db.CreateDbContextAsync();
-        var query = (QueryFactory ?? DefaultQuery)(ctx).AsNoTracking();
-
-        _filterChoices ??= new ColumnFilterChoices<T>();
-        await _filterChoices.GetColumnFilterDataAsync(args, query);
-    }
-
-    // -------------------------
-    // Export
-    // -------------------------
     public async Task DownloadCsvAsync(IJSRuntime js, int hardLimit = 100000, CancellationToken ct = default)
     {
         EnsureInitialized();
@@ -345,93 +269,8 @@ public sealed class DataGridHelper<T> where T : class
 
         await using var ctx = await _db.CreateDbContextAsync(ct);
         var query = (LastBuilder ?? (QueryFactory ?? DefaultQuery))(ctx);
-
-        var visibleProps = Settings != null && !IsPivotTable
-            ? Settings.Columns
-                .Where(c => c.Visible)
-                .Select(c => c.Property)
-                .Where(p => !string.IsNullOrWhiteSpace(p))
-                .Distinct()
-                .ToList()
-            : null;
-
-        await query.DownloadAsCsvAsync(new LoadDataArgs(), js, includeProperties: visibleProps);
+        await query.DownloadAsCsvAsync(new LoadDataArgs(), js);
     }
-
-    // -------------------------
-    // Templates
-    // -------------------------
-    public async Task<List<DataGridTemplate>> GetTemplatesAsync()
-    {
-        EnsureInitialized();
-
-        await using var db = await _db.CreateDbContextAsync();
-        return await db.DataGridTemplates
-            .AsNoTracking()
-            .Where(t => t.DataGridName == PageName && t.CreatedBy == UserName)
-            .ToListAsync();
-    }
-
-    public async Task SaveTemplate(string templateName, bool isPublic, RadzenPivotDataGrid<T> pivot = null)
-    {
-        EnsureInitialized();
-
-        await using var db = await _db.CreateDbContextAsync();
-        string json;
-
-        if (IsPivotTable)
-        {
-            if (pivot is null)
-            {
-                LoadedTemplate = null;
-                return;
-            }
-
-            // Auto-build PivotSettings
-            PivotSettings = new PivotGridSettings
-            {
-                RowFields = pivot.RowsCollection.Select(x => x.Property).ToList(),
-                ColumnFields = pivot.ColumnsCollection.Select(x => x.Property).ToList(),
-                Aggregates = pivot.AggregatesCollection.Select(a => new PivotAggregateSetting
-                {
-                    Property = a.Property,
-                    Title = a.Title,
-                    FormatString = a.FormatString,
-                    Aggregate = a.Aggregate.ToString()
-                }).ToList()
-            };
-
-            json = JsonSerializer.Serialize(PivotSettings);
-        }
-        else
-        {
-            json = JsonSerializer.Serialize(Settings);
-        }
-
-        LoadedTemplate = await db.UpsertDataGridTemplate(templateName, PageName, UserName, json, isPublic);
-    }
-
-    public void SetSettingsFromTemplate(DataGridTemplate tmpl)
-    {
-        LoadedTemplate = tmpl;
-
-        var json = tmpl?.DataGridSettings;
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            PivotSettings = null;
-            Settings = null;
-            return;
-        }
-
-        if (IsPivotTable)
-            PivotSettings = JsonSerializer.Deserialize<PivotGridSettings>(json);
-        else
-            Settings = JsonSerializer.Deserialize<DataGridSettings>(json);
-    }
-
-    // -------------------------
-    // Client-side mode
-    // -------------------------
     private async Task LoadClientSideAsync(LoadDataArgs args, CancellationToken ct)
     {
         EnsureInitialized();

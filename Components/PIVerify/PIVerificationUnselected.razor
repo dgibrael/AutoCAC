@@ -6,39 +6,104 @@
 @inject DialogService DialogService
 @inject NavigationManager Nav
 <h3>Select Patient from Below to Add to Private Insurance Verification Que</h3>
-<VanillaFormField Label="Only Patients with Rx in Past 365 Days">
-	<RadzenCheckBox TValue="bool" @bind-Value="onlyRecentRx" Change="@(() => GridModel.ReloadAsync())" />
-</VanillaFormField>
-<VanillaFormField Label="Only Patients Not in Que">
-	<RadzenCheckBox TValue="bool" @bind-Value="onlyUnselected" Change="@(() => GridModel.ReloadAsync())" />
-</VanillaFormField>
-<DataGridVanilla TItem="Patient" GridModel="GridModel">
-	<TrailingColumns>
-		<ActionColumn TItem="Patient" Context="x" Width="200px">
-			<RadzenButton Text="Send To PIVerification Que" Click="@(() => Send(x))"/>
-		</ActionColumn>
-	</TrailingColumns>
+<RadzenPanel Collapsed="collapsed" AllowCollapse="true">
+	<HeaderTemplate>
+		<div @onclick="@(() => collapsed = !collapsed)" class="rz-w-100 rz-h-100 rz-my-0 rz-py-0">
+			<strong>@(collapsed ? "Search Settings (Click to Expand)" : "Search Settings:")</strong>
+		</div>
+	</HeaderTemplate>
+	<ChildContent>
+		<RadzenCheckBoxList TValue="PiPatientSetting" @bind-Value="selectedSettings" Orientation="Orientation.Vertical"
+		Change="@(() => GridModel.ReloadAsync())" class="rz-mt-2">
+			<Items>
+				<RadzenCheckBoxListItem Text="Only Patients With Rx Filled in Past 365 Days" Value="PiPatientSetting.OnlyRecentRx" />
+				<RadzenCheckBoxListItem Text="Only Patients Not in Already in Que" Value="PiPatientSetting.OnlyUnselected" />
+				<RadzenCheckBoxListItem Text="Only Patients with Selected Insurance Status:" Value="PiPatientSetting.FilterByInsurance" />
+				<RadzenCheckBoxListItem Text="Uninsured" Value="PiPatientSetting.Uninsured" Style="margin-left: 1.5rem;" 
+				Disabled="!filterByInsurance" />
+				<RadzenCheckBoxListItem Text="Expired Insurance" Value="PiPatientSetting.ExpiredInsurance" Style="margin-left: 1.5rem;" 
+										Disabled="!filterByInsurance" />
+			</Items>
+		</RadzenCheckBoxList>
+	</ChildContent>
+</RadzenPanel>
+<DataGridVanilla TItem="Patient" GridModel="GridModel" RowSelect="@(x => Send(x))">
+	<RadzenDataGridColumn TItem="Patient">
+		<Template Context="x">
+			@($"{x?.Name} ({x?.ChartNumber}) DOB: {x?.Dob:d}")
+		</Template>
+	</RadzenDataGridColumn>
 </DataGridVanilla>
 @code {
-	bool onlyRecentRx = true;
-	bool onlyUnselected = true;
+	bool collapsed = true;
+	public enum PiPatientSetting
+	{
+		OnlyRecentRx,
+		OnlyUnselected,
+		FilterByInsurance,
+		Uninsured,
+		ExpiredInsurance
+	}
+	IEnumerable<PiPatientSetting> selectedSettings = new[] { 
+		PiPatientSetting.OnlyRecentRx, 
+		PiPatientSetting.OnlyUnselected, 
+		PiPatientSetting.FilterByInsurance,
+		PiPatientSetting.Uninsured,
+		PiPatientSetting.ExpiredInsurance
+	};
+	HashSet<PiPatientSetting> settingsHash => selectedSettings.ToHashSet();
+	bool filterByInsurance => settingsHash.Contains(PiPatientSetting.FilterByInsurance);
 	DataGridHelper<Patient> GridModel = new()
 	{
-		IncludeColumns = new[] { nameof(Patient.Name), nameof(Patient.ChartNumber), nameof(Patient.Dob) },
-		SearchColumns = new[] { nameof(Patient.Name), nameof(Patient.ChartNumber)}
-	}
-	;
+		SearchColumns = new[] { nameof(Patient.Name), nameof(Patient.ChartNumber)},
+		ShowDownloadButton = false,
+		ShowColumnHeaders = false,
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowGrouping = false,
+		AllowFiltering = false,
+		AllowSorting = false,
+		ShowTemplates = false,
+		SearchTextPlaceholder = "Search by Name or Chart#"
+	};
 	protected override void OnInitialized()
 	{
 		GridModel.QueryFactory = db =>
 		{
+			var settings = settingsHash;
 			var yearAgo = DateTime.Now.AddDays(-365);
-			var qry = db.Patients.AsQueryable();
-			qry = qry.Where(x => !x.Insurances.Any());
-			if (onlyUnselected)
+			var qry = db.Patients.Where(x => x.ChartNumber != null && x.ChartNumber != "");
+			if (settings.Contains(PiPatientSetting.OnlyUnselected))
 				qry = qry.Where(x => !x.PiVerifications.Any());
-			if (onlyRecentRx)
-				qry = qry.Where(x => !x.Rxes.Any(y => y.IssueDate >= yearAgo));
+			if (settings.Contains(PiPatientSetting.OnlyRecentRx))
+				qry = qry.Where(x => !x.RxFills.Any(y => y.ReleasedDateTime >= yearAgo));
+
+			if (settings.Contains(PiPatientSetting.FilterByInsurance))
+			{
+				var uninsured = settings.Contains(PiPatientSetting.Uninsured);
+				var expired = settings.Contains(PiPatientSetting.ExpiredInsurance);
+				var today = DateTime.Today.DateOnly;
+				if (uninsured && expired)
+				{
+					qry = qry.Where(x =>
+						!x.Insurances.Any() ||
+						(
+							x.Insurances.Any() &&
+							!x.Insurances.Any(i => i.ExpirationDate == null || i.ExpirationDate > today)
+						));
+				}
+				else if (uninsured)
+				{
+					qry = qry.Where(x => !x.Insurances.Any());
+				}
+				else if (expired)
+				{
+					qry = qry.Where(x =>
+						x.Insurances.Any() &&
+						!x.Insurances.Any(i => i.ExpirationDate == null || i.ExpirationDate > today));
+				}
+			}
+
 			qry = qry.OrderBy(x => x.Name);
 			return qry;
 		};

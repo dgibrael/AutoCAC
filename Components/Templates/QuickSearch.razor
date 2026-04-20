@@ -1,6 +1,6 @@
 ﻿<RadzenTextBox @bind-Value="Value"
-               Placeholder="Quick search..."
-               Style="width:100%"
+               Placeholder="@Placeholder"
+               Style="width:100%; min-width: 250px;"
                @oninput="OnInput"
                @onkeypress="OnKeyPress"
                TabIndex="1"
@@ -8,6 +8,7 @@
 @code {
     [Parameter] public string Value { get; set; } = "";
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Quick search...";
     private System.Timers.Timer searchDebounceTimer;
 
     private void OnInput(ChangeEventArgs e)
