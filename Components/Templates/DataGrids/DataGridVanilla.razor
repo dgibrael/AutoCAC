@@ -84,7 +84,7 @@
                     RowSelect="RowSelect" RowExpand="RowExpand"
                     ExpandMode="DataGridExpandMode.Single"
                     ShowExpandColumn="@(ExpandContentView!=null || ExpandContentEdit!=null || ExpandContentBoth!=null)"
-                    Context="row"
+                    Context="row" FilterCaseSensitivity="@(GridModel.UseClientSideData ? FilterCaseSensitivity.CaseInsensitive : FilterCaseSensitivity.Default)"
                     EmptyTemplate="EmptyTemplate"
                     ShowHeader="GridModel.ShowColumnHeaders"
                     >

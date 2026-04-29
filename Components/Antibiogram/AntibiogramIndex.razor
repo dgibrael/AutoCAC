@@ -7,13 +7,14 @@
     <DateRangeSelect @bind-Value="periodSelection" Change="@LoadData"/>
 </RadzenStack>
 <RadzenDataGrid Data="@matrixRows" TItem="AntibiogramMatrixRow" PageSize="10" IsLoading="IsLoading" AllowColumnResize="true"
-                AllowPaging="true" PageSizeOptions="@(new[] { 5, 10, 20 })" AllowSorting="true" AllowFiltering="true">
+                AllowPaging="true" PageSizeOptions="@(new[] { 5, 10, 20 })" AllowSorting="true" AllowFiltering="true" 
+                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnPicking="true" PickedColumnsChanged="@(x => SelectedColChange(x))">
     <Columns>
-        <RadzenDataGridColumn TItem="AntibiogramMatrixRow"
+        <RadzenDataGridColumn TItem="AntibiogramMatrixRow" Pickable="false"
                               Property="Organism" Width="200px" Filterable="true" Sortable="true"
                               Title="Organism"
-                              Frozen="true" />
-        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{antibiotics.Count() * 200}px")" >
+                              Frozen="true" FilterMode="FilterMode.Simple" FilterPlaceholder="Search by Organism..."/>
+        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{compositeCols * 21}ch")" Pickable="false">
             <Columns>
                 @foreach (var antibiotic in antibiotics)
                 {
@@ -44,6 +45,7 @@
 
 @code {
     PeriodSelection periodSelection = new PeriodSelection(PeriodOption.Past365Days);
+    int compositeCols = 1;
     public enum AntibiogramGramStain
     {
         BothGramNegativeAndPositive,
@@ -61,6 +63,11 @@
         {
             await LoadData();
         }
+    }
+
+    private async Task SelectedColChange(DataGridPickedColumnsChangedEventArgs<AntibiogramMatrixRow> cols)
+    {
+        compositeCols = cols.Columns.Count();
     }
 
     private async Task LoadData()
@@ -142,6 +149,7 @@
                 })
                 .OrderBy(x => x.Organism)
                 .ToList();
+            compositeCols = antibiotics.Count();
         }
         finally
         {
