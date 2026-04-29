@@ -14,14 +14,17 @@
                               Property="Organism" Width="200px" Filterable="true" Sortable="true"
                               Title="Organism"
                               Frozen="true" FilterMode="FilterMode.Simple" FilterPlaceholder="Search by Organism..."/>
-        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{compositeCols * 21}ch")" Pickable="false">
+        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{compositeCols * 100}px")" Pickable="false">
             <Columns>
                 @foreach (var antibiotic in antibiotics)
                 {
                     <RadzenDataGridColumn TItem="AntibiogramMatrixRow"
                                           Title="@antibiotic"
                                           Sortable="false"
-                                          Filterable="false">
+                                          Filterable="false" WhiteSpace="WhiteSpace.Wrap">
+                        <HeaderTemplate>
+                            <span style="writing-mode: vertical-rl; transform: rotate(180deg);">@antibiotic</span>
+                        </HeaderTemplate>
                         <Template Context="row">
                             @if (row.Values.TryGetValue(antibiotic, out var pct))
                             {
@@ -42,7 +45,6 @@
         </RadzenDataGridColumn>
     </Columns>
 </RadzenDataGrid>
-
 @code {
     PeriodSelection periodSelection = new PeriodSelection(PeriodOption.Past365Days);
     int compositeCols = 1;
