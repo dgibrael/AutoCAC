@@ -67,6 +67,8 @@ public partial class Patient
 
     public virtual ICollection<Lab> Labs { get; set; } = new List<Lab>();
 
+    public virtual ICollection<Microbio> Microbios { get; set; } = new List<Microbio>();
+
     public virtual ICollection<PiVerification> PiVerifications { get; set; } = new List<PiVerification>();
 
     public virtual ICollection<RxFill> RxFills { get; set; } = new List<RxFill>();

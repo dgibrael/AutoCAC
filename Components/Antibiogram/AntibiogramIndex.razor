@@ -1,0 +1,168 @@
+﻿@page "/antibiogram"
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@using AutoCAC.Components.Templates.Forms
+<RadzenStack Orientation="Orientation.Horizontal">
+    <EnumDropdown TEnum="AntibiogramGramStain" @bind-Value="gramStain" Change="@LoadData"/>
+    <DateRangeSelect @bind-Value="periodSelection" Change="@LoadData"/>
+</RadzenStack>
+<RadzenDataGrid Data="@matrixRows" TItem="AntibiogramMatrixRow" PageSize="10" IsLoading="IsLoading" AllowColumnResize="true"
+                AllowPaging="true" PageSizeOptions="@(new[] { 5, 10, 20 })" AllowSorting="true" AllowFiltering="true">
+    <Columns>
+        <RadzenDataGridColumn TItem="AntibiogramMatrixRow"
+                              Property="Organism" Width="200px" Filterable="true" Sortable="true"
+                              Title="Organism"
+                              Frozen="true" />
+        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{antibiotics.Count() * 200}px")" >
+            <Columns>
+                @foreach (var antibiotic in antibiotics)
+                {
+                    <RadzenDataGridColumn TItem="AntibiogramMatrixRow"
+                                          Title="@antibiotic"
+                                          Sortable="false"
+                                          Filterable="false">
+                        <Template Context="row">
+                            @if (row.Values.TryGetValue(antibiotic, out var pct))
+                            {
+                                <span>@pct.ToString("0")%</span>
+                                if (row.Counts.TryGetValue(antibiotic, out var ct))
+                                {
+                                    <span>@($" ({ct})")</span>
+                                }
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+            </Columns>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    PeriodSelection periodSelection = new PeriodSelection(PeriodOption.Past365Days);
+    public enum AntibiogramGramStain
+    {
+        BothGramNegativeAndPositive,
+        GramPositive,
+        GramNegative
+    }
+    AntibiogramGramStain gramStain = AntibiogramGramStain.GramPositive;
+    IEnumerable<AntibiogramDto> data;
+    List<string> antibiotics = [];
+    IEnumerable<AntibiogramMatrixRow> matrixRows;
+    bool IsLoading = true;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        IsLoading = true;
+
+        try
+        {
+            var start = periodSelection.CurrentStart.StartOfDay;
+            var end = periodSelection.CurrentEnd.StartOfNextDay;
+
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            var baseQuery = db.Microbios
+                .Where(a => a.Result == "S" || a.Result == "R" || a.Result == "I")
+                .Where(x => x.CollectionDateTime >= start && x.CollectionDateTime < end)
+                .Where(x => x.Antibiotic != null && x.Organism != null);
+
+            baseQuery = gramStain switch
+            {
+                AntibiogramGramStain.GramPositive => baseQuery.Where(x => x.GramStain == "GRAM POSITIVE"),
+                AntibiogramGramStain.GramNegative => baseQuery.Where(x => x.GramStain == "GRAM NEGATIVE"),
+                _ => baseQuery
+            };
+
+            var shapedQuery = baseQuery.Select(x => new
+            {
+                x.Id,
+                x.PatientId,
+                x.Organism,
+                x.Result,
+                x.CollectionDateTime,
+                Antibiotic = x.Antibiotic == "CEFAZOLIN"
+                    ? "CEFAZOLIN" + (EF.Functions.Like(x.Culture, "%urine%") ? " URINE" : " NONURINE")
+                    : x.Antibiotic
+            });
+
+            var firstIdsPerCulture = shapedQuery
+                .GroupBy(x => new
+                {
+                    x.PatientId,
+                    x.Antibiotic,
+                    x.Organism,
+                    x.CollectionDateTime
+                })
+                .Select(g => g.Min(x => x.Id));
+
+            var deduped = shapedQuery
+                .Where(x => firstIdsPerCulture.Contains(x.Id));
+
+            data = await deduped
+                .GroupBy(x => new
+                {
+                    x.Antibiotic,
+                    x.Organism
+                })
+                .Select(g => new AntibiogramDto
+                {
+                    Antibiotic = g.Key.Antibiotic,
+                    Organism = g.Key.Organism,
+                    Susceptible = g.Sum(x => x.Result == "S" ? 1 : 0),
+                    TotalCount = g.Count()
+                })
+                .ToListAsync();
+
+            antibiotics = data
+                .Select(x => x.Antibiotic)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToList();
+
+            matrixRows = data
+                .GroupBy(x => x.Organism)
+                .Select(g => new AntibiogramMatrixRow
+                {
+                    Organism = g.Key,
+                    Values = g.ToDictionary(x => x.Antibiotic, x => x.PctS),
+                    Counts = g.ToDictionary(x => x.Antibiotic, x => x.TotalCount)
+                })
+                .OrderBy(x => x.Organism)
+                .ToList();
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    public class AntibiogramDto
+    {
+        public string Organism { get; set; }
+        public string Antibiotic { get; set; }
+        public int Susceptible { get; set; }
+        public int TotalCount { get; set; }
+        public decimal PctS => TotalCount == 0 ? 0 : (decimal)Susceptible / TotalCount * 100;
+    }
+
+    public class AntibiogramMatrixRow
+    {
+        public string Organism { get; set; }
+        public Dictionary<string, decimal> Values { get; set; } = new();
+        public Dictionary<string, int> Counts { get; set; } = new();
+    }
+}

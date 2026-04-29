@@ -65,6 +65,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<MenuBuildMetum> MenuBuildMeta { get; set; }
 
+    public virtual DbSet<Microbio> Microbios { get; set; }
+
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
     public virtual DbSet<NightShiftRotation> NightShiftRotations { get; set; }
@@ -798,6 +800,35 @@ public partial class mainContext : DbContext
                 .HasConstraintName("FK_MenuBuildMeta_ExistingMenu");
         });
 
+        modelBuilder.Entity<Microbio>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Microbio__3213E83F89EB8DD1");
+
+            entity.ToTable("Microbio");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.AccessionNumber).HasMaxLength(200);
+            entity.Property(e => e.Antibiotic).IsUnicode(false);
+            entity.Property(e => e.CollectionDateTime).HasPrecision(3);
+            entity.Property(e => e.CompleteDate).HasColumnType("datetime");
+            entity.Property(e => e.Culture).IsUnicode(false);
+            entity.Property(e => e.DateTimeEntered).HasColumnType("datetime");
+            entity.Property(e => e.GramStain).HasMaxLength(200);
+            entity.Property(e => e.IcdCode).IsUnicode(false);
+            entity.Property(e => e.LastModified).HasColumnType("datetime");
+            entity.Property(e => e.Organism).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.Result).IsUnicode(false);
+            entity.Property(e => e.VisitDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VisitId).HasColumnName("VisitID");
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Microbios)
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("FK_Microbio_PatientID");
+        });
+
         modelBuilder.Entity<Ndf>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__NDF__3213E83F3D09905B");
@@ -1202,6 +1233,8 @@ public partial class mainContext : DbContext
             entity.HasKey(e => new { e.RxId, e.FillNum });
 
             entity.ToTable("RxFill");
+
+            entity.HasIndex(e => new { e.PatientId, e.ReleasedDateTime }, "IX_RxFill_Patient_FillDate").IsDescending(false, true);
 
             entity.Property(e => e.PatientId).HasColumnName("PatientID");
             entity.Property(e => e.Qty).HasColumnType("decimal(18, 4)");
