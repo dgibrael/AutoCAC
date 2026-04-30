@@ -61,13 +61,15 @@ public partial class Drug
 
     public DateTime? InactiveDate { get; set; }
 
-    public string? PharmacyOrderableItemId { get; set; }
+    public int? PharmacyOrderableItemId { get; set; }
 
     public string? RxCui { get; set; }
 
     public string? Nf { get; set; }
 
     public virtual ICollection<DrugRequest> DrugRequests { get; set; } = new List<DrugRequest>();
+
+    public virtual PharmacyOrderableItem? PharmacyOrderableItemNavigation { get; set; }
 
     public virtual ICollection<WardstockItem> WardstockItems { get; set; } = new List<WardstockItem>();
 }

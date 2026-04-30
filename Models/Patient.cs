@@ -65,6 +65,8 @@ public partial class Patient
 
     public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();
 
+    public virtual ICollection<Iv> Ivs { get; set; } = new List<Iv>();
+
     public virtual ICollection<Lab> Labs { get; set; } = new List<Lab>();
 
     public virtual ICollection<Microbio> Microbios { get; set; } = new List<Microbio>();

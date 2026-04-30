@@ -29,6 +29,10 @@ public partial class AuthUser
 
     public DateTimeOffset DateJoined { get; set; }
 
+    public virtual ICollection<AlertMessage> AlertMessages { get; set; } = new List<AlertMessage>();
+
+    public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
+
     public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
 
     public virtual ICollection<DrugRequestActivity> DrugRequestActivities { get; set; } = new List<DrugRequestActivity>();
@@ -36,6 +40,8 @@ public partial class AuthUser
     public virtual ICollection<EmailNotificationRecipient> EmailNotificationRecipients { get; set; } = new List<EmailNotificationRecipient>();
 
     public virtual ICollection<HighCostQue> HighCostQues { get; set; } = new List<HighCostQue>();
+
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
     public virtual ICollection<NurseCompoundTraining> NurseCompoundTrainings { get; set; } = new List<NurseCompoundTraining>();
 

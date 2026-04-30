@@ -15,6 +15,14 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<Adt> Adts { get; set; }
 
+    public virtual DbSet<Alert> Alerts { get; set; }
+
+    public virtual DbSet<AlertDef> AlertDefs { get; set; }
+
+    public virtual DbSet<AlertDefCondition> AlertDefConditions { get; set; }
+
+    public virtual DbSet<AlertMessage> AlertMessages { get; set; }
+
     public virtual DbSet<AuthGroup> AuthGroups { get; set; }
 
     public virtual DbSet<AuthUser> AuthUsers { get; set; }
@@ -22,6 +30,10 @@ public partial class mainContext : DbContext
     public virtual DbSet<AuthUserGroup> AuthUserGroups { get; set; }
 
     public virtual DbSet<BillingRx> BillingRxes { get; set; }
+
+    public virtual DbSet<ConditionDef> ConditionDefs { get; set; }
+
+    public virtual DbSet<ConditionMatch> ConditionMatches { get; set; }
 
     public virtual DbSet<DataGridTemplate> DataGridTemplates { get; set; }
 
@@ -55,6 +67,8 @@ public partial class mainContext : DbContext
 
     public virtual DbSet<InterventionLocation> InterventionLocations { get; set; }
 
+    public virtual DbSet<Iv> Ivs { get; set; }
+
     public virtual DbSet<IvcompoundingLog> IvcompoundingLogs { get; set; }
 
     public virtual DbSet<Lab> Labs { get; set; }
@@ -70,6 +84,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<Ndf> Ndfs { get; set; }
 
     public virtual DbSet<NightShiftRotation> NightShiftRotations { get; set; }
+
+    public virtual DbSet<Notification> Notifications { get; set; }
 
     public virtual DbSet<NurseCompoundTraining> NurseCompoundTrainings { get; set; }
 
@@ -118,6 +134,8 @@ public partial class mainContext : DbContext
     public virtual DbSet<TsaileComment> TsaileComments { get; set; }
 
     public virtual DbSet<TsailePatientcomment> TsailePatientcomments { get; set; }
+
+    public virtual DbSet<Ud> Uds { get; set; }
 
     public virtual DbSet<Visit> Visits { get; set; }
 
@@ -177,6 +195,98 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.PatientNavigation).WithMany(p => p.Adts)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("FK_ADT_PatientId");
+        });
+
+        modelBuilder.Entity<Alert>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Alert__3214EC078A41A540");
+
+            entity.ToTable("Alert");
+
+            entity.HasIndex(e => e.AlertDefId, "IX_Alert_AlertDefId");
+
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.LastActivityAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Status)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("OPEN");
+            entity.Property(e => e.Title).HasMaxLength(100);
+
+            entity.HasOne(d => d.AlertDef).WithMany(p => p.Alerts)
+                .HasForeignKey(d => d.AlertDefId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Alert__AlertDefI__3E90D649");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.Alerts)
+                .HasForeignKey(d => d.AuthUserId)
+                .HasConstraintName("FK__Alert__auth_user__3F84FA82");
+        });
+
+        modelBuilder.Entity<AlertDef>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC071DDC213F");
+
+            entity.ToTable("AlertDef");
+
+            entity.HasIndex(e => new { e.BaseName, e.Origin }, "UQ__AlertDef__187147C5E57E2813").IsUnique();
+
+            entity.Property(e => e.BaseName)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Origin)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<AlertDefCondition>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC07DB3D33B4");
+
+            entity.ToTable("AlertDefCondition");
+
+            entity.Property(e => e.MinMatchCount).HasDefaultValue(1);
+
+            entity.HasOne(d => d.AlertDef).WithMany(p => p.AlertDefConditions)
+                .HasForeignKey(d => d.AlertDefId)
+                .HasConstraintName("FK_AlertDefCondition_AlertDef");
+
+            entity.HasOne(d => d.ConditionDef).WithMany(p => p.AlertDefConditions)
+                .HasForeignKey(d => d.ConditionDefId)
+                .HasConstraintName("FK_AlertDefCondition_ConditionDef");
+        });
+
+        modelBuilder.Entity<AlertMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__AlertMes__3214EC071FFD9E4D");
+
+            entity.ToTable("AlertMessage");
+
+            entity.HasIndex(e => e.AlertId, "IX_AlertMessage_AlertId");
+
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.Body).HasMaxLength(4000);
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.Alert).WithMany(p => p.AlertMessages)
+                .HasForeignKey(d => d.AlertId)
+                .HasConstraintName("FK__AlertMess__Alert__43558B66");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.AlertMessages)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__AlertMess__auth___4449AF9F");
         });
 
         modelBuilder.Entity<AuthGroup>(entity =>
@@ -285,6 +395,47 @@ public partial class mainContext : DbContext
                 .IsUnicode(false);
         });
 
+        modelBuilder.Entity<ConditionDef>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Conditio__3214EC072831234F");
+
+            entity.ToTable("ConditionDef");
+
+            entity.HasIndex(e => e.Name, "UQ_ConditionDef_Name").IsUnique();
+
+            entity.Property(e => e.ConditionType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<ConditionMatch>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Conditio__3214EC0737D69EDA");
+
+            entity.ToTable("ConditionMatch");
+
+            entity.HasIndex(e => new { e.PatientId, e.ConditionDefId }, "IX_ConditionMatch_Patient_ConditionDef_Active").HasFilter("([IsActive]=(1))");
+
+            entity.HasIndex(e => new { e.ConditionDefId, e.PatientId, e.TableName, e.SourceId }, "UX_ConditionMatch_ConditionDef_Patient_Source").IsUnique();
+
+            entity.Property(e => e.EndedAt).HasPrecision(2);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.MatchedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.TableName)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.ConditionDef).WithMany(p => p.ConditionMatches)
+                .HasForeignKey(d => d.ConditionDefId)
+                .HasConstraintName("FK_ConditionMatch_ConditionDef");
+        });
+
         modelBuilder.Entity<DataGridTemplate>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__DataGrid__3214EC072ACDA0C4");
@@ -326,9 +477,7 @@ public partial class mainContext : DbContext
             entity.Property(e => e.PackageSize).IsUnicode(false);
             entity.Property(e => e.PackageType).IsUnicode(false);
             entity.Property(e => e.PharmacyOrderableItem).IsUnicode(false);
-            entity.Property(e => e.PharmacyOrderableItemId)
-                .IsUnicode(false)
-                .HasColumnName("PharmacyOrderableItemID");
+            entity.Property(e => e.PharmacyOrderableItemId).HasColumnName("PharmacyOrderableItemID");
             entity.Property(e => e.PossibleDosages).IsUnicode(false);
             entity.Property(e => e.Restriction).IsUnicode(false);
             entity.Property(e => e.RxCui)
@@ -338,6 +487,10 @@ public partial class mainContext : DbContext
             entity.Property(e => e.Synonym).IsUnicode(false);
             entity.Property(e => e.Unit).IsUnicode(false);
             entity.Property(e => e.VaPrintName).IsUnicode(false);
+
+            entity.HasOne(d => d.PharmacyOrderableItemNavigation).WithMany(p => p.Drugs)
+                .HasForeignKey(d => d.PharmacyOrderableItemId)
+                .HasConstraintName("FK_Drug_PharmacyOrderableItemID");
         });
 
         modelBuilder.Entity<DrugRequest>(entity =>
@@ -688,6 +841,55 @@ public partial class mainContext : DbContext
                 .HasColumnName("name");
         });
 
+        modelBuilder.Entity<Iv>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__IV__3213E83FD2745DDC");
+
+            entity.ToTable("IV");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.ActivityLog).IsUnicode(false);
+            entity.Property(e => e.Additive).IsUnicode(false);
+            entity.Property(e => e.AdministrationTimes).IsUnicode(false);
+            entity.Property(e => e.AppointmentDateTime).HasColumnType("datetime");
+            entity.Property(e => e.AutoDc).IsUnicode(false);
+            entity.Property(e => e.BcmaId)
+                .IsUnicode(false)
+                .HasColumnName("BcmaID");
+            entity.Property(e => e.Clinic).IsUnicode(false);
+            entity.Property(e => e.DateVerifiedByPharmacist).HasColumnType("datetime");
+            entity.Property(e => e.DosageOrdered).IsUnicode(false);
+            entity.Property(e => e.InfusionRate).IsUnicode(false);
+            entity.Property(e => e.Instructions).IsUnicode(false);
+            entity.Property(e => e.LoginDateTime).HasColumnType("datetime");
+            entity.Property(e => e.OrderableItem).IsUnicode(false);
+            entity.Property(e => e.PatientId).HasColumnName("PatientID");
+            entity.Property(e => e.PatientName).IsUnicode(false);
+            entity.Property(e => e.PharmacyOrderableItemId).HasColumnName("PharmacyOrderableItemID");
+            entity.Property(e => e.Provider).IsUnicode(false);
+            entity.Property(e => e.ProviderComments).IsUnicode(false);
+            entity.Property(e => e.Remarks).IsUnicode(false);
+            entity.Property(e => e.Schedule).IsUnicode(false);
+            entity.Property(e => e.ScheduleInterval).IsUnicode(false);
+            entity.Property(e => e.Solution).IsUnicode(false);
+            entity.Property(e => e.StartDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Status).IsUnicode(false);
+            entity.Property(e => e.StopDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Type).IsUnicode(false);
+            entity.Property(e => e.VerifyingPharmacist).IsUnicode(false);
+            entity.Property(e => e.Ward).IsUnicode(false);
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.Ivs)
+                .HasForeignKey(d => d.PatientId)
+                .HasConstraintName("FK_IV_PatientId");
+
+            entity.HasOne(d => d.PharmacyOrderableItem).WithMany(p => p.Ivs)
+                .HasForeignKey(d => d.PharmacyOrderableItemId)
+                .HasConstraintName("FK_IV_PharmacyOrderableItemID");
+        });
+
         modelBuilder.Entity<IvcompoundingLog>(entity =>
         {
             entity.HasKey(e => e.DateCompounded).HasName("PK__IVCompou__6B5679CD518D00CE");
@@ -860,6 +1062,32 @@ public partial class mainContext : DbContext
             entity.Property(e => e.StaffUserName)
                 .HasMaxLength(255)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Notifica__3214EC07C49EABAF");
+
+            entity.ToTable("Notification");
+
+            entity.HasIndex(e => new { e.AuthUserId, e.ReadAt, e.CreatedAt }, "IX_Notification_auth_user_id_ReadAt_CreatedAt").IsDescending(false, false, true);
+
+            entity.HasIndex(e => new { e.AlertMessageId, e.AuthUserId }, "UQ__Notifica__DB8971EB582E9B01").IsUnique();
+
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ReadAt).HasPrecision(2);
+
+            entity.HasOne(d => d.AlertMessage).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.AlertMessageId)
+                .HasConstraintName("FK__Notificat__Alert__4A0288F5");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Notificat__auth___490E64BC");
         });
 
         modelBuilder.Entity<NurseCompoundTraining>(entity =>
@@ -1457,6 +1685,56 @@ public partial class mainContext : DbContext
             entity.HasOne(d => d.Patient).WithMany(p => p.TsailePatientcomments)
                 .HasForeignKey(d => d.PatientId)
                 .HasConstraintName("FK_tsaile_patientcomment_PatientId");
+        });
+
+        modelBuilder.Entity<Ud>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK_UD_ID");
+
+            entity.ToTable("UD");
+
+            entity.HasIndex(e => e.Id, "IX_UD_tcp");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.ActivityLog).IsUnicode(false);
+            entity.Property(e => e.AdminTimes).IsUnicode(false);
+            entity.Property(e => e.AppointmentDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Clerk).IsUnicode(false);
+            entity.Property(e => e.Clinic).IsUnicode(false);
+            entity.Property(e => e.DayLimit).IsUnicode(false);
+            entity.Property(e => e.DispenseDrug).IsUnicode(false);
+            entity.Property(e => e.DosageOrdered).IsUnicode(false);
+            entity.Property(e => e.Dose).IsUnicode(false);
+            entity.Property(e => e.DoseLimit).IsUnicode(false);
+            entity.Property(e => e.Instructions).IsUnicode(false);
+            entity.Property(e => e.LogInDate).HasColumnType("datetime");
+            entity.Property(e => e.MedRoute).IsUnicode(false);
+            entity.Property(e => e.OrderDate).HasColumnType("datetime");
+            entity.Property(e => e.OrderableItem).IsUnicode(false);
+            entity.Property(e => e.PatientId)
+                .IsUnicode(false)
+                .HasColumnName("PatientID");
+            entity.Property(e => e.PatientName).IsUnicode(false);
+            entity.Property(e => e.PharmacyOrderableItemId).HasColumnName("PharmacyOrderableItemID");
+            entity.Property(e => e.Physician).IsUnicode(false);
+            entity.Property(e => e.Provider).IsUnicode(false);
+            entity.Property(e => e.ProviderComments).IsUnicode(false);
+            entity.Property(e => e.Schedule).IsUnicode(false);
+            entity.Property(e => e.ScheduleType).IsUnicode(false);
+            entity.Property(e => e.SpecialInstructions).IsUnicode(false);
+            entity.Property(e => e.StartDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Status).IsUnicode(false);
+            entity.Property(e => e.StopDateTime).HasColumnType("datetime");
+            entity.Property(e => e.Type).IsUnicode(false);
+            entity.Property(e => e.VerifiedDateTime).HasColumnType("datetime");
+            entity.Property(e => e.VerifyingPharmacist).IsUnicode(false);
+            entity.Property(e => e.Ward).IsUnicode(false);
+
+            entity.HasOne(d => d.PharmacyOrderableItem).WithMany(p => p.Uds)
+                .HasForeignKey(d => d.PharmacyOrderableItemId)
+                .HasConstraintName("FK_UD_PharmacyOrderableItemID");
         });
 
         modelBuilder.Entity<Visit>(entity =>

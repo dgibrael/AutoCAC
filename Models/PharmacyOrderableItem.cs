@@ -36,4 +36,10 @@ public partial class PharmacyOrderableItem
     public string? AssociatedImmunization { get; set; }
 
     public string? MedRoutes { get; set; }
+
+    public virtual ICollection<Drug> Drugs { get; set; } = new List<Drug>();
+
+    public virtual ICollection<Iv> Ivs { get; set; } = new List<Iv>();
+
+    public virtual ICollection<Ud> Uds { get; set; } = new List<Ud>();
 }

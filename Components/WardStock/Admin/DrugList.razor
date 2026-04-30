@@ -1,0 +1,13 @@
+﻿@page "/wardstock/admin/drugs"
+@using AutoCAC.Models
+
+<DataGridVanilla TItem="WardstockItem" GridModel="GridModel"/>
+
+@code {
+	DataGridHelper<WardstockItem> GridModel = new()
+	{
+		IncludeColumns = new[] { "Location.LocationName", nameof(WardstockItem.DisplayName)},
+		SearchColumns = new[] { "Location.LocationName", nameof(WardstockItem.DisplayName) },
+		QueryFactory = db => db.WardstockItems.Include(x => x.Location)
+	};
+}

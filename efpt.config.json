@@ -23,6 +23,22 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[Alert]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[AlertDef]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[AlertDefCondition]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[AlertMessage]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[auth_group]",
          "ObjectType": 0
       },
@@ -36,6 +52,14 @@
       },
       {
          "Name": "[dbo].[BillingRx]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ConditionDef]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ConditionMatch]",
          "ObjectType": 0
       },
       {
@@ -99,6 +123,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[IV]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[IVCompoundingLog]",
          "ObjectType": 0
       },
@@ -128,6 +156,10 @@
       },
       {
          "Name": "[dbo].[NightShiftRotation]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Notification]",
          "ObjectType": 0
       },
       {
@@ -216,6 +248,10 @@
       },
       {
          "Name": "[dbo].[tsaile_patientcomment]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[UD]",
          "ObjectType": 0
       },
       {
