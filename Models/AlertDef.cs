@@ -9,7 +9,7 @@ public partial class AlertDef
 {
     public int Id { get; set; }
 
-    public string BaseName { get; set; } = null!;
+    public string Name { get; set; } = null!;
 
     public string Origin { get; set; } = null!;
 
@@ -17,7 +17,9 @@ public partial class AlertDef
 
     public string DisplayName { get; set; } = null!;
 
-    public virtual ICollection<AlertDefCondition> AlertDefConditions { get; set; } = new List<AlertDefCondition>();
+    public string? Description { get; set; }
+
+    public virtual ICollection<AlertDefRuleNode> AlertDefRuleNodes { get; set; } = new List<AlertDefRuleNode>();
 
     public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 }

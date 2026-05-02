@@ -15,11 +15,11 @@ public partial class AlertMessage
 
     public string Body { get; set; } = null!;
 
-    public int AuthUserId { get; set; }
+    public int? AuthUserId { get; set; }
 
     public virtual Alert Alert { get; set; } = null!;
 
-    public virtual AuthUser AuthUser { get; set; } = null!;
+    public virtual AuthUser? AuthUser { get; set; }
 
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

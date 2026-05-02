@@ -15,7 +15,7 @@ namespace AutoCAC.Extensions
 {
     public static class MainContextExtensions
     {
-        public static async Task SetMenuBuildMetaStatusAsync(this mainContext db, int id, string newStatus = "CHANGES REQUESTED")
+        public static async Task SetMenuBuildMetaStatusAsync(this MainContext db, int id, string newStatus = "CHANGES REQUESTED")
         {
             var menu = await db.MenuBuildMeta.FirstOrDefaultAsync(m => m.Id == id);
 
@@ -30,7 +30,7 @@ namespace AutoCAC.Extensions
         }
 
         public static Task<List<DataGridTemplate>> GetDataGridTemplatesAsync(
-            this mainContext db,
+            this MainContext db,
             string dataGridName,
             string username,
             bool includeShared = true,
@@ -43,7 +43,7 @@ namespace AutoCAC.Extensions
               .ToListAsync(ct);
 
         public static async Task<DataGridTemplate> UpsertDataGridTemplate(
-            this mainContext db,
+            this MainContext db,
             string templateName,
             string dataGridName,
             string createdBy,
@@ -84,7 +84,7 @@ namespace AutoCAC.Extensions
 
 
         public static async Task<bool> SaveChangesHandleConcurrencyAsync(
-            this mainContext db,
+            this MainContext db,
             NotificationService notifications,
             string notificationHeader = "Concurrency Error",
             string notificationMsg = "This record has been edited since it was last loaded")
@@ -109,7 +109,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task UpdateItemAsync<TEntity>(
-            this mainContext db,
+            this MainContext db,
             TEntity item)
             where TEntity : class
         {
@@ -160,7 +160,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task SaveNavigationItemsAsync<TEntity>(
-            this mainContext db,
+            this MainContext db,
             TEntity item,
             params Expression<Func<TEntity, object>>[] navigationProperties)
             where TEntity : class, new()
@@ -226,7 +226,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task AddItemAsync<TEntity>(
-            this mainContext db,
+            this MainContext db,
             TEntity item,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -256,7 +256,7 @@ namespace AutoCAC.Extensions
             await db.Set<TEntity>().AddAsync(item, cancellationToken);
         }
 
-        public static IQueryable<T> SqlToIQueryable<T>(this mainContext db, FormattableString sql)
+        public static IQueryable<T> SqlToIQueryable<T>(this MainContext db, FormattableString sql)
         {
             return db.Database.SqlQuery<T>(sql);
         }

@@ -13,7 +13,7 @@ public class LookupValueService
         TsaileBatchTo
     }
 
-    private readonly IDbContextFactory<mainContext> _dbFactory;
+    private readonly IDbContextFactory<MainContext> _dbFactory;
 
     // optionSet -> rows (immutable, safe to hand out)
     private ImmutableDictionary<string, ImmutableArray<LookupValue>> _cache
@@ -23,7 +23,7 @@ public class LookupValueService
     private static readonly ImmutableArray<LookupValue> EmptyLookupValues = ImmutableArray<LookupValue>.Empty;
     private static readonly ImmutableArray<string> EmptyStrings = ImmutableArray<string>.Empty;
 
-    public LookupValueService(IDbContextFactory<mainContext> dbFactory)
+    public LookupValueService(IDbContextFactory<MainContext> dbFactory)
     {
         _dbFactory = dbFactory;
     }

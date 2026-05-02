@@ -3,7 +3,7 @@
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Components.Tsaile
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @using AutoCAC.Services
 @inject UserContextService UserContext
 @inject NavigationManager Nav
@@ -99,7 +99,7 @@
 		Nav.NavigateToWithExistingQry("/tsaile");
 	}
 
-	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>
+	private IQueryable<CommentModel> CommentQueryFactoryPatient(MainContext db) =>
 		db.TsailePatientcomments
 				.Where(x => x.PatientId == item.PatientId)
 				.Include(x => x.AuthUser)

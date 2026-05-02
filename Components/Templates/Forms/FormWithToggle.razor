@@ -1,7 +1,7 @@
 ﻿@typeparam TItem where TItem : class
 @using AutoCAC.Models
 @inject NotificationService Notifications
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 
 <LoadingContent LoadState="@(isLoading ? LoadingState.Loading: LoadingState.Loaded)">
     <RadzenTemplateForm TItem="TItem"
@@ -37,7 +37,7 @@
 </LoadingContent>
 
 @code {
-    [Parameter, EditorRequired] public Func<mainContext, IQueryable<TItem>> QueryFactory { get; set; }
+    [Parameter, EditorRequired] public Func<MainContext, IQueryable<TItem>> QueryFactory { get; set; }
     /// <summary>
     /// Template content for the editor.
     /// The template <c>Context</c> value is a <see cref="bool" />:

@@ -1,6 +1,6 @@
 ﻿@using AutoCAC.Services
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> Db
+@inject IDbContextFactory<MainContext> Db
 @inject UserContextService UserContext
 @inject DialogService DialogService
 @inject NavigationManager Nav
@@ -90,7 +90,7 @@
     </PrintContent>
 }
 @code {
-    [Parameter, EditorRequired] public Func<mainContext, IQueryable<CommentModel>> CommentQueryFactory { get; set; }
+    [Parameter, EditorRequired] public Func<MainContext, IQueryable<CommentModel>> CommentQueryFactory { get; set; }
     [Parameter, EditorRequired] public Func<CommentModel, TItem> MapToEntity { get; set; }
     [Parameter] public string Title { get; set; } = "Comments";
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;

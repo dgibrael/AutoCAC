@@ -5,7 +5,7 @@
 @using AutoCAC.Components.Tsaile
 @using AutoCAC.Components.Calculators
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @using AutoCAC.Services
 @inject UserContextService UserContext
 @inject NavigationManager Nav
@@ -143,7 +143,7 @@
 		StateHasChanged();
 	}
 
-	private IQueryable<CommentModel> CommentQueryFactory(mainContext db) =>
+	private IQueryable<CommentModel> CommentQueryFactory(MainContext db) =>
 		db.TsaileComments
 				.Where(x => x.TsaileBetterqId == Id)
 				.Include(x => x.AuthUser)
@@ -164,7 +164,7 @@
 		CreatedAt = m.CreatedAt,
 		AuthUserId = m.AuthUser.Id
 	};
-	private IQueryable<CommentModel> CommentQueryFactoryPatient(mainContext db) =>
+	private IQueryable<CommentModel> CommentQueryFactoryPatient(MainContext db) =>
 		db.TsailePatientcomments
 				.Where(x => x.PatientId == item.PatientId)
 				.Include(x => x.AuthUser)

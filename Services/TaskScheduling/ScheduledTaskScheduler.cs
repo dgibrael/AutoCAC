@@ -7,7 +7,7 @@ namespace AutoCAC.Services.TaskScheduling;
 
 public class ScheduledTaskScheduler : BackgroundService, IDisposable
 {
-    private readonly IDbContextFactory<mainContext> _dbContextFactory;
+    private readonly IDbContextFactory<MainContext> _dbContextFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ScheduledTaskScheduler> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
@@ -16,7 +16,7 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
     private bool _disposed;
     private static readonly TimeSpan MaxPollingDelay = TimeSpan.FromMinutes(60);
     public ScheduledTaskScheduler(
-        IDbContextFactory<mainContext> dbContextFactory,
+        IDbContextFactory<MainContext> dbContextFactory,
         IConfiguration configuration,
         ILogger<ScheduledTaskScheduler> logger,
         IServiceScopeFactory scopeFactory)

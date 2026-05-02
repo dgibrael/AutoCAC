@@ -219,16 +219,19 @@ namespace AutoCAC.Extensions
             Draggable = true
         };
 
-        public static Task<dynamic> OpenDefaultAsync<TTemplate>(
+        public static async Task<TItem> OpenDefaultAsync<TTemplate, TItem>(
             this DialogService dialogService,
             string title = "",
             Dictionary<string, object> parameters = null
-            ) where TTemplate : ComponentBase
+            ) 
+            where TTemplate : ComponentBase 
+            where TItem : class, new()
         {
-            return dialogService.OpenAsync<TTemplate>(
+            var result = await dialogService.OpenAsync<TTemplate>(
                 title: title,
                 parameters: parameters,
                 options: dialogService.GetDefaultOptions());
+            return result is TItem typed ? typed : null;
         }
 
         public static async Task<AutoCAC.Models.Patient> PatientSelectDialogAsync(
@@ -351,7 +354,7 @@ namespace AutoCAC.Extensions
 
         public static async Task<TItem> DataGridSelectAsync<TItem>(
             this DialogService dialogService,
-            Func<AutoCAC.Models.mainContext, IQueryable<TItem>> queryFactory = null,
+            Func<AutoCAC.Models.MainContext, IQueryable<TItem>> queryFactory = null,
             IEnumerable<string> includeColumns = null,
             IEnumerable<string> excludeColumns = null,
             string[] searchColumns = null,
@@ -390,7 +393,7 @@ namespace AutoCAC.Extensions
 
         public static async Task DataGridViewAsync<TItem>(
             this DialogService dialogService,
-            Func<AutoCAC.Models.mainContext, IQueryable<TItem>> queryFactory = null,
+            Func<AutoCAC.Models.MainContext, IQueryable<TItem>> queryFactory = null,
             IEnumerable<string> includeColumns = null,
             IEnumerable<string> excludeColumns = null,
             string[] searchColumns = null,

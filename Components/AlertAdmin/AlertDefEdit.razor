@@ -1,0 +1,129 @@
+﻿@page "/admin/alert/{Id:int}"
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject NavigationManager Nav
+@using AutoCAC.Common.Alerts
+@inject DialogService DialogService
+<BackLink />
+<LoadingContent LoadState="@((data == null) ? LoadingState.Loading : LoadingState.Loaded)">
+	<h3>@data?.DisplayName</h3>
+	<p>@data?.Description</p>
+	<RadzenButton Text="Edit Attributes" Click="EditAttributes" />
+
+    <hr />
+
+    <h4>Rule Nodes</h4>
+
+    @if (data != null && !RootNodes.Any())
+    {
+        <p>No rule nodes yet.</p>
+    }
+    else
+    {
+        <RadzenDataList Data="RootNodes">
+            <Template Context="root">
+                <AlertDefRuleNodeTree Node="root" AllNodes="data.AlertDefRuleNodes.ToList()" OnAddChildNode="@AddRuleNode" OnEditNode="@EditRuleNode" />
+            </Template>
+        </RadzenDataList>
+    }
+    <RadzenButton Text="Add Root Group" Click="@(() => AddRuleNode())" class="rz-my-2" Icon="add" ButtonStyle="ButtonStyle.Success" />
+</LoadingContent>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AlertDef data { get; set; }
+
+    private List<AlertDefRuleNode> RootNodes =>
+        data?.AlertDefRuleNodes
+            .Where(x => x.ParentId == null)
+            .OrderBy(x => x.Id)
+            .ToList()
+        ?? new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+
+        data = await db.AlertDefs
+            .Include(x => x.AlertDefRuleNodes)
+            .SingleOrDefaultAsync(x => x.Id == Id);
+    }
+
+    private async Task EditAttributes()
+    {
+        var result = await DialogService.OpenDefaultAsync<AlertDefDialog, AlertDef>(
+            "Edit Alert Definition",
+            new Dictionary<string, object>() { { "Data", data } });
+
+        await LoadData();
+        StateHasChanged();
+    }
+    private async Task EditRuleNode(AlertDefRuleNode node)
+    {
+        var result = await DialogService.OpenDefaultAsync<AlertNodeDialog, AlertDefRuleNode>(
+            "Edit Rule Node",
+            new Dictionary<string, object>
+            {
+            { "Data", node }
+            });
+
+        if (result != null)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddRuleNode(AlertDefRuleNode parentNode = null)
+    {
+        string defaultCriterionType = CriterionTypeEnum.Group.ToString();
+        var defaultOperator = "Any";
+        if (parentNode?.CriterionType != null)
+        {
+            if (parentNode.CriterionType == CriterionTypeEnum.Group.ToString())
+            {
+                defaultCriterionType = CriterionTypeEnum.MedOrder.ToString();
+                defaultOperator = "Any";
+            }
+            else
+            {
+                defaultCriterionType = CriterionTypeEnum.Modifier.ToString();
+                defaultOperator = "Eq";
+            }
+        }
+        var newNode = new AlertDefRuleNode
+        {
+            AlertDefId = data.Id,
+            ParentId = parentNode?.Id,
+            IsActive = true,
+            CriterionType = defaultCriterionType,
+            Operator = defaultOperator
+        };
+
+        var result = await DialogService.OpenDefaultAsync<AlertNodeDialog, AlertDefRuleNode>(
+            "Add Rule Node",
+            new Dictionary<string, object>
+            {
+                { "Data", newNode },
+                { "NewItem", true }
+            });
+
+        if (result != null)
+        {
+            await LoadData();
+            StateHasChanged();
+        }
+    }
+}

@@ -16,7 +16,7 @@ public enum DrugReqStatusEnum
 public partial class DrugRequest
 {
     public static async Task<DrugRequest> Create(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         string ndc,
         int userId
         )
@@ -34,7 +34,7 @@ public partial class DrugRequest
         return drugRequest;
     }
     public async Task AddActivity(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         int userId,
         string newStatus,
         string prevStatus = null,

@@ -68,7 +68,7 @@ public partial class TsaileBetterq
     }
     public bool IsLocked => LockedDateTime > DateTime.Now.AddMinutes(-10);
     public async Task UpdateStatusAsync(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         string newStatus,
         int userId,
         CancellationToken ct = default)
@@ -95,7 +95,7 @@ public partial class TsaileBetterq
     }
 
     public async Task AddCommentAsync(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         string comment,
         int userId,
         CancellationToken ct = default)
@@ -112,7 +112,7 @@ public partial class TsaileBetterq
     }
 
     public async Task CreateAsync(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         int userId,
         CancellationToken ct = default)
     {
@@ -130,7 +130,7 @@ public partial class TsaileBetterq
         await dbFactory.AddItemAsync(a, ct);
     }
     public async Task<DateTime> LockAsync(
-        IDbContextFactory<mainContext> dbFactory,
+        IDbContextFactory<MainContext> dbFactory,
         int userId,
         CancellationToken ct = default)
     {

@@ -1,0 +1,57 @@
+﻿@using AutoCAC.Models
+
+<div class="border rounded p-2 ms-3">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" JustifyContent="JustifyContent.Start">
+            <strong>@Node.CriterionType</strong>
+
+            @if (!string.IsNullOrWhiteSpace(Node.FieldName))
+            {
+                <span> / @Node.FieldName</span>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Node.Operator))
+            {
+                <span> / @Node.Operator</span>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Node.Value))
+            {
+                <span> / @Node.Value</span>
+            }
+            <RadzenButton Size="ButtonSize.Small" Text="Edit" Icon="edit" Click="@(() => OnEditClicked())"/>
+        <RadzenButton Size="ButtonSize.Small" Text="Add Child" Icon="add" Click="@(() => OnAddChildClicked())" ButtonStyle="ButtonStyle.Success" />
+    </RadzenStack>
+
+    @if (ChildNodes.Any())
+    {
+        <RadzenDataList Data="ChildNodes">
+            <Template Context="child">
+                <AlertDefRuleNodeTree Node="child" AllNodes="AllNodes" OnAddChildNode="OnAddChildNode" OnEditNode="OnEditNode" />
+            </Template>
+        </RadzenDataList>
+    }
+</div>
+
+@code {
+    [Parameter] public AlertDefRuleNode Node { get; set; }
+    [Parameter] public List<AlertDefRuleNode> AllNodes { get; set; } = new();
+
+    [Parameter] public EventCallback<AlertDefRuleNode> OnEditNode { get; set; }
+    [Parameter] public EventCallback<AlertDefRuleNode> OnAddChildNode { get; set; }
+
+    private List<AlertDefRuleNode> ChildNodes =>
+        AllNodes?
+            .Where(x => x.ParentId == Node.Id)
+            .OrderBy(x => x.Id)
+            .ToList()
+        ?? new();
+    private async Task OnEditClicked()
+    {
+        await OnEditNode.InvokeAsync(Node);
+    }
+
+    private async Task OnAddChildClicked()
+    {
+        await OnAddChildNode.InvokeAsync(Node);
+    }
+}

@@ -1,0 +1,20 @@
+﻿@typeparam TEnum where TEnum : struct, Enum
+
+<RadzenDropDown TValue="string" Data="@Items" Value="Value" ValueChanged="OnValueChanged"/>
+
+@code {
+    [Parameter] public string Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback Change { get; set; }
+
+    private List<string> Items => Enum.GetNames(typeof(TEnum)).ToList();
+
+    private async Task OnValueChanged(string newValue)
+    {
+        // push the new value up to the parent (this is what makes @bind work)
+        await ValueChanged.InvokeAsync(newValue);
+
+        // optional hook
+        await Change.InvokeAsync();
+    }
+}

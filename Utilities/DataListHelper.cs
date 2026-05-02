@@ -10,9 +10,9 @@ namespace AutoCAC;
 
 public sealed class DataListHelper<T> where T : class
 {
-    private IDbContextFactory<mainContext> _db;
+    private IDbContextFactory<MainContext> _db;
 
-    private static readonly Func<mainContext, IQueryable<T>> DefaultQuery =
+    private static readonly Func<MainContext, IQueryable<T>> DefaultQuery =
         db => db.Set<T>().AsQueryable().AsNoTracking();
 
     private readonly ParsingConfig _config = new() { RestrictOrderByToPropertyOrField = false };
@@ -22,7 +22,7 @@ public sealed class DataListHelper<T> where T : class
     private bool _reloadPending;
 
     Func<NotificationMessage, Task> _notifyAsync;
-    public void Initialize(IDbContextFactory<mainContext> dbFactory, Func<Task> reloadAsync, Func<NotificationMessage, Task> notifyAsync)
+    public void Initialize(IDbContextFactory<MainContext> dbFactory, Func<Task> reloadAsync, Func<NotificationMessage, Task> notifyAsync)
     {
         // always refresh these (safe + predictable)
         _db = dbFactory;
@@ -113,7 +113,7 @@ public sealed class DataListHelper<T> where T : class
 
     public bool ActionColumnDefault { get; set; } = false;
     public string[] SearchColumns { get; set; }
-    public Func<mainContext, IQueryable<T>> QueryFactory { get; set; }
+    public Func<MainContext, IQueryable<T>> QueryFactory { get; set; }
 
     public bool UseClientSideData { get; set; } = false;
     public bool IgnoreFilter { get; set; } = false;
@@ -129,7 +129,7 @@ public sealed class DataListHelper<T> where T : class
 
     public string SearchText { get; set; }
     public bool? ShouldCount { get; set; }
-    public Func<mainContext, IQueryable<T>> LastBuilder { get; private set; }
+    public Func<MainContext, IQueryable<T>> LastBuilder { get; private set; }
 
     public IEnumerable<T> Data { get; set; }
     public int Count { get; set; }
@@ -147,7 +147,7 @@ public sealed class DataListHelper<T> where T : class
     }
 
     public async Task SetQueryFactoryAsync(
-        Func<mainContext, IQueryable<T>> queryFactory,
+        Func<MainContext, IQueryable<T>> queryFactory,
         bool clearClientCache = true,
         bool requestReload = true,
         CancellationToken ct = default)

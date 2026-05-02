@@ -8,11 +8,11 @@ namespace AutoCAC.Services;
 
 public class EmailService
 {
-    private readonly IDbContextFactory<mainContext> _contextFactory;
+    private readonly IDbContextFactory<MainContext> _contextFactory;
     private readonly IOptionsMonitor<EmailSettings> _options;
     public EmailService(
         IOptionsMonitor<EmailSettings> options,
-        IDbContextFactory<mainContext> contextFactory)
+        IDbContextFactory<MainContext> contextFactory)
     {
         _options = options;
         _contextFactory = contextFactory;

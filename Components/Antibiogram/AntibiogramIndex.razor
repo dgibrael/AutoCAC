@@ -1,6 +1,6 @@
 ﻿@page "/antibiogram"
 @using Microsoft.EntityFrameworkCore
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 @using AutoCAC.Components.Templates.Forms
 <RadzenStack Orientation="Orientation.Horizontal">
     <EnumDropdown TEnum="AntibiogramGramStain" @bind-Value="gramStain" Change="@LoadData"/>

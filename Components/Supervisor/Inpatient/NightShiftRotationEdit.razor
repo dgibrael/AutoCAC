@@ -3,7 +3,7 @@
 @using AutoCAC.Models
 @inject DialogService DialogService
 @inject NavigationManager Nav
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 
 <RadzenButton ButtonType="ButtonType.Button" Text="Back to Totals table" Icon="arrow_back"
 Click="@(() => Nav.NavigateTo("/supervisor/inpatient/nightshiftrotation"))" />

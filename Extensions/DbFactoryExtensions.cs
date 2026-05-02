@@ -18,7 +18,7 @@ namespace AutoCAC.Extensions
     public static class DbFactoryExtensions
     {
         public static async Task<T> GetFirstValueAsync<T>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             FormattableString sql)
         {
             await using var context = factory.CreateDbContext();
@@ -28,14 +28,14 @@ namespace AutoCAC.Extensions
             return await connection.ExecuteScalarAsync<T>(qry, parameters);
         }
         public static async Task<string> GetFirstValueAsync(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             FormattableString sql)
         {
             return await factory.GetFirstValueAsync<string>(sql);
         }
 
         public static async Task<List<T>> ReadSqlAsync<T>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             FormattableString sql,
             CancellationToken ct = default
             ) where T : class
@@ -45,7 +45,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<T> ReadSqlFirstRowAsync<T>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             FormattableString sql,
             CancellationToken ct = default
             ) where T : class
@@ -55,7 +55,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<int> ExecuteSqlAsync(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             FormattableString sql)
         {
             await using var context = factory.CreateDbContext();
@@ -63,7 +63,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<int> ExecuteSqlTransactionsAsync(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             IEnumerable<FormattableString> commands)
         {
             await using var context = factory.CreateDbContext();
@@ -97,7 +97,7 @@ namespace AutoCAC.Extensions
             return totalAffectedRows;
         }
         public static async Task DeleteItemAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -108,7 +108,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task DeleteRangeAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             IEnumerable<TEntity> items,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -121,7 +121,7 @@ namespace AutoCAC.Extensions
         /// Adds a single entity and saves. Returns the tracked entity with generated keys populated.
         /// </summary>
         public static async Task<TEntity> AddItemAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -163,7 +163,7 @@ namespace AutoCAC.Extensions
         /// Adds a range of entities and saves. Returns the input sequence to allow further use with populated keys.
         /// </summary>
         public static async Task<IEnumerable<TEntity>> AddRangeAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             IEnumerable<TEntity> items,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -179,7 +179,7 @@ namespace AutoCAC.Extensions
         /// Use when you have a detached instance coming from the UI.
         /// </summary>
         public static async Task UpdateItemAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -222,7 +222,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<bool> UpdateItemWithConcurrencyAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             DialogService dialogs,
             CancellationToken ct = default)
@@ -321,7 +321,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<bool> UpdateItemForceConcurrencyAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             CancellationToken ct = default)
             where TEntity : class
@@ -399,7 +399,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<TEntity> GetByPkAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             CancellationToken cancellationToken = default,
             params object[] keyValues)
             where TEntity : class
@@ -409,7 +409,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<TEntity> GetByExpressionAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             Expression<Func<TEntity, bool>> predicate,
             bool readOnly = false,
             CancellationToken cancellationToken = default)
@@ -422,7 +422,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<TEntity> GetByPkAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             object id,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -431,7 +431,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<bool> DeleteByPkAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             CancellationToken cancellationToken = default,
             params object[] keyValues)
             where TEntity : class
@@ -445,7 +445,7 @@ namespace AutoCAC.Extensions
         }
 
         public static Task<bool> DeleteByPkAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             object id,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -455,7 +455,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<bool> ExistsAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             Expression<Func<TEntity, bool>> predicate,
             CancellationToken cancellationToken = default)
             where TEntity : class
@@ -467,7 +467,7 @@ namespace AutoCAC.Extensions
         }
 
         public static object GetPrimaryKeyValue<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity entity)
             where TEntity : class
         {
@@ -487,7 +487,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task NavigateToEdit<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             NavigationManager nav,
             TEntity entity)
             where TEntity : class
@@ -498,7 +498,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task SaveNavigationItemsAsync<TEntity>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             TEntity item,
             params Expression<Func<TEntity, object>>[] navigationProperties)
             where TEntity : class, new()
@@ -569,7 +569,7 @@ namespace AutoCAC.Extensions
         }
 
         public static async Task<IEnumerable<TProperty>> GetDistinct<TEntity, TProperty>(
-            this IDbContextFactory<mainContext> factory,
+            this IDbContextFactory<MainContext> factory,
             Expression<Func<TEntity, TProperty>> selector)
             where TEntity : class
         {

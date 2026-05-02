@@ -8,7 +8,7 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @inject AutoCAC.Services.UserContextService UserContext
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
@@ -73,7 +73,6 @@
     private bool IsLoading;
 
     public RadzenDataList<TItem> DataList;
-    private TItem row;
 
     protected override void OnInitialized()
     {

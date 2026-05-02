@@ -10,7 +10,7 @@
 @using AutoCAC.Utilities
 @using AutoCAC.Components.OrderDialogs
 @using Microsoft.AspNetCore.Components.Web
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 @inject IJSRuntime JS
 @inject RPMSService RPMS
@@ -218,7 +218,7 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task GetCurrentMenu(mainContext db)
+    private async Task GetCurrentMenu(MainContext db)
     {
         currentMenu = await db.MenuBuildMeta
                 .Include(m => m.ExistingMenuNavigation)
@@ -264,7 +264,7 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task GetNewItems(mainContext db)
+    private async Task GetNewItems(MainContext db)
     {
         newItems = await db.MenuBuilds
             .Include(mb => mb.Item)
@@ -460,7 +460,7 @@
         await UpdateItem(item);
     }
 
-    private async Task SaveItemChanges(mainContext db)
+    private async Task SaveItemChanges(MainContext db)
     {
         bool success = await db.SaveChangesHandleConcurrencyAsync(NotificationService);
         if (!success)

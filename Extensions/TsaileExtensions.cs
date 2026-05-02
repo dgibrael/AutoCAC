@@ -20,7 +20,7 @@ namespace AutoCAC.Extensions.Tsaile
     public static class TsaileExtensions
     {
         public static async Task<TsaileBetterq> UpdateStatusAsync(
-            this IDbContextFactory<mainContext> dbFactory,
+            this IDbContextFactory<MainContext> dbFactory,
             long ticketId,
             string newStatus,
             int userId,
@@ -32,7 +32,7 @@ namespace AutoCAC.Extensions.Tsaile
         }
 
         public static async Task<TsaileBetterq> UpdateStatusAsync(
-            this mainContext db,
+            this MainContext db,
             TsaileBetterq ticket,
             string newStatus,
             int userId,
@@ -60,7 +60,7 @@ namespace AutoCAC.Extensions.Tsaile
         }
 
         public static async Task<TsaileBetterq> AdvanceStatusAndSaveAsync(
-            this IDbContextFactory<mainContext> dbFactory,
+            this IDbContextFactory<MainContext> dbFactory,
             long ticketId,
             int userId,
             CancellationToken ct = default)
@@ -72,7 +72,7 @@ namespace AutoCAC.Extensions.Tsaile
         }
 
         public static async Task<TsaileBetterq> ReverseStatusAndSaveAsync(
-            this IDbContextFactory<mainContext> dbFactory,
+            this IDbContextFactory<MainContext> dbFactory,
             long ticketId,
             int userId,
             CancellationToken ct = default)
@@ -84,7 +84,7 @@ namespace AutoCAC.Extensions.Tsaile
         }
 
         public static async Task<TsaileBetterq> AddCommentAsync(
-            this IDbContextFactory<mainContext> dbFactory,
+            this IDbContextFactory<MainContext> dbFactory,
             long ticketId,
             string comment,
             int userId,
@@ -106,7 +106,7 @@ namespace AutoCAC.Extensions.Tsaile
         }
 
         public static async Task<TsaileBetterq> CreateAsync(
-            this IDbContextFactory<mainContext> dbFactory,
+            this IDbContextFactory<MainContext> dbFactory,
             long ticketId,
             int userId,
             CancellationToken ct = default)

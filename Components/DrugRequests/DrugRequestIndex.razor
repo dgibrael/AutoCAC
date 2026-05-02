@@ -1,6 +1,6 @@
 ﻿@page "/drugrequest"
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject UserContextService User
 @inject NotificationService Notifications
 @inject DialogService Dialogs
@@ -18,7 +18,7 @@
 
 
 @code {
-	DrugReqStatusEnum? drugReqStatus = null;
+	//DrugReqStatusEnum? drugReqStatus = null;
 	DataGridHelper<DrugRequest> GridModel = new()
 	{
 		IncludeColumns = new[] { nameof(DrugRequest.CreatedAt), "Drug.Name", nameof(DrugRequest.Comments) }

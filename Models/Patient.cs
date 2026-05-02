@@ -63,6 +63,8 @@ public partial class Patient
 
     public virtual ICollection<Adt> Adts { get; set; } = new List<Adt>();
 
+    public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
+
     public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();
 
     public virtual ICollection<Iv> Ivs { get; set; } = new List<Iv>();

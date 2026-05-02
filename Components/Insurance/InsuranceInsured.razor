@@ -1,6 +1,6 @@
 ﻿@page "/insurance/insured"
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject DialogService Dialogs
 <EnumDropdown TEnum="InsuranceReportType" Change="@(() => GridModel.ReloadAsync())" @bind-Value="selectedReportType" />
 <h4>@selectedReportType.ReportDescription</h4>

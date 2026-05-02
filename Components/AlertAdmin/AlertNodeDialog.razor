@@ -1,0 +1,32 @@
+﻿@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@using AutoCAC.Common.Alerts
+
+<VanillaDialogForm TItem="AlertDefRuleNode" Item="_data" NewItem="@NewItem">
+	<VanillaFormField Label="Criterion Type">
+		<EnumStringDropdown TEnum="CriterionTypeEnum" @bind-Value="@_data.CriterionType"/>
+	</VanillaFormField>
+	<VanillaFormField Label="Field Name">
+		<RadzenTextBox @bind-Value="@_data.FieldName" />
+	</VanillaFormField>
+	<VanillaFormField Label="Operator">
+		<RadzenTextBox @bind-Value="@_data.Operator" />
+	</VanillaFormField>
+	<VanillaFormField Label="Value">
+		<RadzenTextBox @bind-Value="@_data.Value" />
+	</VanillaFormField>
+	<VanillaFormField Label="Active">
+		<RadzenCheckBox @bind-Value="@_data.IsActive" />
+	</VanillaFormField>
+</VanillaDialogForm>
+
+@code {
+	[Parameter] public AlertDefRuleNode Data { get; set; }
+	[Parameter] public bool NewItem { get; set; } = false;
+	AlertDefRuleNode _data;
+	protected override void OnParametersSet()
+	{
+		_data = Data ?? new AlertDefRuleNode();
+	}
+
+}

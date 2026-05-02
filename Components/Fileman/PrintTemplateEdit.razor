@@ -4,7 +4,7 @@
 @using System.Text
 @using AutoCAC.Extensions
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 
 <DataGridEditable TItem="FilemanPrintTemplateItem" GridModel="GridModel" AddAction="Add" @ref="grid" InsertAfterItem="lastItem">
     <ChildContent>

@@ -8,12 +8,12 @@
 @using AutoCAC.Models
 @using Microsoft.EntityFrameworkCore
 @using AutoCAC.Extensions
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 @using AutoCAC.Components.Templates
 @using AutoCAC.Components.Templates.DataGrids
 @using System.Text.Json
 @inject AutoCAC.Services.UserContextService UserContext
-@inject mainContext Db
+@inject MainContext Db
 @using AutoCAC.Utilities
 <DataGridVanilla TItem="AutoCAC.Models.InpatientMedOrder" >
     <RadzenDataGridColumn TItem="AutoCAC.Models.InpatientMedOrder" Property="ChartNumber" Title="ChartNumber" />

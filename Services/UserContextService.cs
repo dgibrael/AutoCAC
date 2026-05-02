@@ -12,7 +12,7 @@ namespace AutoCAC.Services
 {
     public class UserContextService
     {
-        private readonly IDbContextFactory<mainContext> _dbFactory;
+        private readonly IDbContextFactory<MainContext> _dbFactory;
         private readonly AuthenticationStateProvider _authProvider;
 
         public AuthUser UserProfile { get; private set; }
@@ -81,7 +81,7 @@ namespace AutoCAC.Services
         public bool IsAllowedRPMSInput { get; private set; }
 
         public UserContextService(
-            IDbContextFactory<mainContext> dbFactory,
+            IDbContextFactory<MainContext> dbFactory,
             AuthenticationStateProvider authProvider)
         {
             _dbFactory = dbFactory;

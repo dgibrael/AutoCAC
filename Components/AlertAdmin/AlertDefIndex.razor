@@ -1,0 +1,21 @@
+﻿@page "/admin/alert"
+@inject DialogService DialogService
+@using AutoCAC.Models
+@inject NavigationManager Nav
+<DataGridVanilla TItem="AlertDef"  AddButtonClick="Add"/>
+
+@code {
+	DataGridHelper<AlertDef> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(AlertDef.Name), nameof(AlertDef.DisplayName), nameof(AlertDef.Description) },
+		SearchColumns = new[] { nameof(AlertDef.Name), nameof(AlertDef.DisplayName)}
+	};
+	private async Task Add()
+	{
+		var result = await DialogService.OpenDefaultAsync<AlertDefDialog, AlertDef>("Edit Alert Definition");
+		if (result != null)
+		{
+			Nav.NavigateToWithExistingQry($"/admin/alert/{result.Id}");
+		}
+	}
+}

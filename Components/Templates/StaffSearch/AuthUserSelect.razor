@@ -1,6 +1,6 @@
 ﻿@using AutoCAC.Models
 @using AutoCAC.Services
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject IAdSearch adSearch
 @inject DialogService Dialog
 <DataGridVanilla TItem="AuthUser" GridModel="GridModel" RowSelect="@AuthUserSelected"/>

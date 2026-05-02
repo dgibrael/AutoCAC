@@ -1,6 +1,6 @@
 ﻿@typeparam TItem where TItem : class, new()
 @using AutoCAC.Models
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject DialogService DialogService
 @inject NotificationService Notifications
 <RadzenTemplateForm TItem="TItem"
@@ -20,6 +20,7 @@
     [Parameter] public TItem Item { get; set; }
     [Parameter] public RenderFragment<TItem> ChildContent { get; set; }
     [Parameter] public bool SaveToDb { get; set; } = true;
+    [Parameter] public bool NewItem { get; set; } = false;
     private TItem _item = new();
     bool _isBusy;
     protected override void OnParametersSet()
@@ -38,7 +39,14 @@
             {
                 try
                 {
-                    await DbFactory.UpdateItemAsync(_item);
+                    if (NewItem)
+                    {
+                        await DbFactory.AddItemAsync(_item);
+                    }
+                    else
+                    {
+                        await DbFactory.UpdateItemAsync(_item);
+                    }
                     Notifications.Success("Saved Successfully");
                 }
                 catch

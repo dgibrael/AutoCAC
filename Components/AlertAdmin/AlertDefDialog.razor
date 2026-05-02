@@ -1,0 +1,31 @@
+﻿@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@using AutoCAC.Common.Alerts
+
+<VanillaDialogForm TItem="AlertDef" Item="_data" NewItem="@(Data == null)">
+	<VanillaFormField Label="Name">
+		<RadzenTextBox @bind-Value="@_data.Name" />
+	</VanillaFormField>
+	<VanillaFormField Label="Display Name">
+		<RadzenTextBox @bind-Value="@_data.DisplayName" />
+	</VanillaFormField>
+	<VanillaFormField Label="Origin">
+		<EnumStringDropdown TEnum="OriginTypeEnum" @bind-Value="@_data.Origin"/>
+	</VanillaFormField>
+	<VanillaFormField Label="Description">
+		<RadzenTextArea @bind-Value="@_data.Description" />
+	</VanillaFormField>
+	<VanillaFormField Label="Active">
+		<RadzenCheckBox @bind-Value="@_data.IsActive" />
+	</VanillaFormField>
+</VanillaDialogForm>
+
+@code {
+	[Parameter] public AlertDef Data { get; set; }
+	AlertDef _data;
+	protected override void OnParametersSet()
+	{
+		_data = Data ?? new AlertDef();
+	}
+
+}

@@ -8,7 +8,7 @@
 @using Microsoft.EntityFrameworkCore
 @using AutoCAC.Extensions
 @using AutoCAC.Components.OrderDialogs
-@inject IDbContextFactory<AutoCAC.Models.mainContext> DbFactory
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
 
 <RadzenTemplateForm Data="@currentMenu" TItem="MenuBuildMetum" Submit="@SaveMenuMeta">
@@ -35,7 +35,7 @@
 @code {
 
     private AutoCAC.Models.MenuBuildMetum currentMenu;
-    private mainContext db;
+    private MainContext db;
 
     protected override async Task OnInitializedAsync()
     {

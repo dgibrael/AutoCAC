@@ -3,7 +3,7 @@
 @using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Components.Templates.Printing
 @using AutoCAC.Services
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject NavigationManager Nav
 @inject UserContextService UserContext
 @inject NotificationService NotificationService
@@ -63,7 +63,7 @@
 				</DataGridEditable>
 			</RadzenColumn>
 		<RadzenColumn Size="4">
-			<CommentTemplate TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
+			<DataGridEditable TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
 		</RadzenColumn>
 		</RadzenRow>
 		@if(UserType == UserTypes.super)
@@ -181,7 +181,7 @@
 		StateHasChanged();
 	}
 
-	private async Task LoadPageItem(mainContext db)
+	private async Task LoadPageItem(MainContext db)
 	{
 		currentOrder = await db.WardstockOrders
 					.Include(x => x.Location)
@@ -193,7 +193,7 @@
 		await using var db = await DbFactory.CreateDbContextAsync();
 		await LoadPageItem(db);
 	}
-	private Func<mainContext, IQueryable<WardstockItem>> ItemChoiceQry =>
+	private Func<MainContext, IQueryable<WardstockItem>> ItemChoiceQry =>
 		db =>
 			db.WardstockItems
 					.Where(wi =>
@@ -303,7 +303,7 @@
 		Nav.NavigateToRelative(fromParent: true);
 	}
 
-	private IQueryable<CommentModel> CommentQueryFactory(mainContext db) =>
+	private IQueryable<CommentModel> CommentQueryFactory(MainContext db) =>
 		db.WardstockComments
 				.Where(x => x.WardstockOrderId == Id)
 				.Include(x => x.AuthUser)

@@ -4,7 +4,7 @@
 @using Radzen
 @using Radzen.Blazor
 @inject IServiceProvider Services
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @if (!OperatingSystem.IsWindows())
 {
     <RadzenAlert Severity="AlertSeverity.Warning" Style="max-width: 640px">

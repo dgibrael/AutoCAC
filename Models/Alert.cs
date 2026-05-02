@@ -25,9 +25,13 @@ public partial class Alert
 
     public bool IsPrivate { get; set; }
 
+    public int? PatientId { get; set; }
+
     public virtual AlertDef AlertDef { get; set; } = null!;
 
     public virtual ICollection<AlertMessage> AlertMessages { get; set; } = new List<AlertMessage>();
 
     public virtual AuthUser? AuthUser { get; set; }
+
+    public virtual Patient? Patient { get; set; }
 }

@@ -61,7 +61,7 @@ builder.Services.AddScoped<FtpUploadService>();
 
 
 var connString = builder.Configuration.GetConnectionString("mainConnection");
-builder.Services.AddDbContextFactory<AutoCAC.Models.mainContext>(options =>
+builder.Services.AddDbContextFactory<AutoCAC.Models.MainContext>(options =>
 {
     options.UseSqlServer(connString);
     options.ConfigureWarnings(w =>

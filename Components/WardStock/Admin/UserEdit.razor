@@ -1,7 +1,7 @@
 ﻿@page "/wardstock/admin/users/{Id:int}"
 @using AutoCAC.Models
 @using AutoCAC.Components.Templates.Forms
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 @inject NavigationManager Nav
 <LoadingContent LoadState="@(!pageLoaded ? LoadingState.Loading : LoadingState.Loaded)">
 	<RadzenTemplateForm TItem="AuthUser" Data="@user" Submit="@OnSubmit">

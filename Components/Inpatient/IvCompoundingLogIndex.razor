@@ -1,7 +1,7 @@
 ﻿@page "/inpatient/ivcompoundinglog"
 @using AutoCAC.Models
 @inject DialogService Dialog
-@inject IDbContextFactory<mainContext> DbFactory
+@inject IDbContextFactory<MainContext> DbFactory
 <h3>IV Compounding Log</h3>
 <DateRangeSelect @bind-Value="@selectedPeriod" Change="@RefreshAsync" />
 <h3>@($"Total For Selected Date Range: {_periodSum}")</h3>

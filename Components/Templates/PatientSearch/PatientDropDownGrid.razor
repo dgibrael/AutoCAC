@@ -1,7 +1,7 @@
 ﻿@using AutoCAC
 @using Radzen
 @inject LoadDataGridService DataService
-@inject IDbContextFactory<AutoCAC.Models.mainContext> Db
+@inject IDbContextFactory<AutoCAC.Models.MainContext> Db
 <RadzenDropDownDataGrid TValue="int" @ref="grid0"
                         Data="@patients"
                         Count="@count"
