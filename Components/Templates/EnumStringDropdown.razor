@@ -1,20 +1,48 @@
 ﻿@typeparam TEnum where TEnum : struct, Enum
 
-<RadzenDropDown TValue="string" Data="@Items" Value="Value" ValueChanged="OnValueChanged"/>
+<RadzenDropDown TValue="string" Data="@ItemDict" 
+                TextProperty="Value"
+                ValueProperty="Key"
+                Value="@Value"
+                ValueChanged="OnValueChanged"/>
 
 @code {
     [Parameter] public string Value { get; set; }
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public EventCallback Change { get; set; }
+	[Parameter] public IEnumerable<string> IncludeValues { get; set; }
+	[Parameter] public IEnumerable<string> ExcludeValues { get; set; }
+    private IReadOnlyDictionary<string, string> ItemDict { get; set; }
+        = new Dictionary<string, string>();
 
-    private List<string> Items => Enum.GetNames(typeof(TEnum)).ToList();
+    protected override void OnInitialized()
+    {
+        ItemDict = EnumExtensionsCustom
+            .GetDictionary<TEnum>()
+            .ToDictionary(
+                x => x.Key.ToString(),
+                x => x.Value);
+
+        if (IncludeValues != null && IncludeValues.Any())
+        {
+			var includeSet = new HashSet<string>(IncludeValues, StringComparer.OrdinalIgnoreCase);
+            ItemDict = ItemDict
+                .Where(x => includeSet.Contains(x.Key))
+                .ToDictionary(x => x.Key, x => x.Value);
+		};
+
+        if (ExcludeValues != null && ExcludeValues.Any())
+        {
+			var excludeSet = new HashSet<string>(ExcludeValues, StringComparer.OrdinalIgnoreCase);
+            ItemDict = ItemDict
+                .Where(x => !excludeSet.Contains(x.Key))
+                .ToDictionary(x => x.Key, x => x.Value);
+        }
+    }
 
     private async Task OnValueChanged(string newValue)
     {
-        // push the new value up to the parent (this is what makes @bind work)
         await ValueChanged.InvokeAsync(newValue);
-
-        // optional hook
         await Change.InvokeAsync();
     }
 }

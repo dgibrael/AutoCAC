@@ -1,4 +1,5 @@
-﻿Drop TABLE if exists dbo.RuleEngineSourceState;
+﻿Drop TABLE if exists dbo.ProcessState;
+Drop TABLE if exists dbo.RuleEngineFact;
 Drop TABLE if exists  dbo.Notification;
 Drop TABLE if exists  dbo.AlertMessage;
 Drop TABLE if exists  dbo.Alert;
@@ -20,9 +21,10 @@ CREATE TABLE dbo.AlertDefRuleNode (
     Id int IDENTITY(1,1) PRIMARY KEY NOT NULL,
     AlertDefId int NOT NULL,
     ParentId int NULL,
-    CriterionType varchar(50) NOT NULL,
+    IsGroup bit NOT NULL,
+    DataType varchar(50) NULL,
     FieldName varchar(100) NULL,
-    Operator varchar(20) NULL,
+    Operator varchar(20) NOT NULL,
     Value nvarchar(200) NULL,
     IsActive bit NOT NULL DEFAULT 1,
     CONSTRAINT FK_AlertDefRuleNode_AlertDef FOREIGN KEY (AlertDefId)
@@ -31,15 +33,13 @@ CREATE TABLE dbo.AlertDefRuleNode (
         REFERENCES dbo.AlertDefRuleNode(Id)
 );
 GO
-
 CREATE INDEX IX_AlertDefRuleNode_AlertDefId_ParentId
     ON dbo.AlertDefRuleNode(AlertDefId, ParentId);
 GO
 
 CREATE INDEX IX_AlertDefRuleNode_Lookup
-    ON dbo.AlertDefRuleNode(CriterionType, FieldName, Value, AlertDefId)
-    WHERE CriterionType <> 'Group'
-      AND CriterionType <> 'Modifier';
+    ON dbo.AlertDefRuleNode(DataType, FieldName, AlertDefId)
+    WHERE IsGroup = 0;
 GO
 
 CREATE TABLE dbo.Alert(
@@ -95,10 +95,30 @@ CREATE INDEX IX_Notification_auth_user_id_ReadAt_CreatedAt
     ON dbo.Notification(auth_user_id, ReadAt, CreatedAt DESC);
 GO
 
-CREATE TABLE dbo.RuleEngineSourceState (
-    TableName varchar(50) PRIMARY KEY NOT NULL,
-    LastImportAt datetime2(2) NOT NULL,
-    LastProcessedAt datetime2(2) NULL,
+CREATE TABLE dbo.RuleEngineFact (
+    Id bigint IDENTITY(1,1) PRIMARY KEY NOT NULL,
+    DataType varchar(50) NOT NULL,         -- LabResult, MedOrder, Microbio, Drug, PharmacyOrderableItem, etc.
+    TableName varchar(50) NULL,
+    PatientId int NULL,
+    RecordKey varchar(100) NOT NULL,       -- actual source/business record identifier
+    Instance int NOT NULL DEFAULT 0,
+    FieldName varchar(100) NOT NULL,       -- Result, DrugClass, Dose, Susceptibility, etc.
+    FieldValue nvarchar(4000) NULL,
+    IsActive bit NOT NULL DEFAULT 1,
+    LastImportAt datetime2(2) NOT NULL DEFAULT SYSDATETIME(),
+    NeedsProcessing bit NOT NULL DEFAULT 1
+);
+GO
+CREATE UNIQUE INDEX UX_RuleEngineFact
+    ON dbo.RuleEngineFact(DataType, TableName, PatientId, RecordKey, FieldName, Instance);
+GO
+CREATE INDEX IX_RuleEngineFact_Pending
+    ON dbo.RuleEngineFact(DataType, FieldName, PatientId, RecordKey)
+    WHERE NeedsProcessing = 1 AND IsActive = 1;
+GO
+CREATE TABLE dbo.ProcessState (
+    ProcessName varchar(100) PRIMARY KEY NOT NULL,
+    LastImportCompletedAt datetime2(2) NOT NULL DEFAULT SYSDATETIME(),
     ProcessingStartedAt datetime2(2) NULL
 );
 GO

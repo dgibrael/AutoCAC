@@ -88,28 +88,13 @@
 
     private async Task AddRuleNode(AlertDefRuleNode parentNode = null)
     {
-        string defaultCriterionType = CriterionTypeEnum.Group.ToString();
-        var defaultOperator = "Any";
-        if (parentNode?.CriterionType != null)
-        {
-            if (parentNode.CriterionType == CriterionTypeEnum.Group.ToString())
-            {
-                defaultCriterionType = CriterionTypeEnum.MedOrder.ToString();
-                defaultOperator = "Any";
-            }
-            else
-            {
-                defaultCriterionType = CriterionTypeEnum.Modifier.ToString();
-                defaultOperator = "Eq";
-            }
-        }
         var newNode = new AlertDefRuleNode
         {
             AlertDefId = data.Id,
             ParentId = parentNode?.Id,
             IsActive = true,
-            CriterionType = defaultCriterionType,
-            Operator = defaultOperator
+            DataType = parentNode?.DataType,
+            Operator = "All"
         };
 
         var result = await DialogService.OpenDefaultAsync<AlertNodeDialog, AlertDefRuleNode>(

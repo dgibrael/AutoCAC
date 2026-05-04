@@ -3,15 +3,28 @@
 public enum OriginTypeEnum
 {
     Scheduled,
-    Triggered,
+    RulesEngine,
     Manual
 }
 
-public enum CriterionTypeEnum
+public enum DataTypeEnum
 {
-    Group,
-    Modifier,
     LabResult,
     MicrobioResult,
-    MedOrder
+    MedOrder,
+    Diagnosis
+}
+
+public enum PredicateOperatorEnum
+{
+    Equal,
+    NotEqual,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+    Contains,
+    NotContains,
+    Null,
+    NotNull
 }

@@ -11,7 +11,7 @@ public partial class InpatientMedOrder
 
     public string? ChartNumber { get; set; }
 
-    public string? PatientId { get; set; }
+    public int? PatientId { get; set; }
 
     public string? PatientName { get; set; }
 
@@ -45,7 +45,7 @@ public partial class InpatientMedOrder
 
     public string? OrderableItem { get; set; }
 
-    public string? PharmacyOrderableItemId { get; set; }
+    public int? PharmacyOrderableItemId { get; set; }
 
     public string? DosageOrdered { get; set; }
 

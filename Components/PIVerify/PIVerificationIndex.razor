@@ -10,29 +10,27 @@
 @inject NotificationService NotificationService
 
 <PageTitle>Private Insurance Verification</PageTitle>
-<div class="content-container--wide">
-    <DataGridVanilla TItem="PiVerification" GridModel="GridModel">
-        <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> 
-            <RadzenButton Text="Add (Beta)" Click="@(() => Nav.NavigateToRelative("/unselected"))" 
-                ButtonStyle="ButtonStyle.Warning" />
-        </HeaderContent>
-        <ChildContent>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
-                <Template Context="x" ><RadzenButton title="@x?.Patient?.Name" Variant="Variant.Text" Text="@x?.Patient?.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>
-            </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #" Width="100px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="100px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
-            <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID" Width="150px" />
-            <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
-            <ActionColumn TItem="PiVerification" Context="row">
-                <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
-            </ActionColumn>
-        </ChildContent>
-    </DataGridVanilla>
-</div>
+<DataGridVanilla TItem="PiVerification" GridModel="GridModel">
+    <HeaderContent> <PatientDialogButton AfterPatientSelect="NewPatientSelect" /> 
+        <RadzenButton Text="Add (Beta)" Click="@(() => Nav.NavigateToRelative("/unselected"))" 
+            ButtonStyle="ButtonStyle.Warning" />
+    </HeaderContent>
+    <ChildContent>
+        <RadzenDataGridColumn TItem="PiVerification" Property="Patient.Name" Title="Patient">
+            <Template Context="x" ><RadzenButton title="@x?.Patient?.Name" Variant="Variant.Text" Text="@x?.Patient?.Name" Click="@(() => Nav.NavigateToRelative(x.Id.ToString()))"></RadzenButton></Template>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="PiVerification" Property="Patient.ChartNumber" Title="Chart #" Width="100px"/>
+        <RadzenDataGridColumn TItem="PiVerification" Property="CurrentStatus" Title="Status" FilterMode="FilterMode.CheckBoxList" Width="150px"/>
+        <RadzenDataGridColumn TItem="PiVerification" Property="Bin" Title="BIN" Width="100px"/>
+        <RadzenDataGridColumn TItem="PiVerification" Property="Pcn" Title="PCN" Width="100px"/>
+        <RadzenDataGridColumn TItem="PiVerification" Property="GroupId" Title="Group ID" Width="150px"/>
+        <RadzenDataGridColumn TItem="PiVerification" Property="CardholderId" Title="Cardholder ID" Width="150px" />
+        <RadzenDataGridColumn TItem="PiVerification" Property="LastModified" Title="Last Modified" />
+        <ActionColumn TItem="PiVerification" Context="row">
+            <SplitButtonTemplate DefaultButtonValue="Edit" Buttons="@BuildButtons(row)" />
+        </ActionColumn>
+    </ChildContent>
+</DataGridVanilla>
 
 @code {
     [Parameter][SupplyParameterFromQuery(Name = "dataGridTemplateId")] public int? TemplateId { get; set; }

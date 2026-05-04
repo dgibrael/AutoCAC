@@ -13,11 +13,13 @@ public partial class AlertDefRuleNode
 
     public int? ParentId { get; set; }
 
-    public string CriterionType { get; set; } = null!;
+    public bool IsGroup { get; set; }
+
+    public string? DataType { get; set; }
 
     public string? FieldName { get; set; }
 
-    public string? Operator { get; set; }
+    public string Operator { get; set; } = null!;
 
     public string? Value { get; set; }
 

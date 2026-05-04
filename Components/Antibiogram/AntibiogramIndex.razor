@@ -11,10 +11,13 @@
                 FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" AllowColumnPicking="true" PickedColumnsChanged="@(x => SelectedColChange(x))">
     <Columns>
         <RadzenDataGridColumn TItem="AntibiogramMatrixRow" Pickable="false"
-                              Property="Organism" Width="200px" Filterable="true" Sortable="true"
+                              Property="Organism" Width="360px" Filterable="true" Sortable="true"
                               Title="Organism"
                               Frozen="true" FilterMode="FilterMode.Simple" FilterPlaceholder="Search by Organism..."/>
-        <RadzenDataGridColumn Title="Antibiotic Susceptibility% (Total Tested)" Width="@($"{compositeCols * 100}px")" Pickable="false">
+        <RadzenDataGridColumn Width="@($"{compositeCols * 100}px")" Pickable="false">
+            <HeaderTemplate>
+                <div title="@headingNote">Antibiotic Susceptibility% (Total Tested)<sup>1</sup></div>
+            </HeaderTemplate>
             <Columns>
                 @foreach (var antibiotic in antibiotics)
                 {
@@ -28,10 +31,21 @@
                         <Template Context="row">
                             @if (row.Values.TryGetValue(antibiotic, out var pct))
                             {
-                                <span>@pct.ToString("0")%</span>
-                                if (row.Counts.TryGetValue(antibiotic, out var ct))
+                                var ct = row.Counts.GetValueOrDefault(antibiotic);
+                                bool isUnder = ct < minIsolates;
+                                if(isUnder)
                                 {
-                                    <span>@($" ({ct})")</span>
+                                    <div class="rz-color-danger-darker" title="@clsiNote">
+                                        <span>@pct.ToString("0")%</span>
+                                        <span> (@ct)<sup>2</sup></span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="rz-color-success-darker">
+                                        <span>@pct.ToString("0")%</span>
+                                        <span> (@ct)</span>
+                                    </div>
                                 }
                             }
                             else
@@ -45,21 +59,35 @@
         </RadzenDataGridColumn>
     </Columns>
 </RadzenDataGrid>
+<RadzenFooter>
+    <ol>
+        <li>@headingNote</li>
+        <li>@clsiNote</li>
+    </ol>
+</RadzenFooter>
 @code {
     PeriodSelection periodSelection = new PeriodSelection(PeriodOption.Past365Days);
     int compositeCols = 1;
+    int minIsolates = 30;
+    string clsiNote;
+    string headingNote = @"Percentage (%) represents the proportion of isolates classified as susceptible (susceptible isolates ÷ total isolates tested). 
+The value in parentheses indicates the total number of isolates evaluated.";
     public enum AntibiogramGramStain
-    {
-        BothGramNegativeAndPositive,
-        GramPositive,
-        GramNegative
-    }
-    AntibiogramGramStain gramStain = AntibiogramGramStain.GramPositive;
-    IEnumerable<AntibiogramDto> data;
-    List<string> antibiotics = [];
-    IEnumerable<AntibiogramMatrixRow> matrixRows;
-    bool IsLoading = true;
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		BothGramNegativeAndPositive,
+		GramPositive,
+		GramNegative
+	}
+	AntibiogramGramStain gramStain = AntibiogramGramStain.GramPositive;
+	IEnumerable<AntibiogramDto> data;
+	List<string> antibiotics = [];
+	IEnumerable<AntibiogramMatrixRow> matrixRows;
+	bool IsLoading = true;
+	protected override void OnInitialized()
+	{
+        clsiNote = @$"Data from fewer than {minIsolates} isolates fall below the CLSI M100 threshold and should be interpreted cautiously with clinical judgment.";
+	}
+	protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
