@@ -7,8 +7,10 @@ public enum OriginTypeEnum
     Manual
 }
 
-public enum DataTypeEnum
+public enum AlertDataTypeEnum
 {
+    Group,
+    Modifier,
     LabResult,
     MicrobioResult,
     MedOrder,
@@ -25,6 +27,31 @@ public enum PredicateOperatorEnum
     LessThanOrEqual,
     Contains,
     NotContains,
+    StartsWith,
+    NotStartsWith,
+    EndsWith,
+    NotEndsWith,
     Null,
     NotNull
+}
+
+public enum RuleNodeChildOperatorEnum
+{
+    All,
+    Any,
+    None,
+    NotAll,
+    AtLeast,
+    NoMoreThan
+}
+
+public enum RuleNodeFieldDataTypeEnum
+{
+    String,
+    Int,
+    Decimal,
+    Bool,
+    MinutesAgo,
+    HoursAgo,
+    DaysAgo
 }

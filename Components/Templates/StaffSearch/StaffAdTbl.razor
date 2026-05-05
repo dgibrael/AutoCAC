@@ -59,7 +59,8 @@ else
 
     private async Task InternalOnSelect(AdUserDto selected)
     {
-        var selectedUsername = selected?.SamAccountName;
+        var selectedUsername = selected?.D1Username;
+		Console.WriteLine($"Selected user: {selectedUsername}");
         if (string.IsNullOrWhiteSpace(selectedUsername)) return;
         await using var db = await DbFactory.CreateDbContextAsync();
         var existingUser = await db.AuthUsers

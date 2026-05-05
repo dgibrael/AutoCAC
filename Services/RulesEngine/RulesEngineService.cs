@@ -1,4 +1,5 @@
-﻿using AutoCAC.Models;
+﻿using AutoCAC.Common.Alerts;
+using AutoCAC.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Threading;
 
@@ -9,7 +10,7 @@ public sealed class RuleEngineService : IDisposable
     private readonly IDbContextFactory<MainContext> _dbContextFactory;
     private readonly SqlWatcher _watcher;
     private readonly SemaphoreSlim _processingLock = new(1, 1);
-
+    private List<AlertDefRuleNode> _entryRuleNodes = new();
     private bool _disposed;
     public RuleEngineService(
         IDbContextFactory<MainContext> dbContextFactory,
@@ -17,14 +18,15 @@ public sealed class RuleEngineService : IDisposable
     {
         _dbContextFactory = dbContextFactory;
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Missing connection string 'DefaultConnection'.");
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         _watcher = new SqlWatcher(
             connectionString,
             """
             SELECT COUNT_BIG(*)
-            FROM dbo.RuleEngineSourceState
+            FROM dbo.ProcessState
+            WHERE ProcessName = 'RuleEngineImport'
+            and (ProcessingStartedAt IS NULL OR LastImportCompletedAt > ProcessingStartedAt)
             """
         );
 
@@ -50,44 +52,81 @@ public sealed class RuleEngineService : IDisposable
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-            var pendingSources = await db.RuleEngineSourceStates
-                .Where(x => x.LastProcessedAt == null || x.LastProcessedAt < x.LastImportAt)
-                .OrderBy(x => x.TableName)
+            var groupType = AlertDataTypeEnum.Group.ToString();
+            var modifierType = AlertDataTypeEnum.Modifier.ToString();
+
+            var pendingFacts = await (
+                from fact in db.RuleEngineFacts.AsNoTracking()
+                from node in db.AlertDefRuleNodes
+                                .Include(x => x.AlertDef)
+                                .AsNoTracking()
+                where fact.IsActive
+                   && fact.NeedsProcessing
+                   && node.IsActive
+                   && node.DataType != groupType
+                   && node.DataType != modifierType
+                   && node.DataType == fact.DataType
+                   && node.FieldName == fact.FieldName
+                select new PendingRuleMatch
+                {
+                    Fact = fact,
+                    RuleNode = node
+                })
+                .ToListAsync(cancellationToken);
+            pendingFacts = pendingFacts
+                .Where(x => x.RuleNode.ValueMatch(x.Fact.FieldValue))
+                .ToList();
+            var candidatePairs = pendingFacts
+                .Select(x => new
+                {
+                    PatientId = x.Fact.PatientId!.Value,
+                    x.RuleNode.AlertDefId
+                })
+                .Distinct()
+                .ToList();
+
+            var patientIds = candidatePairs
+                .Select(x => x.PatientId)
+                .Distinct()
+                .ToHashSet();
+
+            var alertDefIds = candidatePairs
+                .Select(x => x.AlertDefId)
+                .Distinct()
+                .ToHashSet();
+
+            var allFacts = await db.RuleEngineFacts
+                .AsNoTracking()
+                .Where(x => x.IsActive)
+                .Where(x => x.PatientId != null && patientIds.Contains(x.PatientId.Value))
                 .ToListAsync(cancellationToken);
 
-            foreach (var source in pendingSources)
+            var allRuleNodes = await db.AlertDefRuleNodes
+                .AsNoTracking()
+                .Where(x => x.IsActive)
+                .Where(x => alertDefIds.Contains(x.AlertDefId))
+                .ToListAsync(cancellationToken);
+            var results = new List<AlertEvaluationResult>();
+
+            foreach (var pair in candidatePairs)
             {
-                await MarkProcessingStartedAsync(source.TableName, cancellationToken);
+                var patientFacts = allFacts
+                    .Where(x => x.PatientId == pair.PatientId)
+                    .ToList();
 
-                try
+                var alertRuleNodes = allRuleNodes
+                    .Where(x => x.AlertDefId == pair.AlertDefId)
+                    .ToList();
+
+                var evaluator = new AlertDefEvaluator(alertRuleNodes, patientFacts);
+                bool matched = evaluator.Evaluate();
+
+                results.Add(new AlertEvaluationResult
                 {
-                    switch (source.TableName)
-                    {
-                        case "UnitDose":
-                        case "IV":
-                            await ProcessMedicationOrdersAsync(source.TableName, cancellationToken);
-                            break;
-
-                        case "LabResult":
-                            await ProcessLabResultsAsync(source.TableName, cancellationToken);
-                            break;
-
-                        case "Microbio":
-                            await ProcessMicrobioAsync(source.TableName, cancellationToken);
-                            break;
-
-                        default:
-                            Console.WriteLine($"No handler exists for table '{source.TableName}'.");
-                            break;
-                    }
-
-                    await MarkProcessedAsync(source.TableName, cancellationToken);
-                }
-                catch
-                {
-                    await ClearProcessingStartedAsync(source.TableName, cancellationToken);
-                    throw;
-                }
+                    PatientId = pair.PatientId,
+                    AlertDefId = pair.AlertDefId,
+                    IsMatch = matched
+                });
             }
         }
         finally
@@ -96,65 +135,17 @@ public sealed class RuleEngineService : IDisposable
         }
     }
 
-    private async Task MarkProcessingStartedAsync(string tableName, CancellationToken cancellationToken)
-    {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var row = await db.RuleEngineSourceStates
-            .SingleAsync(x => x.TableName == tableName, cancellationToken);
-
-        row.ProcessingStartedAt = DateTime.Now;
-
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task MarkProcessedAsync(string tableName, CancellationToken cancellationToken)
-    {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var row = await db.RuleEngineSourceStates
-            .SingleAsync(x => x.TableName == tableName, cancellationToken);
-
-        row.LastProcessedAt = row.LastImportAt;
-        row.ProcessingStartedAt = null;
-
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task ClearProcessingStartedAsync(string tableName, CancellationToken cancellationToken)
-    {
-        await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var row = await db.RuleEngineSourceStates
-            .SingleAsync(x => x.TableName == tableName, cancellationToken);
-
-        row.ProcessingStartedAt = null;
-
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task<List<AlertDefEvaluationRequest>> ProcessMedicationOrdersAsync(string tableName, CancellationToken cancellationToken)
-    {
-        Console.WriteLine($"MedOrder method goes here for {tableName}");
-        return new List<AlertDefEvaluationRequest>();
-    }
-
-    private async Task<List<AlertDefEvaluationRequest>> ProcessLabResultsAsync(string tableName, CancellationToken cancellationToken)
-    {
-        Console.WriteLine($"LabResult method goes here for {tableName}");
-        return new List<AlertDefEvaluationRequest>();
-    }
-
-    private async Task<List<AlertDefEvaluationRequest>> ProcessMicrobioAsync(string tableName, CancellationToken cancellationToken)
-    {
-        Console.WriteLine($"Microbio method goes here");
-        return new List<AlertDefEvaluationRequest>();
-    }
-
-    public sealed class AlertDefEvaluationRequest
+    public sealed class AlertEvaluationResult
     {
         public int PatientId { get; set; }
         public int AlertDefId { get; set; }
+        public bool IsMatch { get; set; }
+    }
+
+    public sealed class PendingRuleMatch
+    {
+        public RuleEngineFact Fact { get; set; }
+        public AlertDefRuleNode RuleNode { get; set; }
     }
 
     public void Dispose()

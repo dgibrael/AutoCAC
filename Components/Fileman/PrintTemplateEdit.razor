@@ -10,7 +10,7 @@
     <ChildContent>
         <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="DataType" Title="Data Type">
             <EditTemplate Context="x">
-                <RadzenDropDown AllowClear="false" @bind-Value="@x.DataTypeEnum" Data="@(Enum.GetValues<DataTypeEnum>())" Change="@(() => x.DataTypeChange())" />
+                <RadzenDropDown AllowClear="false" @bind-Value="@x.FmDataTypeEnum" Data="@(Enum.GetValues<FmDataTypeEnum>())" Change="@(() => x.DataTypeChange())" />
             </EditTemplate>
         </RadzenDataGridColumn>
         <RadzenDataGridColumn TItem="FilemanPrintTemplateItem" Property="Field" Title="Field">
@@ -94,54 +94,54 @@
             {
                 FilemanPrintTemplateId = Id,
                 SortOrder = 0,
-                DataTypeEnum = DataTypeEnum.CHARONLY,
+                FmDataTypeEnum = FmDataTypeEnum.CHARONLY,
                 Field = "{"
             }
             );
             await GridModel.ReloadAsync();
             newItem.SortOrder = 1;
-            newItem.DataTypeEnum = DataTypeEnum.STR;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.STR;
             newItem.Field = "NUMBER";
             newItem.ColumnName = "id";
             return newItem;
         }
         int nextSort = lastItem.SortOrder+1;
-        if (lastItem.DataTypeEnum == DataTypeEnum.SUBFILE)
+        if (lastItem.FmDataTypeEnum == FmDataTypeEnum.SUBFILE)
         {
             await AddAndReload(new FilemanPrintTemplateItem
                 {
-                    DataTypeEnum = DataTypeEnum.CHARONLY,
+                    FmDataTypeEnum = FmDataTypeEnum.CHARONLY,
                     Field = "{",
                     SortOrder = nextSort
                 }
             );
             nextSort += 1;
-            newItem.DataTypeEnum = DataTypeEnum.STR;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.STR;
         }
         else if (lastItem.StandardField)
         {
             await AddAndReload(new FilemanPrintTemplateItem
             {
-                DataTypeEnum = DataTypeEnum.CHARONLY,
+                FmDataTypeEnum = FmDataTypeEnum.CHARONLY,
                 Field = ",",
                 SortOrder = nextSort
             }
             );
             nextSort += 1;
-            newItem.DataTypeEnum = DataTypeEnum.STR;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.STR;
         }          
-        else if (lastItem.DataTypeEnum == DataTypeEnum.POINTERPARENT)
+        else if (lastItem.FmDataTypeEnum == FmDataTypeEnum.POINTERPARENT)
         {
-            newItem.DataTypeEnum = DataTypeEnum.POINTERCHILD;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.POINTERCHILD;
             newItem.Field = "NUMBER";
         }
-        else if (lastItem.DataTypeEnum == DataTypeEnum.CHARONLY)
+        else if (lastItem.FmDataTypeEnum == FmDataTypeEnum.CHARONLY)
         {
-            newItem.DataTypeEnum = DataTypeEnum.STR;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.STR;
         }
         else
         {
-            newItem.DataTypeEnum = DataTypeEnum.CHARONLY;
+            newItem.FmDataTypeEnum = FmDataTypeEnum.CHARONLY;
         }
         await MoveItems(nextSort);
         newItem.SortOrder = nextSort;

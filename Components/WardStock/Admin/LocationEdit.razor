@@ -41,6 +41,11 @@
 	<DataGridVanilla TItem="AuthUser" AddButtonClick="AddUser" GridModel="GridModelUsers" >
 		<HeaderContent><h4>Users</h4></HeaderContent>
 		<TrailingColumns>
+			<ActionColumn TItem="AuthUser" Context="data">
+				<RadzenButton Icon="delete"
+							  ButtonStyle="ButtonStyle.Danger"
+							  Variant="Variant.Text" Click="@(() => DeleteUserAsync(data))" />
+			</ActionColumn>
 			<ActionDefaultColumn TItem="AuthUser" ShowEdit="false" GridModel="GridModelUsers"/>
 		</TrailingColumns>
 	</DataGridVanilla>
@@ -150,5 +155,18 @@
 			}
 		}
 		return newItem;
+	}
+	private async Task DeleteUserAsync(AuthUser user)
+	{
+		var confirm = await DialogService.Confirm($"Are you sure you want to remove {user.DisplayName} from this location?", "Confirm Delete");
+		if (confirm != true) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var item = await db.WardstockUserlocations.FirstOrDefaultAsync(x => x.LocationId == Id && x.AuthUserId == user.Id);
+		if (item != null)
+		{
+			db.WardstockUserlocations.Remove(item);
+			await db.SaveChangesAsync();
+			await GridModelUsers.ReloadAsync();
+		}
 	}
 }

@@ -5,7 +5,7 @@ using AutoCAC.Extensions;
 
 namespace AutoCAC.Models;
 
-public enum DataTypeEnum
+public enum FmDataTypeEnum
 {
     STR,
     INT,
@@ -23,22 +23,22 @@ public partial class FilemanPrintTemplateItem
 {
     // Typed view over the string column.
     [NotMapped]
-    public DataTypeEnum DataTypeEnum
+    public FmDataTypeEnum FmDataTypeEnum
     {
         get
         {
-            if (Enum.TryParse<DataTypeEnum>(DataType, ignoreCase: true, out var dt))
+            if (Enum.TryParse<FmDataTypeEnum>(DataType, ignoreCase: true, out var dt))
                 return dt;
 
             // pick a safe default if DB contains unexpected value
-            return DataTypeEnum.STR;
+            return FmDataTypeEnum.STR;
         }
         set => DataType = value.ToString();
     }
 
     [NotMapped]
-    public bool NoColumnName => DataTypeEnum is (DataTypeEnum.POINTERCHILD or DataTypeEnum.PROMPTANSWER or DataTypeEnum.CHARONLY);
-    public bool StandardField => DataTypeEnum is (DataTypeEnum.STR or DataTypeEnum.INT or DataTypeEnum.FLOAT or DataTypeEnum.DATE or DataTypeEnum.DATETIME);
+    public bool NoColumnName => FmDataTypeEnum is (FmDataTypeEnum.POINTERCHILD or FmDataTypeEnum.PROMPTANSWER or FmDataTypeEnum.CHARONLY);
+    public bool StandardField => FmDataTypeEnum is (FmDataTypeEnum.STR or FmDataTypeEnum.INT or FmDataTypeEnum.FLOAT or FmDataTypeEnum.DATE or FmDataTypeEnum.DATETIME);
 
     [NotMapped]
     public string ColumnNameFormatted
@@ -47,15 +47,15 @@ public partial class FilemanPrintTemplateItem
         {
             if (NoColumnName) return null;
 
-            var disp = DataTypeEnum switch
+            var disp = FmDataTypeEnum switch
             {
-                DataTypeEnum.STR or DataTypeEnum.POINTERPARENT => ColumnName,
-                _ => $"<{DataTypeEnum}>{ColumnName}"
+                FmDataTypeEnum.STR or FmDataTypeEnum.POINTERPARENT => ColumnName,
+                _ => $"<{FmDataTypeEnum}>{ColumnName}"
             };
 
-            var endStr = DataTypeEnum switch
+            var endStr = FmDataTypeEnum switch
             {
-                DataTypeEnum.SUBFILE => "[",
+                FmDataTypeEnum.SUBFILE => "[",
                 _ => "_$C(31)",
             };
 
@@ -64,11 +64,11 @@ public partial class FilemanPrintTemplateItem
     }
 
     [NotMapped]
-    public string FieldFormatted => DataTypeEnum switch
+    public string FieldFormatted => FmDataTypeEnum switch
     {
-        DataTypeEnum.SUBFILE or DataTypeEnum.POINTERPARENT => $"{Field}:;X",
-        DataTypeEnum.PROMPTANSWER => Field,
-        DataTypeEnum.CHARONLY => $"\"{Field}\";X",
+        FmDataTypeEnum.SUBFILE or FmDataTypeEnum.POINTERPARENT => $"{Field}:;X",
+        FmDataTypeEnum.PROMPTANSWER => Field,
+        FmDataTypeEnum.CHARONLY => $"\"{Field}\";X",
         _ => $"{Field};X"
     };
 
@@ -81,10 +81,10 @@ public partial class FilemanPrintTemplateItem
             if (!NoColumnName) sb.AppendLine(ColumnNameFormatted);
             sb.AppendLine(FieldFormatted);
 
-            if (DataTypeEnum == DataTypeEnum.POINTERCHILD)
+            if (FmDataTypeEnum == FmDataTypeEnum.POINTERCHILD)
                 sb.AppendLine("");
 
-            if (DataTypeEnum is not (DataTypeEnum.POINTERPARENT or DataTypeEnum.PROMPTANSWER or DataTypeEnum.CHARONLY))
+            if (FmDataTypeEnum is not (FmDataTypeEnum.POINTERPARENT or FmDataTypeEnum.PROMPTANSWER or FmDataTypeEnum.CHARONLY))
                 sb.AppendLine("$C(31);X");
 
             return sb.ToString();
@@ -95,9 +95,9 @@ public partial class FilemanPrintTemplateItem
     {
         // Old: if (value == PROMPTANSWER) Field = "YES";
         //      else if (value == CHARONLY) Field = ",";
-        if (DataTypeEnum == DataTypeEnum.PROMPTANSWER)
+        if (FmDataTypeEnum == FmDataTypeEnum.PROMPTANSWER)
             Field = "YES";
-        else if (DataTypeEnum == DataTypeEnum.CHARONLY)
+        else if (FmDataTypeEnum == FmDataTypeEnum.CHARONLY)
             Field = ",";
         if (NoColumnName) ColumnName = "";
     }

@@ -203,7 +203,7 @@
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[RuleEngineSourceState]",
+         "Name": "[dbo].[RuleEngineFact]",
          "ObjectType": 0
       },
       {

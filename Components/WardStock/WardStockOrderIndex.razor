@@ -9,12 +9,7 @@
 @inject UserContextService UserContext
 @inject DialogService DialogService
 <AuthVanilla Path="wardstock/admin">
-	<SplitButtonUrlsTemplate ButtonText="Admin"
-							 UrlKeyLabelValue="@(new Dictionary<string, string>
-							 		{
-        								{ "wardstock/admin/users", "Edit Users" },
-										{ "wardstock/admin/locations", "Edit Locations" }
-    						 		})" />
+	<RadzenButton Text="Admin" Click="@(() => Nav.NavigateToRelative("/admin/users"))" Icon="settings"/>
 </AuthVanilla>
 <RadzenButton Text="View Available Items" Click="ViewItems"/>
 <DataGridVanilla TItem="AutoCAC.Models.WardstockDto" GridModel="GridModel" AddButtonClick="@AddBtnClick">

@@ -14,6 +14,7 @@ CREATE TABLE dbo.AlertDef(
     IsActive bit NOT NULL DEFAULT 1,
     DisplayName VARCHAR(200) NOT NULL,
     Description varchar(1000) NULL,
+    LastUpdated datetime2(2) NOT NULL DEFAULT SYSDATETIME(),
     UNIQUE (Name)
 );
 GO
@@ -21,10 +22,11 @@ CREATE TABLE dbo.AlertDefRuleNode (
     Id int IDENTITY(1,1) PRIMARY KEY NOT NULL,
     AlertDefId int NOT NULL,
     ParentId int NULL,
-    IsGroup bit NOT NULL,
     DataType varchar(50) NULL,
     FieldName varchar(100) NULL,
     Operator varchar(20) NOT NULL,
+    FieldDataType varchar(20) NULL,
+    ChildOperator varchar(20) NOT NULL,
     Value nvarchar(200) NULL,
     IsActive bit NOT NULL DEFAULT 1,
     CONSTRAINT FK_AlertDefRuleNode_AlertDef FOREIGN KEY (AlertDefId)
@@ -39,7 +41,9 @@ GO
 
 CREATE INDEX IX_AlertDefRuleNode_Lookup
     ON dbo.AlertDefRuleNode(DataType, FieldName, AlertDefId)
-    WHERE IsGroup = 0;
+    WHERE IsActive = 1
+      AND DataType <> 'Group'
+      AND DataType <> 'Modifier';
 GO
 
 CREATE TABLE dbo.Alert(
@@ -122,3 +126,6 @@ CREATE TABLE dbo.ProcessState (
     ProcessingStartedAt datetime2(2) NULL
 );
 GO
+
+INSERT INTO ProcessState(ProcessName)
+VALUES('RuleEngineImport')

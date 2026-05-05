@@ -3,8 +3,8 @@
 @using AutoCAC.Common.Alerts
 
 <VanillaDialogForm TItem="AlertDefRuleNode" Item="_data" NewItem="@NewItem">
-	<VanillaFormField Label="Group Node">
-		<RadzenCheckBox @bind-Value="@_data.IsGroup" />
+	<VanillaFormField Label="Data Type">
+		<EnumStringDropdown @bind-Value="@_data.DataType" TEnum="AlertDataTypeEnum" />
 	</VanillaFormField>
 	<VanillaFormField Label="Field Name">
 		<RadzenTextBox @bind-Value="@_data.FieldName" />

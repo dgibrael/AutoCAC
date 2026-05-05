@@ -63,7 +63,7 @@
 				</DataGridEditable>
 			</RadzenColumn>
 		<RadzenColumn Size="4">
-			<DataGridEditable TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
+			<CommentTemplate TItem="WardstockComment" CommentQueryFactory="CommentQueryFactory" MapToEntity="MapComment"/>
 		</RadzenColumn>
 		</RadzenRow>
 		@if(UserType == UserTypes.super)
