@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace AutoCAC.Models;
 
-public partial class RuleEngineFact
+public partial class ClinicalFact
 {
     public long Id { get; set; }
 
@@ -13,19 +13,23 @@ public partial class RuleEngineFact
 
     public string? TableName { get; set; }
 
-    public int? PatientId { get; set; }
+    public int PatientId { get; set; }
 
     public string RecordKey { get; set; } = null!;
 
-    public int Instance { get; set; }
+    public string MetadataRecordId { get; set; } = null!;
 
-    public string FieldName { get; set; } = null!;
+    public DateTime EffectiveAt { get; set; }
 
-    public string? FieldValue { get; set; }
+    public DateTime? ExpiresAt { get; set; }
 
     public bool IsActive { get; set; }
 
     public DateTime LastImportAt { get; set; }
 
     public bool NeedsProcessing { get; set; }
+
+    public string? ValuesJson { get; set; }
+
+    public virtual Patient Patient { get; set; } = null!;
 }

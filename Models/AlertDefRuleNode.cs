@@ -13,21 +13,25 @@ public partial class AlertDefRuleNode
 
     public int? ParentId { get; set; }
 
-    public string? DataType { get; set; }
+    public string NodeType { get; set; } = null!;
+
+    public int? ClinicalDefinitionId { get; set; }
+
+    public string? ChildOperator { get; set; }
 
     public string? FieldName { get; set; }
 
-    public string Operator { get; set; } = null!;
-
     public string? FieldDataType { get; set; }
 
-    public string ChildOperator { get; set; } = null!;
+    public string? Operator { get; set; }
 
     public string? Value { get; set; }
 
     public bool IsActive { get; set; }
 
     public virtual AlertDef AlertDef { get; set; } = null!;
+
+    public virtual ClinicalDefinition? ClinicalDefinition { get; set; }
 
     public virtual ICollection<AlertDefRuleNode> InverseParent { get; set; } = new List<AlertDefRuleNode>();
 

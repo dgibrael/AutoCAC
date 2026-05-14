@@ -31,6 +31,14 @@ public partial class MainContext : DbContext
 
     public virtual DbSet<BillingRx> BillingRxes { get; set; }
 
+    public virtual DbSet<ClinicalDefinition> ClinicalDefinitions { get; set; }
+
+    public virtual DbSet<ClinicalDefinitionItem> ClinicalDefinitionItems { get; set; }
+
+    public virtual DbSet<ClinicalDefinitionMetadataMatch> ClinicalDefinitionMetadataMatches { get; set; }
+
+    public virtual DbSet<ClinicalFact> ClinicalFacts { get; set; }
+
     public virtual DbSet<DataGridTemplate> DataGridTemplates { get; set; }
 
     public virtual DbSet<Drug> Drugs { get; set; }
@@ -110,8 +118,6 @@ public partial class MainContext : DbContext
     public virtual DbSet<RestrictedPageGroup> RestrictedPageGroups { get; set; }
 
     public virtual DbSet<RpmsactivityLog> RpmsactivityLogs { get; set; }
-
-    public virtual DbSet<RuleEngineFact> RuleEngineFacts { get; set; }
 
     public virtual DbSet<Rx> Rxes { get; set; }
 
@@ -197,16 +203,22 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<Alert>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Alert__3214EC07843B9760");
+            entity.HasKey(e => e.Id).HasName("PK__Alert__3214EC075D4E5133");
 
             entity.ToTable("Alert");
 
             entity.HasIndex(e => e.AlertDefId, "IX_Alert_AlertDefId");
 
+            entity.HasIndex(e => new { e.IsActive, e.LastActivityAt }, "IX_Alert_IsActive_LastActivityAt").IsDescending(false, true);
+
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(2)
                 .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.EvidenceKey)
+                .HasMaxLength(300)
+                .IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.LastActivityAt)
                 .HasPrecision(2)
                 .HasDefaultValueSql("(sysdatetime())");
@@ -219,11 +231,11 @@ public partial class MainContext : DbContext
             entity.HasOne(d => d.AlertDef).WithMany(p => p.Alerts)
                 .HasForeignKey(d => d.AlertDefId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Alert__AlertDefI__104AE8AC");
+                .HasConstraintName("FK__Alert__AlertDefI__3C69620C");
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.Alerts)
                 .HasForeignKey(d => d.AuthUserId)
-                .HasConstraintName("FK__Alert__auth_user__113F0CE5");
+                .HasConstraintName("FK__Alert__auth_user__3D5D8645");
 
             entity.HasOne(d => d.Patient).WithMany(p => p.Alerts)
                 .HasForeignKey(d => d.PatientId)
@@ -232,11 +244,11 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<AlertDef>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC073D467B12");
+            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC07246EDE3C");
 
             entity.ToTable("AlertDef");
 
-            entity.HasIndex(e => e.Name, "UQ__AlertDef__737584F601FBB6BC").IsUnique();
+            entity.HasIndex(e => e.Name, "UQ__AlertDef__737584F6F6D75D0E").IsUnique();
 
             entity.Property(e => e.Description)
                 .HasMaxLength(1000)
@@ -245,6 +257,9 @@ public partial class MainContext : DbContext
                 .HasMaxLength(200)
                 .IsUnicode(false);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.LastUpdated)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
             entity.Property(e => e.Name)
                 .HasMaxLength(50)
                 .IsUnicode(false);
@@ -255,19 +270,14 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<AlertDefRuleNode>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC0760D7E83C");
+            entity.HasKey(e => e.Id).HasName("PK__AlertDef__3214EC072A1EFBCB");
 
             entity.ToTable("AlertDefRuleNode");
 
             entity.HasIndex(e => new { e.AlertDefId, e.ParentId }, "IX_AlertDefRuleNode_AlertDefId_ParentId");
 
-            entity.HasIndex(e => new { e.DataType, e.FieldName, e.AlertDefId }, "IX_AlertDefRuleNode_Lookup").HasFilter("([IsActive]=(1) AND [DataType]<>'Group' AND [DataType]<>'Modifier')");
-
             entity.Property(e => e.ChildOperator)
                 .HasMaxLength(20)
-                .IsUnicode(false);
-            entity.Property(e => e.DataType)
-                .HasMaxLength(50)
                 .IsUnicode(false);
             entity.Property(e => e.FieldDataType)
                 .HasMaxLength(20)
@@ -276,6 +286,9 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.NodeType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
             entity.Property(e => e.Operator)
                 .HasMaxLength(20)
                 .IsUnicode(false);
@@ -285,6 +298,10 @@ public partial class MainContext : DbContext
                 .HasForeignKey(d => d.AlertDefId)
                 .HasConstraintName("FK_AlertDefRuleNode_AlertDef");
 
+            entity.HasOne(d => d.ClinicalDefinition).WithMany(p => p.AlertDefRuleNodes)
+                .HasForeignKey(d => d.ClinicalDefinitionId)
+                .HasConstraintName("FK_AlertDefRuleNode_ClinicalDefinition");
+
             entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
                 .HasForeignKey(d => d.ParentId)
                 .HasConstraintName("FK_AlertDefRuleNode_Parent");
@@ -292,7 +309,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<AlertMessage>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__AlertMes__3214EC07A4FD13CA");
+            entity.HasKey(e => e.Id).HasName("PK__AlertMes__3214EC073E5319D6");
 
             entity.ToTable("AlertMessage");
 
@@ -306,11 +323,11 @@ public partial class MainContext : DbContext
 
             entity.HasOne(d => d.Alert).WithMany(p => p.AlertMessages)
                 .HasForeignKey(d => d.AlertId)
-                .HasConstraintName("FK__AlertMess__Alert__1603C202");
+                .HasConstraintName("FK__AlertMess__Alert__42223B62");
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.AlertMessages)
                 .HasForeignKey(d => d.AuthUserId)
-                .HasConstraintName("FK__AlertMess__auth___16F7E63B");
+                .HasConstraintName("FK__AlertMess__auth___43165F9B");
         });
 
         modelBuilder.Entity<AuthGroup>(entity =>
@@ -417,6 +434,104 @@ public partial class MainContext : DbContext
             entity.Property(e => e.RxNum)
                 .HasMaxLength(200)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<ClinicalDefinition>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Clinical__3214EC07437DBF56");
+
+            entity.ToTable("ClinicalDefinition");
+
+            entity.HasIndex(e => e.Name, "UQ_ClinicalDefinition_Name").IsUnique();
+
+            entity.Property(e => e.DataType)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Name)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<ClinicalDefinitionItem>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Clinical__3214EC07F9FB25E7");
+
+            entity.ToTable("ClinicalDefinitionItem");
+
+            entity.HasIndex(e => e.ClinicalDefinitionId, "IX_ClinicalDefinitionItem_ClinicalDefinitionId");
+
+            entity.Property(e => e.FieldName)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.Pattern).HasMaxLength(200);
+
+            entity.HasOne(d => d.ClinicalDefinition).WithMany(p => p.ClinicalDefinitionItems)
+                .HasForeignKey(d => d.ClinicalDefinitionId)
+                .HasConstraintName("FK_ClinicalDefinitionItem_ClinicalDefinition");
+        });
+
+        modelBuilder.Entity<ClinicalDefinitionMetadataMatch>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Clinical__3214EC07B58C61A4");
+
+            entity.ToTable("ClinicalDefinitionMetadataMatch");
+
+            entity.HasIndex(e => new { e.DataType, e.MetadataRecordId, e.ClinicalDefinitionId }, "UQ_ClinicalDefinitionMetadataMatch").IsUnique();
+
+            entity.Property(e => e.DataType)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.LastBuiltAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.MetadataRecordId)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.ClinicalDefinition).WithMany(p => p.ClinicalDefinitionMetadataMatches)
+                .HasForeignKey(d => d.ClinicalDefinitionId)
+                .HasConstraintName("FK_ClinicalDefinitionMetadataMatch_ClinicalDefinition");
+        });
+
+        modelBuilder.Entity<ClinicalFact>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Clinical__3214EC0702792A79");
+
+            entity.ToTable("ClinicalFact");
+
+            entity.HasIndex(e => new { e.PatientId, e.DataType, e.MetadataRecordId }, "IX_ClinicalFact_Active").HasFilter("([IsActive]=(1))");
+
+            entity.HasIndex(e => new { e.DataType, e.MetadataRecordId, e.PatientId }, "IX_ClinicalFact_Pending").HasFilter("([NeedsProcessing]=(1))");
+
+            entity.Property(e => e.DataType)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+            entity.Property(e => e.EffectiveAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.ExpiresAt).HasPrecision(2);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.LastImportAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.MetadataRecordId)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.NeedsProcessing).HasDefaultValue(true);
+            entity.Property(e => e.RecordKey)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.TableName)
+                .HasMaxLength(50)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.Patient).WithMany(p => p.ClinicalFacts)
+                .HasForeignKey(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ClinicalFact_PatientId");
         });
 
         modelBuilder.Entity<DataGridTemplate>(entity =>
@@ -1047,13 +1162,15 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Notifica__3214EC07963A3DF1");
+            entity.HasKey(e => e.Id).HasName("PK__Notifica__3214EC07A4425C54");
 
             entity.ToTable("Notification");
 
-            entity.HasIndex(e => new { e.AuthUserId, e.ReadAt, e.CreatedAt }, "IX_Notification_auth_user_id_ReadAt_CreatedAt").IsDescending(false, false, true);
+            entity.HasIndex(e => new { e.AuthUserId, e.CreatedAt }, "IX_Notification_Unread_User_CreatedAt")
+                .IsDescending(false, true)
+                .HasFilter("([IsRead]=(0))");
 
-            entity.HasIndex(e => new { e.AlertMessageId, e.AuthUserId }, "UQ__Notifica__DB8971EB2E52B8C5").IsUnique();
+            entity.HasIndex(e => new { e.AlertMessageId, e.AuthUserId }, "UQ__Notifica__DB8971EB2FAAEC03").IsUnique();
 
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
             entity.Property(e => e.CreatedAt)
@@ -1063,12 +1180,12 @@ public partial class MainContext : DbContext
 
             entity.HasOne(d => d.AlertMessage).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.AlertMessageId)
-                .HasConstraintName("FK__Notificat__Alert__1CB0BF91");
+                .HasConstraintName("FK__Notificat__Alert__4C9FC9D5");
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.AuthUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Notificat__auth___1BBC9B58");
+                .HasConstraintName("FK__Notificat__auth___4BABA59C");
         });
 
         modelBuilder.Entity<NurseCompoundTraining>(entity =>
@@ -1378,36 +1495,6 @@ public partial class MainContext : DbContext
                 .HasConstraintName("FK_RPMSActivityLog_auth_user");
         });
 
-        modelBuilder.Entity<RuleEngineFact>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__RuleEngi__3214EC07FE6A4F05");
-
-            entity.ToTable("RuleEngineFact");
-
-            entity.HasIndex(e => new { e.DataType, e.FieldName, e.PatientId, e.RecordKey }, "IX_RuleEngineFact_Pending").HasFilter("([NeedsProcessing]=(1) AND [IsActive]=(1))");
-
-            entity.HasIndex(e => new { e.DataType, e.TableName, e.PatientId, e.RecordKey, e.FieldName, e.Instance }, "UX_RuleEngineFact").IsUnique();
-
-            entity.Property(e => e.DataType)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-            entity.Property(e => e.FieldName)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.FieldValue).HasMaxLength(4000);
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-            entity.Property(e => e.LastImportAt)
-                .HasPrecision(2)
-                .HasDefaultValueSql("(sysdatetime())");
-            entity.Property(e => e.NeedsProcessing).HasDefaultValue(true);
-            entity.Property(e => e.RecordKey)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.TableName)
-                .HasMaxLength(50)
-                .IsUnicode(false);
-        });
-
         modelBuilder.Entity<Rx>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Rx__3213E83FA01251EE");
@@ -1474,6 +1561,8 @@ public partial class MainContext : DbContext
             entity.ToTable("RxFill");
 
             entity.HasIndex(e => new { e.PatientId, e.ReleasedDateTime }, "IX_RxFill_Patient_FillDate").IsDescending(false, true);
+
+            entity.HasIndex(e => e.ReleasedDateTime, "IX_RxFill_ReleasedDateTime").IsDescending();
 
             entity.Property(e => e.PatientId).HasColumnName("PatientID");
             entity.Property(e => e.Qty).HasColumnType("decimal(18, 4)");

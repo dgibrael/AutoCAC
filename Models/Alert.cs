@@ -27,6 +27,10 @@ public partial class Alert
 
     public int? PatientId { get; set; }
 
+    public string? EvidenceKey { get; set; }
+
+    public bool IsActive { get; set; }
+
     public virtual AlertDef AlertDef { get; set; } = null!;
 
     public virtual ICollection<AlertMessage> AlertMessages { get; set; } = new List<AlertMessage>();

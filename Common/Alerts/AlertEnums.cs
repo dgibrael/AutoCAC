@@ -7,14 +7,12 @@ public enum OriginTypeEnum
     Manual
 }
 
-public enum AlertDataTypeEnum
+public enum AlertNodeTypeEnum
 {
     Group,
+    ClinicalDefinition,
     Modifier,
-    LabResult,
-    MicrobioResult,
-    MedOrder,
-    Diagnosis
+    Exists
 }
 
 public enum PredicateOperatorEnum

@@ -4,7 +4,7 @@
 
 <VanillaDialogForm TItem="AlertDefRuleNode" Item="_data" NewItem="@NewItem">
 	<VanillaFormField Label="Data Type">
-		<EnumStringDropdown @bind-Value="@_data.DataType" TEnum="AlertDataTypeEnum" />
+		<EnumStringDropdown @bind-Value="@_data.NodeType" TEnum="AlertNodeTypeEnum" />
 	</VanillaFormField>
 	<VanillaFormField Label="Field Name">
 		<RadzenTextBox @bind-Value="@_data.FieldName" />

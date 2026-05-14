@@ -5,23 +5,21 @@ using System.Collections.Generic;
 
 namespace AutoCAC.Models;
 
-public partial class AlertDef
+public partial class ClinicalDefinition
 {
     public int Id { get; set; }
 
     public string Name { get; set; } = null!;
 
-    public string Origin { get; set; } = null!;
+    public string? Description { get; set; }
+
+    public string DataType { get; set; } = null!;
 
     public bool IsActive { get; set; }
 
-    public string DisplayName { get; set; } = null!;
-
-    public string? Description { get; set; }
-
-    public DateTime LastUpdated { get; set; }
-
     public virtual ICollection<AlertDefRuleNode> AlertDefRuleNodes { get; set; } = new List<AlertDefRuleNode>();
 
-    public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
+    public virtual ICollection<ClinicalDefinitionItem> ClinicalDefinitionItems { get; set; } = new List<ClinicalDefinitionItem>();
+
+    public virtual ICollection<ClinicalDefinitionMetadataMatch> ClinicalDefinitionMetadataMatches { get; set; } = new List<ClinicalDefinitionMetadataMatch>();
 }

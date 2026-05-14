@@ -26,7 +26,6 @@ public sealed class RuleEngineService : IDisposable
             SELECT COUNT_BIG(*)
             FROM dbo.ProcessState
             WHERE ProcessName = 'RuleEngineImport'
-            and (ProcessingStartedAt IS NULL OR LastImportCompletedAt > ProcessingStartedAt)
             """
         );
 
@@ -52,82 +51,120 @@ public sealed class RuleEngineService : IDisposable
         {
             await using var db = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-            var groupType = AlertDataTypeEnum.Group.ToString();
-            var modifierType = AlertDataTypeEnum.Modifier.ToString();
+            var existsType = AlertNodeTypeEnum.Exists.ToString();
+            var clinicalDefinitionType = AlertNodeTypeEnum.ClinicalDefinition.ToString();
 
-            var pendingFacts = await (
-                from fact in db.RuleEngineFacts.AsNoTracking()
-                from node in db.AlertDefRuleNodes
-                                .Include(x => x.AlertDef)
-                                .AsNoTracking()
-                where fact.IsActive
-                   && fact.NeedsProcessing
-                   && node.IsActive
-                   && node.DataType != groupType
-                   && node.DataType != modifierType
-                   && node.DataType == fact.DataType
-                   && node.FieldName == fact.FieldName
-                select new PendingRuleMatch
+            var existsPrimaryMatches = await (
+                from fact in db.ClinicalFacts.AsNoTracking()
+                from node in db.AlertDefRuleNodes.AsNoTracking()
+                where node.IsActive
+                   && node.NodeType == existsType
+                   && node.Value == fact.DataType
+                   && (fact.NeedsProcessing || (fact.IsActive
+                   && (
+                        from fact2 in db.ClinicalFacts.AsNoTracking()
+                        from node2 in db.AlertDefRuleNodes.AsNoTracking()
+                        where fact2.NeedsProcessing
+                           && node2.IsActive
+                           && node2.NodeType == existsType
+                           && node2.Value == fact2.DataType
+                           && fact2.PatientId == fact.PatientId
+                           && node2.AlertDefId == node.AlertDefId
+                        select 1
+                      ).Any()))
+                select new PrimaryNodeMatch
                 {
                     Fact = fact,
                     RuleNode = node
                 })
                 .ToListAsync(cancellationToken);
-            pendingFacts = pendingFacts
-                .Where(x => x.RuleNode.ValueMatch(x.Fact.FieldValue))
+
+            var clinicalDefinitionPrimaryMatches = await (
+                from fact in db.ClinicalFacts.AsNoTracking()
+                join metaMatch in db.ClinicalDefinitionMetadataMatches.AsNoTracking()
+                    on new { fact.DataType, fact.MetadataRecordId }
+                    equals new { metaMatch.DataType, metaMatch.MetadataRecordId }
+                join node in db.AlertDefRuleNodes.AsNoTracking()
+                    on metaMatch.ClinicalDefinitionId equals node.ClinicalDefinitionId
+                where node.IsActive
+                   && node.NodeType == clinicalDefinitionType
+                   && (fact.NeedsProcessing || 
+                        (fact.IsActive && (
+                        from fact2 in db.ClinicalFacts.AsNoTracking()
+                        join metaMatch2 in db.ClinicalDefinitionMetadataMatches.AsNoTracking()
+                            on new { fact2.DataType, fact2.MetadataRecordId }
+                            equals new { metaMatch2.DataType, metaMatch2.MetadataRecordId }
+                        join node2 in db.AlertDefRuleNodes.AsNoTracking()
+                            on metaMatch2.ClinicalDefinitionId equals node2.ClinicalDefinitionId
+                        where fact2.NeedsProcessing
+                           && node2.IsActive
+                           && node2.NodeType == clinicalDefinitionType
+                           && fact2.PatientId == fact.PatientId
+                           && node2.AlertDefId == node.AlertDefId
+                        select 1
+                      ).Any()))
+                select new PrimaryNodeMatch
+                {
+                    Fact = fact,
+                    RuleNode = node
+                })
+                .ToListAsync(cancellationToken);
+
+            var allPrimaryMatches = existsPrimaryMatches
+                .Concat(clinicalDefinitionPrimaryMatches)
+                .GroupBy(x => new { ClinicalFactId = x.Fact.Id, AlertDefRuleNodeId = x.RuleNode.Id })
+                .Select(x => x.First())
                 .ToList();
-            var candidatePairs = pendingFacts
+
+            var candidatePairs = allPrimaryMatches
                 .Select(x => new
                 {
-                    PatientId = x.Fact.PatientId!.Value,
+                    x.Fact.PatientId,
                     x.RuleNode.AlertDefId
                 })
                 .Distinct()
                 .ToList();
 
-            var patientIds = candidatePairs
-                .Select(x => x.PatientId)
-                .Distinct()
-                .ToHashSet();
+            if (candidatePairs.Count == 0)
+                return;
 
             var alertDefIds = candidatePairs
                 .Select(x => x.AlertDefId)
                 .Distinct()
                 .ToHashSet();
 
-            var allFacts = await db.RuleEngineFacts
-                .AsNoTracking()
-                .Where(x => x.IsActive)
-                .Where(x => x.PatientId != null && patientIds.Contains(x.PatientId.Value))
-                .ToListAsync(cancellationToken);
-
             var allRuleNodes = await db.AlertDefRuleNodes
                 .AsNoTracking()
                 .Where(x => x.IsActive)
                 .Where(x => alertDefIds.Contains(x.AlertDefId))
                 .ToListAsync(cancellationToken);
+
             var results = new List<AlertEvaluationResult>();
 
             foreach (var pair in candidatePairs)
             {
-                var patientFacts = allFacts
-                    .Where(x => x.PatientId == pair.PatientId)
+                var patientFacts = allPrimaryMatches
+                    .Where(x => x.Fact.PatientId == pair.PatientId && x.RuleNode.AlertDefId == pair.AlertDefId)
+                    .Select(x => x.Fact)
+                    .DistinctBy(x => x.Id)
                     .ToList();
 
                 var alertRuleNodes = allRuleNodes
                     .Where(x => x.AlertDefId == pair.AlertDefId)
                     .ToList();
 
-                var evaluator = new AlertDefEvaluator(alertRuleNodes, patientFacts);
-                bool matched = evaluator.Evaluate();
+                var primaryMatches = allPrimaryMatches
+                    .Where(x => x.Fact.PatientId == pair.PatientId && x.RuleNode.AlertDefId == pair.AlertDefId)
+                    .ToList();
 
-                results.Add(new AlertEvaluationResult
-                {
-                    PatientId = pair.PatientId,
-                    AlertDefId = pair.AlertDefId,
-                    IsMatch = matched
-                });
+                var evaluator = new AlertDefEvaluator(alertRuleNodes, patientFacts, primaryMatches);
+                results.Add(evaluator.Evaluate(pair.PatientId, pair.AlertDefId));
             }
+
+            // next step:
+            // apply alert create/update/deactivate logic from results
+            // then clear NeedsProcessing on the relevant ClinicalFacts
+            // then update ProcessState.ProcessingStartedAt if needed
         }
         finally
         {
@@ -139,12 +176,13 @@ public sealed class RuleEngineService : IDisposable
     {
         public int PatientId { get; set; }
         public int AlertDefId { get; set; }
+        public string EvidenceKey { get; set; }
         public bool IsMatch { get; set; }
     }
 
-    public sealed class PendingRuleMatch
+    public sealed class PrimaryNodeMatch
     {
-        public RuleEngineFact Fact { get; set; }
+        public ClinicalFact Fact { get; set; }
         public AlertDefRuleNode RuleNode { get; set; }
     }
 

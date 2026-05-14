@@ -1,118 +1,156 @@
 ﻿using AutoCAC.Common.Alerts;
 using AutoCAC.Models;
+using System.Text.Json;
+using static AutoCAC.Services.RulesEngine.RuleEngineService;
 
 namespace AutoCAC.Services.RulesEngine;
 
 public sealed class AlertDefEvaluator
 {
     private readonly List<AlertDefRuleNode> _nodes;
-    private readonly List<RuleEngineFact> _facts;
+    private readonly List<ClinicalFact> _facts;
     private readonly ILookup<int, AlertDefRuleNode> _childNodesByParentId;
-    private readonly ILookup<int, RuleEngineFact> _primaryNodeMatches;
+    private readonly ILookup<int, ClinicalFact> _primaryNodeMatches;
 
-    public AlertDefEvaluator(List<AlertDefRuleNode> nodes, List<RuleEngineFact> facts)
+    public AlertDefEvaluator(
+        List<AlertDefRuleNode> nodes,
+        List<ClinicalFact> facts,
+        List<PrimaryNodeMatch> primaryMatches)
     {
         _nodes = nodes;
         _facts = facts;
-
-        var groupType = AlertDataTypeEnum.Group.ToString();
-        var modifierType = AlertDataTypeEnum.Modifier.ToString();
 
         _childNodesByParentId = _nodes
             .Where(x => x.ParentId != null)
             .ToLookup(x => x.ParentId!.Value);
 
-        _primaryNodeMatches = _nodes
-            .Where(x => x.DataType != groupType && x.DataType != modifierType)
-            .SelectMany(node => _facts
-                .Where(fact => fact.IsActive)
-                .Where(fact => fact.DataType == node.DataType)
-                .Where(fact => fact.FieldName == node.FieldName)
-                .Where(fact => node.ValueMatch(fact.FieldValue))
-                .Select(fact => new
-                {
-                    NodeId = node.Id,
-                    Fact = fact
-                }))
-            .ToLookup(x => x.NodeId, x => x.Fact);
+        _primaryNodeMatches = primaryMatches
+            .ToLookup(x => x.RuleNode.Id, x => x.Fact);
     }
 
-    public bool Evaluate()
+    public AlertEvaluationResult Evaluate(int patientId, int alertDefId)
     {
         var rootNodes = _nodes
             .Where(x => x.ParentId == null)
             .ToList();
 
-        return rootNodes.All(EvaluateNode);
-    }
+        var rootResults = rootNodes
+            .Select(EvaluateNode)
+            .ToList();
 
-    private bool EvaluateNode(AlertDefRuleNode node)
-    {
-        if (node.DataType == AlertDataTypeEnum.Group.ToString())
-            return EvaluateGroupNode(node);
+        bool isMatch = rootResults.All(x => x.IsMatch);
 
-        return EvaluatePrimaryNode(node);
-    }
+        var factIds = rootResults
+            .Where(x => x.IsMatch)
+            .SelectMany(x => x.FactIds)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
 
-    private bool EvaluateGroupNode(AlertDefRuleNode node)
-    {
-        var childNodes = _childNodesByParentId[node.Id];
-
-        if (!childNodes.Any())
-            return true;
-
-        switch (node.ChildOperatorEnum)
+        return new AlertEvaluationResult
         {
-            case RuleNodeChildOperatorEnum.All:
-                return childNodes.All(EvaluateNode);
+            PatientId = patientId,
+            AlertDefId = alertDefId,
+            IsMatch = isMatch,
+            EvidenceKey = isMatch && factIds.Count > 0
+                ? string.Join("|", factIds)
+                : null
+        };
+    }
 
-            case RuleNodeChildOperatorEnum.Any:
-                return childNodes.Any(EvaluateNode);
+    private NodeEvaluationResult EvaluateNode(AlertDefRuleNode node)
+    {
+        switch (node.NodeType)
+        {
+            case nameof(AlertNodeTypeEnum.Group):
+                return EvaluateGroupNode(node);
 
-            case RuleNodeChildOperatorEnum.None:
-                return !childNodes.Any(EvaluateNode);
+            case nameof(AlertNodeTypeEnum.Exists):
+            case nameof(AlertNodeTypeEnum.ClinicalDefinition):
+                return EvaluatePrimaryNode(node);
 
-            case RuleNodeChildOperatorEnum.NotAll:
-                return !childNodes.All(EvaluateNode);
+            case nameof(AlertNodeTypeEnum.Modifier):
+                throw new NotSupportedException("Modifier nodes are only valid as children of primary nodes.");
 
-            case RuleNodeChildOperatorEnum.AtLeast:
-                return childNodes.Count(EvaluateNode) >= int.Parse(node.Value);
+            default:
+                throw new NotSupportedException($"Unsupported node type: {node.NodeType}");
+        }
+    }
 
-            case RuleNodeChildOperatorEnum.NoMoreThan:
-                return childNodes.Count(EvaluateNode) <= int.Parse(node.Value);
+    private NodeEvaluationResult EvaluateGroupNode(AlertDefRuleNode node)
+    {
+        var childNodes = _childNodesByParentId[node.Id].ToList();
+
+        if (childNodes.Count == 0)
+            return new NodeEvaluationResult { IsMatch = true };
+
+        var childResults = childNodes
+            .Select(EvaluateNode)
+            .ToList();
+
+        bool isMatch = node.ChildOperatorEnum switch
+        {
+            RuleNodeChildOperatorEnum.All => childResults.All(x => x.IsMatch),
+            RuleNodeChildOperatorEnum.Any => childResults.Any(x => x.IsMatch),
+            RuleNodeChildOperatorEnum.None => !childResults.Any(x => x.IsMatch),
+            RuleNodeChildOperatorEnum.NotAll => !childResults.All(x => x.IsMatch),
+            RuleNodeChildOperatorEnum.AtLeast => childResults.Count(x => x.IsMatch) >= int.Parse(node.Value),
+            RuleNodeChildOperatorEnum.NoMoreThan => childResults.Count(x => x.IsMatch) <= int.Parse(node.Value),
+            _ => throw new NotSupportedException($"Unsupported child operator: {node.ChildOperator}")
+        };
+
+        var factIds = childResults
+            .Where(x => x.IsMatch)
+            .SelectMany(x => x.FactIds)
+            .ToHashSet();
+
+        return new NodeEvaluationResult
+        {
+            IsMatch = isMatch,
+            FactIds = factIds
+        };
+    }
+
+    private NodeEvaluationResult EvaluatePrimaryNode(AlertDefRuleNode node)
+    {
+        var matchingFacts = _primaryNodeMatches[node.Id].ToList();
+
+        if (matchingFacts.Count == 0)
+            return new NodeEvaluationResult();
+
+        var childNodes = _childNodesByParentId[node.Id].ToList();
+
+        if (childNodes.Count == 0)
+        {
+            return new NodeEvaluationResult
+            {
+                IsMatch = true,
+                FactIds = matchingFacts.Select(x => x.Id).ToHashSet()
+            };
         }
 
-        throw new NotSupportedException($"Unsupported operator for Group node: {node.ChildOperator}");
-    }
-
-    private bool EvaluatePrimaryNode(AlertDefRuleNode node)
-    {
-        var matchingFacts = _primaryNodeMatches[node.Id];
-
-        if (!matchingFacts.Any())
-            return false;
-
-        var childNodes = _childNodesByParentId[node.Id];
-
-        if (!childNodes.Any())
-            return true;
-
-        if (childNodes.Any(x => x.DataType == AlertDataTypeEnum.Group.ToString()))
-            throw new NotSupportedException("Nested Group nodes under primary nodes are not supported.");
+        if (childNodes.Any(x => x.NodeType != nameof(AlertNodeTypeEnum.Modifier)))
+            throw new NotSupportedException("Only Modifier nodes are supported as children of primary nodes.");
 
         foreach (var fact in matchingFacts)
         {
-            if (EvaluatePrimaryNodeChildren(node, fact, childNodes))
-                return true;
+            if (EvaluateModifierChildren(node, fact, childNodes))
+            {
+                return new NodeEvaluationResult
+                {
+                    IsMatch = true,
+                    FactIds = new HashSet<long> { fact.Id }
+                };
+            }
         }
 
-        return false;
+        return new NodeEvaluationResult();
     }
 
-    private bool EvaluatePrimaryNodeChildren(
+    private bool EvaluateModifierChildren(
         AlertDefRuleNode parentNode,
-        RuleEngineFact parentFact,
-        IEnumerable<AlertDefRuleNode> childNodes)
+        ClinicalFact parentFact,
+        List<AlertDefRuleNode> childNodes)
     {
         switch (parentNode.ChildOperatorEnum)
         {
@@ -133,21 +171,34 @@ public sealed class AlertDefEvaluator
 
             case RuleNodeChildOperatorEnum.NoMoreThan:
                 return childNodes.Count(child => EvaluateModifierNode(child, parentFact)) <= int.Parse(parentNode.Value);
-        }
 
-        throw new NotSupportedException($"Unsupported child operator: {parentNode.ChildOperator}");
+            default:
+                throw new NotSupportedException($"Unsupported child operator: {parentNode.ChildOperator}");
+        }
     }
 
-    private bool EvaluateModifierNode(AlertDefRuleNode node, RuleEngineFact parentFact)
+    private bool EvaluateModifierNode(AlertDefRuleNode node, ClinicalFact parentFact)
     {
-        if (node.DataType != AlertDataTypeEnum.Modifier.ToString())
-            throw new NotSupportedException($"Expected Modifier node, got {node.DataType}");
+        if (node.NodeType != nameof(AlertNodeTypeEnum.Modifier))
+            throw new NotSupportedException($"Expected Modifier node, got {node.NodeType}");
 
-        return _facts
-            .Where(x => x.IsActive)
-            .Where(x => x.DataType == parentFact.DataType)
-            .Where(x => x.RecordKey == parentFact.RecordKey)
-            .Where(x => x.FieldName == node.FieldName)
-            .Any(x => node.ValueMatch(x.FieldValue));
+        if (string.IsNullOrWhiteSpace(node.FieldName))
+            throw new InvalidOperationException($"Modifier node {node.Id} is missing FieldName.");
+
+        if (string.IsNullOrWhiteSpace(parentFact.ValuesJson))
+            return false;
+
+        using var document = JsonDocument.Parse(parentFact.ValuesJson);
+
+        if (!document.RootElement.TryGetProperty(node.FieldName, out var jsonValue))
+            return false;
+
+        return node.ValueMatch(jsonValue.ToString());
+    }
+
+    private sealed class NodeEvaluationResult
+    {
+        public bool IsMatch { get; set; }
+        public HashSet<long> FactIds { get; set; } = new();
     }
 }

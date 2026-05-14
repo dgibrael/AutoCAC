@@ -55,6 +55,22 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[ClinicalDefinition]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClinicalDefinitionItem]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClinicalDefinitionMetadataMatch]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[ClinicalFact]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[DataGridTemplates]",
          "ObjectType": 0
       },
@@ -200,10 +216,6 @@
       },
       {
          "Name": "[dbo].[RPMSActivityLog]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[RuleEngineFact]",
          "ObjectType": 0
       },
       {

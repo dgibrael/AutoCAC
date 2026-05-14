@@ -13,6 +13,8 @@ public partial class Notification
 
     public DateTime? ReadAt { get; set; }
 
+    public bool IsRead { get; set; }
+
     public int AuthUserId { get; set; }
 
     public int AlertMessageId { get; set; }
