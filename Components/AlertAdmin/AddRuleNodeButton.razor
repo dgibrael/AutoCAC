@@ -1,0 +1,55 @@
+﻿@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Models
+@using AutoCAC.Common.Alerts
+@inject DialogService DialogService
+<SplitButtonTemplate   />
+@{
+	var parentType = ParentNode.NodeTypeEnum;
+}
+@switch (parentType)
+{
+	case AlertNodeTypeEnum.Group:
+		<RadzenSplitButton Click="@(x => AddNode(x.Value))" Text="Add Child Node" AlwaysOpenPopup="true">
+			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.Group.ToString()" Text="Group" />
+			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.ClinicalDefinition.ToString()" Text="Clinical Definition" />
+			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.Exists.ToString()" Text="Exists (e.g. patient has any microbio result)" />
+		</RadzenSplitButton>
+		break;
+	case AlertNodeTypeEnum.ClinicalDefinition:
+	case AlertNodeTypeEnum.Exists:
+		<RadzenButton Text="Add Modifier" />
+		break;
+}
+@code {
+	[Parameter, EditorRequired] public AlertDefRuleNode ParentNode { get; set; }
+	[Parameter] public EventCallback AfterAdd { get; set; }
+	private async Task AddNode(string nodeType)
+	{
+		var newNode = new AlertDefRuleNode
+		{
+			NodeType = nodeType,
+			ParentId = ParentNode.Id,
+			IsActive = true,
+			AlertDefId = ParentNode.AlertDefId
+		};
+		var nodeEnum = Enum.Parse<AlertNodeTypeEnum>(nodeType);
+		switch (nodeEnum)
+		{
+			case AlertNodeTypeEnum.Group:
+				newNode.ChildOperator = RuleNodeChildOperatorEnum.All.ToString();
+				break;
+			case AlertNodeTypeEnum.Modifier:
+				newNode.Operator = PredicateOperatorEnum.Equal.ToString();
+				break;
+		}
+		var result = await DialogService.OpenDefaultAsync<AlertNodeDialog, AlertDefRuleNode>(
+			"Add Rule Node",
+			new Dictionary<string, object>
+			{
+				{ "Data", newNode },
+				{ "NewItem", true }
+			});
+		if (result != null)
+			await AfterAdd.InvokeAsync();
+	}
+}

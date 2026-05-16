@@ -2,31 +2,45 @@
 @using AutoCAC.Models
 @using AutoCAC.Common.Alerts
 
-<VanillaDialogForm TItem="AlertDefRuleNode" Item="_data" NewItem="@NewItem">
-	<VanillaFormField Label="Data Type">
-		<EnumStringDropdown @bind-Value="@_data.NodeType" TEnum="AlertNodeTypeEnum" />
-	</VanillaFormField>
-	<VanillaFormField Label="Field Name">
-		<RadzenTextBox @bind-Value="@_data.FieldName" />
-	</VanillaFormField>
-	<VanillaFormField Label="Operator">
-		<RadzenTextBox @bind-Value="@_data.Operator" />
-	</VanillaFormField>
-	<VanillaFormField Label="Value">
-		<RadzenTextBox @bind-Value="@_data.Value" />
-	</VanillaFormField>
+<VanillaDialogForm TItem="AlertDefRuleNode" Item="Data" NewItem="@NewItem">
+	@switch (nodeType)
+	{
+		case AlertNodeTypeEnum.Modifier:
+				<VanillaFormField Label="Field Name">
+					<RadzenTextBox @bind-Value="@Data.FieldName" />
+				</VanillaFormField>
+				<VanillaFormField Label="Operator">
+					<EnumStringDropdown @bind-Value="@Data.Operator" TEnum="PredicateOperatorEnum" />
+				</VanillaFormField>
+				<VanillaFormField Label="Value">
+					<RadzenTextBox @bind-Value="@Data.Value" />
+				</VanillaFormField>
+			break;
+		case AlertNodeTypeEnum.Group:
+			<VanillaFormField Label="Grouping Type">
+				<EnumStringDropdown @bind-Value="@Data.ChildOperator" TEnum="RuleNodeChildOperatorEnum" />
+			</VanillaFormField>
+			break;
+		case AlertNodeTypeEnum.ClinicalDefinition:
+			break;
+		case AlertNodeTypeEnum.Exists:
+				<VanillaFormField Label="Value">
+					<RadzenTextBox @bind-Value="@Data.Value" />
+				</VanillaFormField>
+			break;
+	}
 	<VanillaFormField Label="Active">
-		<RadzenCheckBox @bind-Value="@_data.IsActive" />
+		<RadzenCheckBox @bind-Value="@Data.IsActive" />
 	</VanillaFormField>
 </VanillaDialogForm>
 
 @code {
 	[Parameter] public AlertDefRuleNode Data { get; set; }
 	[Parameter] public bool NewItem { get; set; } = false;
-	AlertDefRuleNode _data;
+	private AlertNodeTypeEnum nodeType;
 	protected override void OnParametersSet()
 	{
-		_data = Data ?? new AlertDefRuleNode();
+		nodeType = Data.NodeTypeEnum;
 	}
 
 }

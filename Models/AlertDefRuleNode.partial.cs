@@ -4,6 +4,7 @@ namespace AutoCAC.Models;
 
 public partial class AlertDefRuleNode
 {
+    public AlertNodeTypeEnum NodeTypeEnum => Enum.Parse<AlertNodeTypeEnum>(NodeType);
     public PredicateOperatorEnum? OperatorEnum => string.IsNullOrWhiteSpace(Operator) ? null :
         Enum.Parse<PredicateOperatorEnum>(Operator, ignoreCase: true);
     public RuleNodeChildOperatorEnum? ChildOperatorEnum => string.IsNullOrWhiteSpace(ChildOperator) ? RuleNodeChildOperatorEnum.All :

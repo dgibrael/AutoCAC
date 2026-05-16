@@ -1,0 +1,211 @@
+﻿@typeparam TItem where TItem : class
+@implements IDisposable
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@inject AutoCAC.Services.UserContextService UserContext
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
+
+@using AutoCAC.Models
+@using Microsoft.EntityFrameworkCore
+@using AutoCAC
+@using AutoCAC.Extensions
+@using System.Text.Json
+@using System.Reflection
+@using AutoCAC.Components.Templates
+<LoadingContent LoadState="@(GridModel?.IsInitialized != true ? LoadingState.Loading : LoadingState.Loaded)">
+    <RadzenDropDownDataGrid @ref="Grid" TValue="TItem"
+                    Data="GridModel.Data"
+                    Count="GridModel.Count"
+                    LoadData="LoadData"
+                    IsLoading="IsLoading"
+                    AllowFiltering="GridModel.AllowFiltering"
+                    PageSize="@PageSize"
+                    AllowSorting="GridModel.AllowSorting"
+                    AllowColumnResize="true"
+                    ShowPagingSummary="true"
+                    CellRender="CellRender"
+					ColumnWidth="200px" TextProperty="@TextProperty"
+                    PageSizeOptions="pageSizes" Value="Value" ValueChanged="OnValueChanged"
+                    Context="row" FilterCaseSensitivity="@(GridModel.UseClientSideData ? FilterCaseSensitivity.CaseInsensitive : FilterCaseSensitivity.Default)"
+                    EmptyTemplate="EmptyTemplate"
+                    >
+        <HeaderTemplate>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start"
+                         Wrap="FlexWrap.Wrap">
+                @HeaderContent
+                @if (!string.IsNullOrEmpty(GridModel?.AddButtonUrl) || AddButtonClick.HasDelegate)
+                {
+                    <RadzenButton Icon="add_circle_outline"
+                                  Text="Add"
+                                  ButtonStyle="ButtonStyle.Success"
+                                  Click="@OnAddClickInternal"
+                                  Variant="Variant.Flat" />
+                }
+                @if (GridModel?.SearchColumns != null)
+                {
+                    <RadzenColumn Size="5">
+                        <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync(ClearCache: false)"
+                                     Placeholder="@GridModel?.SearchTextPlaceholder" />
+                    </RadzenColumn>
+                }
+            </RadzenStack>
+        </HeaderTemplate>
+        <Columns>
+            @LeadingColumns?.Invoke(row)
+
+            @if (GridModel.ActionColumnDefault)
+            {
+                <ActionDefaultColumn GridModel="GridModel"/>
+            }
+
+            @if (ChildContent is not null)
+            {
+                @ChildContent
+            }
+            else if (GridModel.IncludeColumns is not null && GridModel.IncludeColumns.Any())
+            {
+                @foreach (var col in GridModel.IncludeColumns)
+                {
+                    <RadzenDropDownDataGridColumn Property="@col" Title="@col" />
+                }
+            }
+            else
+            {
+                var props = typeof(TItem)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => !(GridModel.ExcludeColumns ?? Array.Empty<string>())
+                .Contains(p.Name, StringComparer.OrdinalIgnoreCase));
+
+                @foreach (var prop in props)
+                {
+                    <RadzenDropDownDataGridColumn Property="@prop.Name" Title="@prop.Name" />
+                }
+            }
+
+            @TrailingColumns?.Invoke(row)
+        </Columns>
+    </RadzenDropDownDataGrid>
+</LoadingContent>
+
+@code {
+    // NEW: caller passes this, or we default to new()
+    [Parameter] public DataGridHelper<TItem> GridModel { get; set; } = new();
+
+    // RenderFragments stay as parameters (as requested)
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public RenderFragment EmptyTemplate { get; set; }
+    [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
+    [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
+    [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
+    [Parameter] public RenderFragment HeaderContent { get; set; }
+    [Parameter] public EventCallback AddButtonClick { get; set; }
+    [Parameter] public EventCallback RowSelect { get; set; }
+    [Parameter] public EventCallback<TItem> RowExpand { get; set; }
+    [Parameter] public EventCallback<DataGridRowMouseEventArgs<TItem>> RowDoubleClick { get; set; }
+    [Parameter] public EventCallback<TItem> RowEdit { get; set; }
+    [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
+    [Parameter] public TItem Value { get; set; }
+    [Parameter] public EventCallback<TItem> ValueChanged { get; set; }
+    [Parameter] public string TextProperty { get; set; }
+    async Task OnValueChanged(TItem value)
+    {
+        await ValueChanged.InvokeAsync(value);
+        await RowSelect.InvokeAsync();
+    }
+    private int[] pageSizes = { 5, 10, 20, 30, 50 };
+    int PageSize;
+    int OriginalPageSize;
+
+    private bool IsLoading;
+
+    public RadzenDropDownDataGrid<TItem> Grid;
+    private TItem row;
+
+    protected override void OnInitialized()
+    {
+        // Keep existing behavior, just sourced from Helper now
+        if (GridModel.AddButtonDefault &&
+            string.IsNullOrEmpty(GridModel.AddButtonUrl) &&
+            !AddButtonClick.HasDelegate)
+        {
+            GridModel.AddButtonUrl = NavigationManager.GetPath("new");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var height = await JSRuntime.GetWindowHeight();
+
+        if (height < 800)
+            PageSize = 5;      // small screens
+        else if (height < 1200)
+            PageSize = 10;     // medium
+        else
+            PageSize = 20;     // large
+
+        OriginalPageSize = PageSize;
+
+        // NEW: Initialize wires db/user + reload callback
+        GridModel.Initialize(
+            DbFactory,
+            UserContext.Username,
+            reloadAsync: () => InvokeAsync(Grid.Reload),
+            notifyAsync: msg => InvokeAsync(() => NotificationService.Notify(msg))
+        );
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        // avoid Helper holding a reference to this component via reload callback
+        GridModel?.DetachReloadHandler();
+    }
+
+    private long _loadVersion;
+
+    public async Task LoadData(LoadDataArgs args)
+    {
+        var myVersion = Interlocked.Increment(ref _loadVersion);
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await GridModel.LoadAsync(args);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected if you cancel loads
+        }
+        catch (Exception ex)
+        {
+            await DialogService.Alert(ex.Message, "Load Error");
+        }
+        finally
+        {
+            // Only the newest load is allowed to clear the spinner
+            if (myVersion == Volatile.Read(ref _loadVersion))
+            {
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task OnAddClickInternal()
+    {
+        if (AddButtonClick.HasDelegate)
+            await AddButtonClick.InvokeAsync(null);
+        else if (!string.IsNullOrEmpty(GridModel.AddButtonUrl))
+            NavigationManager.NavigateTo(GridModel.AddButtonUrl);
+    }
+}
