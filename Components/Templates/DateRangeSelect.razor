@@ -1,10 +1,8 @@
-﻿@using AutoCAC.Components.Templates.CardLists
-@using AutoCAC.Models
-@using AutoCAC.Utilities
+﻿@using AutoCAC.Utilities
 
 <RadzenStack Orientation="Orientation.Horizontal">
     <RadzenDropDown TValue="PeriodOption"
-                    Data="@(EnumExtensionsCustom.GetDictionary<PeriodOption>())"
+                    Data="@data"
                     ValueProperty="Key"
                     TextProperty="Value"
                     @bind-Value="Value.SelectedOption"
@@ -21,10 +19,20 @@
     [Parameter] public PeriodSelection Value { get; set; }
     [Parameter] public EventCallback<PeriodSelection> ValueChanged { get; set; }
     [Parameter] public EventCallback Change { get; set; }
+    [Parameter] public IEnumerable<PeriodOption> OnlyOptions { get; set; }
+    IReadOnlyDictionary<PeriodOption, string> data;
     PeriodOption previousOption;
-    protected override void OnInitialized()
+	protected override void OnInitialized()
+	{
+		previousOption = Value.SelectedOption;
+	}
+    protected override void OnParametersSet()
     {
-        previousOption = Value.SelectedOption;
+        var values = OnlyOptions ?? Enum.GetValues<PeriodOption>();
+
+        data = values.ToDictionary(
+            value => value,
+            value => value.GetDisplayName());
     }
 
     async Task OptionChange()

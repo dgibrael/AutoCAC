@@ -5,8 +5,8 @@
 @inject NavigationManager Nav
 
 <RadzenStack Orientation="Orientation.Horizontal">
-    <EnumDropdown TEnum="AntibiogramGramStain" @bind-Value="gramStain" Change="@LoadData"/>
-    <DateRangeSelect @bind-Value="periodSelection" Change="@LoadData"/>
+    <EnumDropdown TEnum="AntibiogramGramStain" @bind-Value="gramStain" Change="@LoadData" />
+    <DateRangeSelect @bind-Value="periodSelection" Change="@LoadData" OnlyOptions="@(new[] { PeriodOption.LastYear, PeriodOption.Past365Days, PeriodOption.Custom })"/>
     @if (UserContext?.IsInGroupOrSuperuser("AntibiogramAdmin") == true)
     {
         <RadzenButton Variant="Variant.Text" Text="Admin" Click="@(() => Nav.NavigateToRelative("admin"))" />

@@ -6,7 +6,10 @@
 <h3>@($"Editing organisms in group: {GroupName}")</h3>
 <BackLink />
 <RadzenPickList TItem="string" Source="unselectedItems" Target="selectedItems" TargetChanged="TargetChanged" 
-	Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true" />
+	Style="height: 75vh;" AllowFiltering="true" AllowMoveAll="false" Multiple="true">
+	<SourceHeader>Available Options</SourceHeader>
+	<TargetHeader>Selected</TargetHeader>
+</RadzenPickList>
 
 @code {
 	[Parameter] public string GroupName { get; set; }
