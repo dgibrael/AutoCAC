@@ -1,0 +1,44 @@
+﻿@page "/antibiogram/admin"
+@using AutoCAC.Models
+@inject DialogService DialogService
+@inject IDbContextFactory<MainContext> DbFactory
+@inject NavigationManager NavigationManager
+@using AutoCAC.Components.Templates.Buttons
+<BackLink />
+<h3>Antibiogram Organism Grouping (Click row to edit)</h3>
+<DataGridVanilla TItem="AntibiogramOrganismGroup" AddButtonClick="Add" GridModel="GridModel" 
+	RowSelect="@(x => NavigationManager.NavigateToWithExistingQry($"/antibiogram/admin/{x.GroupName}"))">
+	<RadzenDataGridColumn TItem="AntibiogramOrganismGroup" Title="Name" Property="GroupName" Width="25%"/>
+	<RadzenDataGridColumn TItem="AntibiogramOrganismGroup" Title="Organisms" WhiteSpace="WhiteSpace.Wrap" Width="75%">
+		<Template Context="row">
+			<p>@string.Join(", ", row.AntibiogramOrganismMappings.Select(x => x.Organism))</p>
+		</Template>
+	</RadzenDataGridColumn>
+</DataGridVanilla>
+
+@code {
+	private DataGridHelper<AntibiogramOrganismGroup> GridModel = new()
+	{
+		SearchColumns = new[] { nameof(AntibiogramOrganismGroup.GroupName) },
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowGrouping = false,
+		AllowFiltering = false,
+		QueryFactory = db => db.AntibiogramOrganismGroups.Include(x => x.AntibiogramOrganismMappings).OrderBy(x => x.GroupName)
+	};
+	private async Task Add()
+	{
+		var newGroup = await DialogService.TextPromptAsync("New Organism Group", "Enter the name of the new organism group:");
+		if (!string.IsNullOrWhiteSpace(newGroup))
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			var existing = await db.AntibiogramOrganismGroups.FirstOrDefaultAsync(g => g.GroupName == newGroup);
+			if (existing == null)
+			{
+				db.AntibiogramOrganismGroups.Add(new AntibiogramOrganismGroup { GroupName = newGroup });
+				await db.SaveChangesAsync();
+			}
+			NavigationManager.NavigateToWithExistingQry($"/antibiogram/admin/{newGroup}");
+		}
+	}
+}

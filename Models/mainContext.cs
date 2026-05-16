@@ -23,6 +23,10 @@ public partial class MainContext : DbContext
 
     public virtual DbSet<AlertMessage> AlertMessages { get; set; }
 
+    public virtual DbSet<AntibiogramOrganismGroup> AntibiogramOrganismGroups { get; set; }
+
+    public virtual DbSet<AntibiogramOrganismMapping> AntibiogramOrganismMappings { get; set; }
+
     public virtual DbSet<AuthGroup> AuthGroups { get; set; }
 
     public virtual DbSet<AuthUser> AuthUsers { get; set; }
@@ -328,6 +332,37 @@ public partial class MainContext : DbContext
             entity.HasOne(d => d.AuthUser).WithMany(p => p.AlertMessages)
                 .HasForeignKey(d => d.AuthUserId)
                 .HasConstraintName("FK__AlertMess__auth___43165F9B");
+        });
+
+        modelBuilder.Entity<AntibiogramOrganismGroup>(entity =>
+        {
+            entity.HasKey(e => e.GroupName).HasName("PK__Antibiog__6EFCD43529696783");
+
+            entity.ToTable("AntibiogramOrganismGroup");
+
+            entity.Property(e => e.GroupName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<AntibiogramOrganismMapping>(entity =>
+        {
+            entity.HasKey(e => e.Organism).HasName("PK__Antibiog__C2287CC5016DD566");
+
+            entity.ToTable("AntibiogramOrganismMapping");
+
+            entity.HasIndex(e => e.Organism, "UQ__Antibiog__C2287CC4AB085242").IsUnique();
+
+            entity.Property(e => e.Organism)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+            entity.Property(e => e.AntibiogramOrganismGroupName)
+                .HasMaxLength(200)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.AntibiogramOrganismGroupNameNavigation).WithMany(p => p.AntibiogramOrganismMappings)
+                .HasForeignKey(d => d.AntibiogramOrganismGroupName)
+                .HasConstraintName("FK_AntibiogramOrganismMapping_AntibiogramOrganismGroup");
         });
 
         modelBuilder.Entity<AuthGroup>(entity =>

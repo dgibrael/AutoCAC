@@ -1,0 +1,61 @@
+﻿@page "/antibiogram/admin/{GroupName}"
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject NotificationService NotificationService
+<h3>@($"Editing organisms in group: {GroupName}")</h3>
+<BackLink />
+<RadzenPickList TItem="string" Source="unselectedItems" Target="selectedItems" TargetChanged="TargetChanged" 
+	Style="height: 250px;" AllowFiltering="true" MoveFilteredItemsOnlyOnMoveAll="true" Multiple="true" />
+
+@code {
+	[Parameter] public string GroupName { get; set; }
+	HashSet<string> selectedItems;
+	HashSet<string> unselectedItems;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadData();
+			StateHasChanged();
+		}
+	}
+	private async Task LoadData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		selectedItems = await db.AntibiogramOrganismMappings.Where(x => x.AntibiogramOrganismGroupName == GroupName).Select(x => x.Organism).Order().ToHashSetAsync();
+		unselectedItems = await db.Microbios
+			.Where(a => a.Organism != null)
+			.Where(a => !db.AntibiogramOrganismMappings
+				.Any(b => b.Organism == a.Organism))
+			.Select(a => a.Organism)
+			.Distinct()
+			.Order()
+			.ToHashSetAsync();
+	}
+	private async Task TargetChanged(IEnumerable<string> newSelected)
+	{
+		var toAdd = newSelected.Except(selectedItems).ToList();
+		var toRemove = selectedItems.Except(newSelected).ToList();
+		await using var db = await DbFactory.CreateDbContextAsync();
+		foreach (var organism in toAdd)
+		{
+			db.AntibiogramOrganismMappings.Add(new AntibiogramOrganismMapping
+				{
+					AntibiogramOrganismGroupName = GroupName,
+					Organism = organism
+				});
+		}
+		foreach (var organism in toRemove)
+		{
+			var mapping = await db.AntibiogramOrganismMappings.FirstOrDefaultAsync(x => x.AntibiogramOrganismGroupName == GroupName && x.Organism == organism);
+			if (mapping != null)
+			{
+				db.AntibiogramOrganismMappings.Remove(mapping);
+			}
+		}
+		await db.SaveChangesAsync();
+		NotificationService.Success("Changes Saved");
+		selectedItems = newSelected.Order().ToHashSet();
+	}
+}

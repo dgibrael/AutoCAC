@@ -39,6 +39,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[AntibiogramOrganismGroup]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[AntibiogramOrganismMapping]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[auth_group]",
          "ObjectType": 0
       },

@@ -1,10 +1,16 @@
 ﻿@page "/antibiogram"
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
-@using AutoCAC.Components.Templates.Forms
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+
 <RadzenStack Orientation="Orientation.Horizontal">
     <EnumDropdown TEnum="AntibiogramGramStain" @bind-Value="gramStain" Change="@LoadData"/>
     <DateRangeSelect @bind-Value="periodSelection" Change="@LoadData"/>
+    @if (UserContext?.IsInGroupOrSuperuser("AntibiogramAdmin") == true)
+    {
+        <RadzenButton Variant="Variant.Text" Text="Admin" Click="@(() => Nav.NavigateToRelative("admin"))" />
+    }
 </RadzenStack>
 <RadzenDataGrid Data="@matrixRows" TItem="AntibiogramMatrixRow" PageSize="10" IsLoading="IsLoading" AllowColumnResize="true"
                 AllowPaging="true" PageSizeOptions="@(new[] { 5, 10, 20 })" AllowSorting="true" AllowFiltering="true" 
@@ -26,13 +32,37 @@
                                           Sortable="false"
                                           Filterable="false" WhiteSpace="WhiteSpace.Wrap">
                         <HeaderTemplate>
-                            <span style="writing-mode: vertical-rl; transform: rotate(180deg);">@antibiotic</span>
+                            @{
+                                string colName = antibiotic;
+                                string title = antibiotic;
+                                string superScript = "";
+                                switch (antibiotic)
+                                {
+                                    case "CEFAZOLIN URINE":
+                                    case "CEFAZOLIN NONURINE":
+                                        title = cefazolinNote;
+                                        superScript = "3";
+                                        break;
+                                    case "GM500":
+                                        colName = "GENT SYNERGY";
+                                        title = "GENT SYNERGY (GM500)";
+                                        break;
+                                    case "ST1000":
+                                        colName = "STREPT SYNERGY";
+                                        title = "STREPT SYNERGY (ST1000)";
+										break;
+                                }
+                            }
+                            <div title="@title" style="writing-mode: vertical-rl; transform: rotate(180deg);">
+								<span>@colName</span>
+								<sup>@superScript</sup>
+							</div>
                         </HeaderTemplate>
                         <Template Context="row">
                             @if (row.Values.TryGetValue(antibiotic, out var pct))
                             {
                                 var ct = row.Counts.GetValueOrDefault(antibiotic);
-                                bool isUnder = ct < minIsolates;
+                                bool isUnder = ct < isolateWarningPoint;
                                 if(isUnder)
                                 {
                                     <div class="rz-color-danger-darker" title="@clsiNote">
@@ -63,15 +93,22 @@
     <ol>
         <li>@headingNote</li>
         <li>@clsiNote</li>
+        <li>@cefazolinNote</li>
     </ol>
 </RadzenFooter>
 @code {
     PeriodSelection periodSelection = new PeriodSelection(PeriodOption.Past365Days);
     int compositeCols = 1;
-    int minIsolates = 30;
+    int isolateWarningPoint = 30;
+	int isolateFilterPoint = 15;
     string clsiNote;
     string headingNote = @"Percentage (%) represents the proportion of isolates classified as susceptible (susceptible isolates ÷ total isolates tested). 
 The value in parentheses indicates the total number of isolates evaluated.";
+    string cefazolinNote = @"Cefazolin has distinct susceptibility breakpoints for urinary vs non-urinary infections. 
+For systemic infections (e.g., bacteremia, pneumonia), the susceptible breakpoint is ≤2 µg/mL.
+For uncomplicated cystitis, a higher urine-specific breakpoint (≤16 µg/mL) is used because cefazolin achieves high urinary concentrations. 
+Results interpreted as susceptible using urine breakpoints should only be applied to uncomplicated cystitis and not to pyelonephritis or invasive infections. 
+Cefazolin may be used as a surrogate marker for susceptibility to oral cephalosporins for uncomplicated UTI.";
     public enum AntibiogramGramStain
 	{
 		BothGramNegativeAndPositive,
@@ -85,7 +122,7 @@ The value in parentheses indicates the total number of isolates evaluated.";
 	bool IsLoading = true;
 	protected override void OnInitialized()
 	{
-        clsiNote = @$"Data from fewer than {minIsolates} isolates fall below the CLSI M100 threshold and should be interpreted cautiously with clinical judgment.";
+        clsiNote = @$"Data from fewer than {isolateWarningPoint} isolates fall below the CLSI M100 threshold and should be interpreted cautiously with clinical judgment.";
 	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -127,9 +164,13 @@ The value in parentheses indicates the total number of isolates evaluated.";
             {
                 x.Id,
                 x.PatientId,
+
+                // Keep this as the original organism for deduplication.
                 x.Organism,
+
                 x.Result,
                 x.CollectionDateTime,
+
                 Antibiotic = x.Antibiotic == "CEFAZOLIN"
                     ? "CEFAZOLIN" + (EF.Functions.Like(x.Culture, "%urine%") ? " URINE" : " NONURINE")
                     : x.Antibiotic
@@ -148,7 +189,24 @@ The value in parentheses indicates the total number of isolates evaluated.";
             var deduped = shapedQuery
                 .Where(x => firstIdsPerCulture.Contains(x.Id));
 
-            data = await deduped
+            var mappedQuery =
+                from x in deduped
+                join mapping in db.AntibiogramOrganismMappings
+                    on x.Organism equals mapping.Organism into mappingJoin
+                from mapping in mappingJoin.DefaultIfEmpty()
+                select new
+                {
+                    x.Antibiotic,
+
+                    // Use mapped group name when present; otherwise use original organism.
+                    Organism = mapping == null
+                        ? x.Organism
+                        : mapping.AntibiogramOrganismGroupName,
+
+                    x.Result
+                };
+
+            data = await mappedQuery
                 .GroupBy(x => new
                 {
                     x.Antibiotic,
@@ -162,6 +220,16 @@ The value in parentheses indicates the total number of isolates evaluated.";
                     TotalCount = g.Count()
                 })
                 .ToListAsync();
+
+            var includedOrganisms = data
+                .GroupBy(x => x.Organism)
+                .Where(g => g.Max(x => x.TotalCount) >= isolateFilterPoint)
+                .Select(g => g.Key)
+                .ToHashSet();
+
+            data = data
+                .Where(x => includedOrganisms.Contains(x.Organism))
+                .ToList();
 
             antibiotics = data
                 .Select(x => x.Antibiotic)
@@ -179,7 +247,8 @@ The value in parentheses indicates the total number of isolates evaluated.";
                 })
                 .OrderBy(x => x.Organism)
                 .ToList();
-            compositeCols = antibiotics.Count();
+
+            compositeCols = antibiotics.Count;
         }
         finally
         {
