@@ -53,3 +53,11 @@ public enum RuleNodeFieldDataTypeEnum
     HoursAgo,
     DaysAgo
 }
+
+public enum ClinicalDefinitionTypeEnum
+{
+    MedOrder,
+    Lab,
+    Microbio,
+    Adt
+}

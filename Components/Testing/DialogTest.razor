@@ -1,0 +1,10 @@
+﻿@page "/test"
+
+@inject AutoCAC.Services.EmailService Email
+@inject AutoCAC.Services.IAdSearch adSearch
+@inject DialogService Dialog
+
+<RadzenButton Text="Close" Click="@(() => Dialog.Close("closed main dialog"))" />
+@code {
+}
+

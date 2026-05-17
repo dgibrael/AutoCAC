@@ -1,0 +1,101 @@
+﻿@page "/admin/ClinicalDefinition/{Id:int}"
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@using AutoCAC.Components.Bases
+@using AutoCAC.Common.Alerts
+@inherits ChildTabComponent
+@inject IDbContextFactory<MainContext> DbFactory
+@inject NavigationManager Nav
+@inject DialogService Dialog
+<LoadingContent LoadState="@(data == null ? LoadingState.Loading : LoadingState.Loaded)">
+	<VanillaForm TItem="ClinicalDefinition" Data="@data" AfterSubmit="AfterSubmit" NewItem="@(Id == 0)">
+		<VanillaFormField Label="Name">
+			<RadzenTextBox @bind-Value="@data.Name" />
+		</VanillaFormField>
+		<VanillaFormField Label="Data Type">
+			<EnumStringDropdown TEnum="ClinicalDefinitionTypeEnum" @bind-Value="@data.DataType"/>
+		</VanillaFormField>
+		<VanillaFormField Label="Description">
+			<RadzenTextBox @bind-Value="@data.Description" />
+		</VanillaFormField>
+	</VanillaForm>
+	@if (data?.ClinicalDefinitionItems != null)
+	{
+		<RadzenRow>
+			<RadzenButton Text="Add Item" Click="AddItem" class="rz-my-5"/>
+		</RadzenRow>
+		<RadzenRow>
+			@foreach(var x in data.ClinicalDefinitionItems)
+			{
+				if (x.IsActive)
+				{
+					<span>@x.FieldName LIKE @x.Pattern | </span>
+				}
+			}
+		</RadzenRow>
+	}
+</LoadingContent>
+	@code {
+	[Parameter] public int Id { get; set; }
+	ClinicalDefinition data;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{			
+			if (Id != 0)
+			{
+				await LoadData();
+			}
+			else
+			{
+				data = new();
+				StateHasChanged();
+			}
+		}
+	}
+	private async Task LoadData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		data = await db.ClinicalDefinitions.Include(x => x.ClinicalDefinitionItems).FirstOrDefaultAsync(x => x.Id == Id);
+		StateHasChanged();
+	}
+	private async Task AfterSubmit(ClinicalDefinition newData)
+	{
+		if (Id == 0)
+		{
+			if (newData?.Id != null && newData.Id != 0)
+			{
+				Nav.NavigateToRelative(newData?.Id.ToString(), fromParent: true);
+			}
+			else if (HasChannel)
+			{
+				await CloseTabAsync(null);
+			}
+			else
+			{
+				Nav.NavigateToRelative(fromParent: true);
+			}
+			return;
+		}
+		if (HasChannel)
+		{
+			await CloseTabAsync(Id.ToString());
+			return;
+		}
+		Nav.NavigateToRelative(fromParent: true);
+	}
+	private async Task AddItem()
+	{
+		var item = new ClinicalDefinitionItem()
+		{
+			ClinicalDefinitionId = Id,
+			IsActive = true
+		};
+		await Dialog.OpenAutoFormAsync<ClinicalDefinitionItem>(item, 
+				IncludedProperties: new HashSet<string> { nameof(ClinicalDefinitionItem.FieldName), nameof(ClinicalDefinitionItem.Pattern) },
+				SaveToDb: true,
+				NewItem: true
+		);
+		await LoadData();
+	}
+}

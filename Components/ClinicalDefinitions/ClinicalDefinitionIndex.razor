@@ -1,0 +1,19 @@
+﻿@page "/admin/ClinicalDefinition"
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Models
+
+<DataGridVanilla TItem="ClinicalDefinition" GridModel="@GridModel">
+	<HeaderContent>
+		<OpenTabButton Url="/admin/ClinicalDefinition/0" OnComplete="@(() => GridModel.ReloadAsync())"/>
+	</HeaderContent>
+	<TrailingColumns>
+		<ActionDefaultColumn TItem="ClinicalDefinition" GridModel="GridModel" />
+	</TrailingColumns>
+</DataGridVanilla>
+@code {
+	DataGridHelper<ClinicalDefinition> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(ClinicalDefinition.Name), nameof(ClinicalDefinition.Description) },
+		SearchColumns = new[] { nameof(ClinicalDefinition.Name) }
+	};
+}

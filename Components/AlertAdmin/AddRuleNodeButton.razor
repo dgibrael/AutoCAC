@@ -1,15 +1,13 @@
-﻿@using AutoCAC.Components.Templates.Buttons
-@using AutoCAC.Models
+﻿@using AutoCAC.Models
 @using AutoCAC.Common.Alerts
 @inject DialogService DialogService
-<SplitButtonTemplate   />
 @{
 	var parentType = ParentNode.NodeTypeEnum;
 }
 @switch (parentType)
 {
 	case AlertNodeTypeEnum.Group:
-		<RadzenSplitButton Click="@(x => AddNode(x.Value))" Text="Add Child Node" AlwaysOpenPopup="true">
+		<RadzenSplitButton Click="@(x => AddNode(x.Value))" Text="Add Child Node" AlwaysOpenPopup="true" Icon="add">
 			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.Group.ToString()" Text="Group" />
 			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.ClinicalDefinition.ToString()" Text="Clinical Definition" />
 			<RadzenSplitButtonItem Value="@AlertNodeTypeEnum.Exists.ToString()" Text="Exists (e.g. patient has any microbio result)" />
@@ -17,7 +15,7 @@
 		break;
 	case AlertNodeTypeEnum.ClinicalDefinition:
 	case AlertNodeTypeEnum.Exists:
-		<RadzenButton Text="Add Modifier" />
+		<RadzenButton Text="Add Modifier" Icon="add" />
 		break;
 }
 @code {

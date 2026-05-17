@@ -6,15 +6,11 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @using AutoCAC.Components.Templates
-@using AutoCAC.Components.Templates.PatientSearch
-@using AutoCAC.Extensions
 @using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
 @inject AutoCAC.Services.UserContextService UserContext
-@using System.Security.Claims
 
 <PageTitle>Home</PageTitle>
-<DropdownDataGridVanilla TItem="Drug" RowSelect="@(() => Console.WriteLine(selectedDrug?.Name))" @bind-Value="@selectedDrug" TextProperty="Name" GridModel="GridModel"/>
 <LoadingContent LoadState="@(!UserContext.UserLoaded ? LoadingState.Loading : LoadingState.Loaded)">
     <h4>User Info</h4>
 
@@ -48,11 +44,5 @@
     </ul>
 </LoadingContent>
 @code {
-    Drug selectedDrug;
-    DataGridHelper<Drug> GridModel = new()
-    {
-        IncludeColumns = new[] { nameof(Drug.Name), nameof(Drug.Generic) },
-        SearchColumns = new[] { nameof(Drug.Name), nameof(Drug.Generic) }
-    };
 }
 

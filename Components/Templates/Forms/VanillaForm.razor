@@ -23,13 +23,14 @@
     [Parameter] public EventCallback<TItem> AfterSubmit { get; set; }
     [Parameter] public EventCallback<TItem> Submit { get; set; }
     [Parameter] public string Style { get; set; }
+    [Parameter] public bool NewItem { get; set; } = false;
     private bool _newItem = true;
     bool _isbusy;
     private TItem _item;
 
     protected override void OnInitialized()
     {
-        _newItem = Data == null;
+        _newItem = NewItem || Data == null;
         _item = Data ?? new TItem();
     }
 

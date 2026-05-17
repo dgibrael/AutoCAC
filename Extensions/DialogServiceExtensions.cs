@@ -494,7 +494,8 @@ namespace AutoCAC.Extensions
             HashSet<string> IncludedProperties = default,
             bool SaveToDb = false,
             string title = "",
-            IEnumerable<SplitButtonItem> OtherActions = null
+            IEnumerable<SplitButtonItem> OtherActions = null,
+            bool NewItem = false
             )
             where TItem : class, new()
         {
@@ -503,7 +504,8 @@ namespace AutoCAC.Extensions
                 ["Data"] = Data,
                 ["IncludedProperties"] = IncludedProperties,
                 ["SaveToDb"] = SaveToDb,
-                ["OtherActions"] = OtherActions
+                ["OtherActions"] = OtherActions,
+                ["NewItem"] = NewItem
             };
             var options = new DialogOptions
             {

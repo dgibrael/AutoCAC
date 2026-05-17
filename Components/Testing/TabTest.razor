@@ -1,0 +1,15 @@
+﻿@page "/test2"
+@using AutoCAC.Components.Bases
+@using AutoCAC.Components.Templates.Buttons
+@inherits ChildTabComponent
+
+<h3>Test child tab</h3>
+
+<ChildTabButtons Save="@SaveAsync" OnNonTabClose="@(async x => Console.WriteLine($"{x} from non tabl"))"/>
+
+@code {
+	private async Task<string> SaveAsync()
+	{
+		return "saved from child tab";
+	}
+}

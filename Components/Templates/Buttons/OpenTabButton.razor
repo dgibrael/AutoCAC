@@ -1,0 +1,76 @@
+﻿@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<RadzenButton Text="@Text"
+              Icon="open_in_new"
+              ButtonStyle="ButtonStyle.Light"
+              Disabled="@Disabled"
+              Click="@OpenAsync" />
+
+@code {
+    private DotNetObjectReference<OpenTabButton> _dotNetRef;
+    private string _channelName = "";
+    private bool _subscribed;
+
+    [Parameter, EditorRequired] public string Url { get; set; }
+
+    [Parameter] public EventCallback<string> OnComplete { get; set; }
+
+    [Parameter] public string Text { get; set; } = "Add";
+
+    [Parameter] public bool Disabled { get; set; }
+    private string channelQueryParameterName = "channel";
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        _channelName = $"linked-tab-{Guid.NewGuid():N}";
+        _dotNetRef = DotNetObjectReference.Create(this);
+
+        await JS.SubscribeToBroadcastChannelAsync(_channelName, _dotNetRef);
+        _subscribed = true;
+    }
+
+    private async Task OpenAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Url))
+        {
+            return;
+        }
+        var url = BuildUrlWithChannel(Url, _channelName);
+
+        await JS.OpenTabAsync(url);
+    }
+
+    private string BuildUrlWithChannel(string url, string channelName)
+    {
+        url = url.TrimEnd('/');
+        var separator = url.Contains('?') ? "&" : "?";
+        return $"{url}{separator}{channelQueryParameterName}={Uri.EscapeDataString(channelName)}";
+    }
+
+    [JSInvokable]
+    public async Task OnBroadcastMessage(string message)
+    {
+        if (OnComplete.HasDelegate)
+        {
+            await OnComplete.InvokeAsync(message);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_subscribed)
+        {
+            await JS.UnsubscribeFromBroadcastChannelAsync(_channelName);
+        }
+
+        _dotNetRef?.Dispose();
+    }
+}

@@ -1,6 +1,5 @@
 ﻿@page "/admin/alert/{Id:int}"
 @using AutoCAC.Components.Templates.Buttons
-@using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Models
 @inject IDbContextFactory<MainContext> DbFactory
 @inject NavigationManager Nav
@@ -19,16 +18,16 @@
     @if (data != null && !RootNodes.Any())
     {
         <p>No rule nodes yet.</p>
+        <RadzenButton Text="Add Root Group" Click="@(() => AddRootNode())" class="rz-my-2" Icon="add" ButtonStyle="ButtonStyle.Success" />
     }
     else
     {
         <RadzenDataList Data="RootNodes">
             <Template Context="root">
-                <AlertDefRuleNodeTree Node="root" AllNodes="data.AlertDefRuleNodes.ToList()" OnAddChildNode="@AddRuleNode" OnEditNode="@EditRuleNode" />
+                <AlertDefRuleNodeTree Node="root" AllNodes="data.AlertDefRuleNodes.ToList()" AfterAdd="@LoadData" OnEditNode="@EditRuleNode" />
             </Template>
         </RadzenDataList>
     }
-    <RadzenButton Text="Add Root Group" Click="@(() => AddRuleNode())" class="rz-my-2" Icon="add" ButtonStyle="ButtonStyle.Success" />
 </LoadingContent>
 
 @code {
@@ -59,6 +58,7 @@
         data = await db.AlertDefs
             .Include(x => x.AlertDefRuleNodes)
             .SingleOrDefaultAsync(x => x.Id == Id);
+		StateHasChanged();
     }
 
     private async Task EditAttributes()
@@ -68,7 +68,6 @@
             new Dictionary<string, object>() { { "Data", data } });
 
         await LoadData();
-        StateHasChanged();
     }
     private async Task EditRuleNode(AlertDefRuleNode node)
     {
@@ -76,38 +75,25 @@
             "Edit Rule Node",
             new Dictionary<string, object>
             {
-            { "Data", node }
+                { "Data", node }
             });
 
         if (result != null)
         {
             await LoadData();
-            StateHasChanged();
         }
     }
 
-    private async Task AddRuleNode(AlertDefRuleNode parentNode = null)
+    private async Task AddRootNode()
     {
         var newNode = new AlertDefRuleNode
         {
             AlertDefId = data.Id,
-            ParentId = parentNode?.Id,
+            NodeType = AlertNodeTypeEnum.Group.ToString(),
             IsActive = true,
-            Operator = "All"
+            ChildOperator = "All"
         };
-
-        var result = await DialogService.OpenDefaultAsync<AlertNodeDialog, AlertDefRuleNode>(
-            "Add Rule Node",
-            new Dictionary<string, object>
-            {
-                { "Data", newNode },
-                { "NewItem", true }
-            });
-
-        if (result != null)
-        {
-            await LoadData();
-            StateHasChanged();
-        }
+		await DbFactory.AddItemAsync(newNode);
+        await LoadData();
     }
 }

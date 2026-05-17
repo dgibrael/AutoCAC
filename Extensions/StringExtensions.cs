@@ -181,10 +181,12 @@ namespace AutoCAC.Extensions
             return value;
         }
 
-        public static string NormalizeUrl(this string url)
+        public static string NormalizeUrl(this string url, bool keepQuery = false)
         {
             if (string.IsNullOrWhiteSpace(url)) return "/";
-            var u = url.Split('?', '#')[0];
+            string u = url;
+            if (!keepQuery)
+                u = url.Split('?', '#')[0];
             u = "/" + u.Trim('/') + "/";
             return u.ToLowerInvariant();
         }

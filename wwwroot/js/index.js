@@ -292,3 +292,46 @@ window.GetChatDraftText = function (elementId) {
     // For textarea/input, the current text is in .value (not textContent)
     return el.value || "";
 };
+
+
+window.appBroadcast = {
+    channels: {},
+
+    subscribe: function (channelName, dotNetRef) {
+        if (window.appBroadcast.channels[channelName]) {
+            window.appBroadcast.channels[channelName].close();
+            delete window.appBroadcast.channels[channelName];
+        }
+
+        const channel = new BroadcastChannel(channelName);
+
+        channel.onmessage = async function (event) {
+            await dotNetRef.invokeMethodAsync("OnBroadcastMessage", event.data);
+        };
+
+        window.appBroadcast.channels[channelName] = channel;
+    },
+
+    post: function (channelName, message, closeAfterPost) {
+        const channel = new BroadcastChannel(channelName);
+        channel.postMessage(message);
+        channel.close();
+
+        if (closeAfterPost) {
+            window.close();
+        }
+    },
+
+    unsubscribe: function (channelName) {
+        const channel = window.appBroadcast.channels[channelName];
+
+        if (channel) {
+            channel.close();
+            delete window.appBroadcast.channels[channelName];
+        }
+    },
+
+    openTab: function (url) {
+        window.open(url, "_blank", "noopener");
+    }
+};

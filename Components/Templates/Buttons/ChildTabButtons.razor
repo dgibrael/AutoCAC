@@ -1,0 +1,91 @@
+﻿@using AutoCAC.Extensions
+@inject IJSRuntime JS
+
+<RadzenStack Orientation="Orientation.Horizontal"
+             JustifyContent="JustifyContent.Start"
+             Gap="0.5rem">
+    <RadzenButton Text="Save"
+                  ButtonStyle="ButtonStyle.Primary"
+                  IsBusy="@_isBusy"
+                  Click="@SaveAndCloseAsync" />
+
+    <RadzenButton Text="Cancel"
+                  ButtonStyle="ButtonStyle.Base"
+                  IsBusy="@_isBusy"
+                  Click="@CancelAndCloseAsync" />
+</RadzenStack>
+
+@code {
+    private bool _isBusy;
+
+    [SupplyParameterFromQuery] public string Channel { get; set; } = "";
+
+    [Parameter, EditorRequired] public Func<Task<string>> Save { get; set; }
+
+    [Parameter] public Func<Task> Cancel { get; set; }
+
+    [Parameter] public Func<string, Task> OnNonTabClose { get; set; }
+
+    private async Task SaveAndCloseAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        _isBusy = true;
+
+        try
+        {
+            var message = await Save();
+
+            await CompleteAsync(message);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task CancelAndCloseAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        _isBusy = true;
+
+        try
+        {
+            if (Cancel is not null)
+            {
+                await Cancel();
+            }
+
+            await CompleteAsync(null);
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task CompleteAsync(string message)
+    {
+        if (!string.IsNullOrWhiteSpace(Channel))
+        {
+            await JS.PostBroadcastMessageAsync(
+                Channel,
+                message,
+                closeAfterPost: true);
+
+            return;
+        }
+
+        if (OnNonTabClose is not null)
+        {
+            await OnNonTabClose(message);
+        }
+    }
+}
