@@ -7,7 +7,6 @@
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
 @inject DialogService DialogService
-@using System.Text
 @inject IJSRuntime JS
 @using AutoCAC.Models
 @inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
@@ -42,6 +41,7 @@
                         }
                     }
                     <RadzenLink Icon="settings" Path="/settings" />
+                    <NotificationIcon />
                 </RadzenStack>
             </RadzenColumn>
         </RadzenRow>

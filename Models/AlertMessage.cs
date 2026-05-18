@@ -17,9 +17,9 @@ public partial class AlertMessage
 
     public int? AuthUserId { get; set; }
 
+    public string MessageType { get; set; } = null!;
+
     public virtual Alert Alert { get; set; } = null!;
 
     public virtual AuthUser? AuthUser { get; set; }
-
-    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

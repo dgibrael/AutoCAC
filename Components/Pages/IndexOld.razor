@@ -1,0 +1,47 @@
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+@inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
+@inject TooltipService TooltipService
+@inject NotificationService NotificationService
+@using AutoCAC.Components.Templates
+@using AutoCAC.Models
+@inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
+@inject AutoCAC.Services.UserContextService UserContext
+
+<PageTitle>Home</PageTitle>
+<LoadingContent LoadState="@(!UserContext.UserLoaded ? LoadingState.Loading : LoadingState.Loaded)">
+    <h4>User Info</h4>
+
+    <p><strong>Username: </strong>@UserContext.UserProfile.Username</p>
+    <p><strong>Superuser: </strong>@UserContext.UserProfile.IsSuperuser</p>
+    @if(UserContext.UserProfile.IsActive==true)
+    {
+        <p><strong>Active: </strong>true</p>
+    }
+    else
+    {
+        <h4 class="rz-color-danger">YOU ARE NOT MARKED AS AN ACTIVE USER. YOU WILL NOT BE ABLE TO USE THIS SITE UNTIL AN ADMIN ACTIVATES YOUR ACCOUNT</h4>
+    }
+    <p><strong>Superuser: </strong>@UserContext.UserProfile.IsSuperuser</p>
+    <p><strong>LastName: </strong>@UserContext.AdLastName</p>
+    <p><strong>FirstName: </strong>@UserContext.AdFirstName</p>
+    <p><strong>Email: </strong>@UserContext.AdEmail</p>
+    <strong>Groups: </strong>
+    <ul>
+        @foreach(var group in UserContext.DbGroups)
+        {
+            <li>@group.Name</li>
+        }
+    </ul>
+    <strong>Active Directory Groups: </strong>
+    <ul>
+        @foreach(var g in UserContext.AdGroups)
+        {
+            <li>@g</li>
+        }
+    </ul>
+</LoadingContent>
+@code {
+}
+

@@ -37,5 +37,7 @@ public partial class Alert
 
     public virtual AuthUser? AuthUser { get; set; }
 
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
     public virtual Patient? Patient { get; set; }
 }

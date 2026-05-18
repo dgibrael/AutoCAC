@@ -1,0 +1,48 @@
+﻿@inject UserContextService UserContext
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject NavigationManager Nav
+@if (isLoading)
+{
+	<RadzenIcon Icon="notifications" />
+}
+else
+{
+	<RadzenButton Click="@(() => Nav.NavigateTo("/"))" 
+		title="@($"You have {UnreadCount} unread notification(s)")" 
+		Variant="Variant.Text"
+		ButtonStyle="ButtonStyle.Light"
+	>
+		<RadzenIcon Icon="notifications" />
+		@if (hasUnread)
+		{
+			<RadzenBadge Text="@UnreadCount.ToString()"
+						 BadgeStyle="BadgeStyle.Danger"
+						 IsPill="true" Shade="Shade.Light"/>
+		}
+	</RadzenButton>
+}
+@code {
+	bool isLoading = true;
+	int UnreadCount = 0;
+	bool hasUnread => UnreadCount > 0;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			isLoading = true;
+			await UserContext.EnsureInitializedAsync();
+			await LoadNotifications();
+			isLoading = false;
+			StateHasChanged();
+		}
+	}
+	private async Task LoadNotifications()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		UnreadCount = await db.Notifications
+								.Include(x => x.Alert)
+								.Where(x => x.AuthUserId == UserContext.UserProfile.Id && x.HasUnseenActivity).CountAsync();
+		StateHasChanged();
+	}
+}

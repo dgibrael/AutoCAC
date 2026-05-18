@@ -144,6 +144,7 @@ CREATE TABLE dbo.AlertMessage(
     CreatedAt datetime2(2) NOT NULL DEFAULT SYSDATETIME(),
     Body nvarchar(4000) NOT NULL,
     auth_user_id int NULL,
+    MessageType varchar(100) not null,
     FOREIGN KEY (AlertId) REFERENCES dbo.Alert(Id) ON DELETE CASCADE,
     FOREIGN KEY (auth_user_id) REFERENCES dbo.auth_user(id)
 );
@@ -165,20 +166,35 @@ GO
 INSERT INTO ProcessState(ProcessName)
 VALUES('RuleEngineImport')
 GO
+drop table Notification
+GO
 CREATE TABLE dbo.Notification(
     Id int IDENTITY(1,1) PRIMARY KEY NOT NULL,
-    CreatedAt datetime2(2) NOT NULL DEFAULT SYSDATETIME(),
-    ReadAt datetime2(2) NULL,
-    IsRead bit NOT NULL DEFAULT 0,
+    CreatedAt datetime2(2) NOT NULL DEFAULT SYSUTCDATETIME(),
+    LastSeenAt datetime2(2) NULL,
+    LastModifiedAt datetime2(2) NOT NULL DEFAULT SYSUTCDATETIME(),
     auth_user_id int NOT NULL,
-    AlertMessageId int NOT NULL,
+    AlertId int NOT NULL,
+    DeletedAt datetime2(2) NULL,
+    HasUnseenActivity AS
+        ISNULL(
+            CONVERT(bit, CASE
+                WHEN LastSeenAt IS NULL OR LastSeenAt < LastModifiedAt THEN 1
+                ELSE 0
+            END),
+            CONVERT(bit, 0)
+        ) PERSISTED,
     FOREIGN KEY (auth_user_id) REFERENCES dbo.auth_user(id),
-    FOREIGN KEY (AlertMessageId) REFERENCES dbo.AlertMessage(Id) ON DELETE CASCADE,
-    UNIQUE (AlertMessageId, auth_user_id)
+    FOREIGN KEY (AlertId) REFERENCES dbo.Alert(Id) ON DELETE CASCADE
 );
 GO
-CREATE INDEX IX_Notification_Unread_User_CreatedAt
-    ON dbo.Notification(auth_user_id, CreatedAt DESC)
-    INCLUDE (AlertMessageId, ReadAt)
-    WHERE IsRead = 0;
+
+CREATE UNIQUE INDEX UX_Notification_Alert_User
+    ON dbo.Notification(AlertId, auth_user_id);
+GO
+
+CREATE INDEX IX_Notification_Active_User_LastModifiedAt
+    ON dbo.Notification(auth_user_id, LastModifiedAt DESC, Id DESC)
+    INCLUDE (AlertId, LastSeenAt, CreatedAt, HasUnseenActivity)
+    WHERE DeletedAt IS NULL;
 GO

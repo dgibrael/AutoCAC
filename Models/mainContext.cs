@@ -324,6 +324,9 @@ public partial class MainContext : DbContext
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(2)
                 .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.MessageType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
 
             entity.HasOne(d => d.Alert).WithMany(p => p.AlertMessages)
                 .HasForeignKey(d => d.AlertId)
@@ -1197,30 +1200,35 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<Notification>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Notifica__3214EC07A4425C54");
+            entity.HasKey(e => e.Id).HasName("PK__Notifica__3214EC07DFA35FBB");
 
             entity.ToTable("Notification");
 
-            entity.HasIndex(e => new { e.AuthUserId, e.CreatedAt }, "IX_Notification_Unread_User_CreatedAt")
-                .IsDescending(false, true)
-                .HasFilter("([IsRead]=(0))");
+            entity.HasIndex(e => new { e.AuthUserId, e.LastModifiedAt, e.Id }, "IX_Notification_Active_User_LastModifiedAt")
+                .IsDescending(false, true, true)
+                .HasFilter("([DeletedAt] IS NULL)");
 
-            entity.HasIndex(e => new { e.AlertMessageId, e.AuthUserId }, "UQ__Notifica__DB8971EB2FAAEC03").IsUnique();
+            entity.HasIndex(e => new { e.AlertId, e.AuthUserId }, "UX_Notification_Alert_User").IsUnique();
 
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(2)
-                .HasDefaultValueSql("(sysdatetime())");
-            entity.Property(e => e.ReadAt).HasPrecision(2);
+                .HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.DeletedAt).HasPrecision(2);
+            entity.Property(e => e.HasUnseenActivity).HasComputedColumnSql("(isnull(CONVERT([bit],case when [LastSeenAt] IS NULL OR [LastSeenAt]<[LastModifiedAt] then (1) else (0) end),CONVERT([bit],(0))))", true);
+            entity.Property(e => e.LastModifiedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.LastSeenAt).HasPrecision(2);
 
-            entity.HasOne(d => d.AlertMessage).WithMany(p => p.Notifications)
-                .HasForeignKey(d => d.AlertMessageId)
-                .HasConstraintName("FK__Notificat__Alert__4C9FC9D5");
+            entity.HasOne(d => d.Alert).WithMany(p => p.Notifications)
+                .HasForeignKey(d => d.AlertId)
+                .HasConstraintName("FK__Notificat__Alert__3EDBBA63");
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.Notifications)
                 .HasForeignKey(d => d.AuthUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__Notificat__auth___4BABA59C");
+                .HasConstraintName("FK__Notificat__auth___3DE7962A");
         });
 
         modelBuilder.Entity<NurseCompoundTraining>(entity =>

@@ -11,15 +11,19 @@ public partial class Notification
 
     public DateTime CreatedAt { get; set; }
 
-    public DateTime? ReadAt { get; set; }
+    public DateTime? LastSeenAt { get; set; }
 
-    public bool IsRead { get; set; }
+    public DateTime LastModifiedAt { get; set; }
 
     public int AuthUserId { get; set; }
 
-    public int AlertMessageId { get; set; }
+    public int AlertId { get; set; }
 
-    public virtual AlertMessage AlertMessage { get; set; } = null!;
+    public DateTime? DeletedAt { get; set; }
+
+    public bool HasUnseenActivity { get; set; }
+
+    public virtual Alert Alert { get; set; } = null!;
 
     public virtual AuthUser AuthUser { get; set; } = null!;
 }
