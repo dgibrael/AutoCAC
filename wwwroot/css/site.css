@@ -89,3 +89,25 @@ a:focus {
 .screen-hidden {
     display: none;
 }
+
+.activity-log-message {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 100%;
+}
+
+.activity-log-system-message {
+    font-style: italic;
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.datalist-less-padding .rz-datalist-data {
+    padding-bottom: 0.5rem !important;
+    padding-top: 0 !important;
+}
+.datalist-less-padding li {
+    padding-bottom: 0.5rem !important;
+    padding-top: 0 !important;
+}

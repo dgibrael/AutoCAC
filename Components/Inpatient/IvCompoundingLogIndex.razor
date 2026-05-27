@@ -31,7 +31,7 @@
 	private async Task GetSum()
 	{
 		await using var db = await DbFactory.CreateDbContextAsync();
-		_periodSum = await GridModel.QueryFactory(db).SumAsync(x => x.CompoundedQty);
+		_periodSum = await GridModel.QueryFactory(db).SumAsync(x => x.InpatientQty);
 	}
 	private async Task RefreshAsync()
 	{

@@ -63,6 +63,22 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[BlisterPackFill]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlisterPackFillActivity]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlisterPackPatient]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[BlisterPackPatientActivity]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[ClinicalDefinition]",
          "ObjectType": 0
       },

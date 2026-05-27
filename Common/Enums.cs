@@ -7,3 +7,15 @@ public enum ReadStateFilter
     All
 }
 
+public enum ActivityLogType
+{
+    Unknown,
+    Created,
+    Comment,
+    StatusChanged,
+    Error,
+    Warning,
+    Assigned,
+    Unassigned,
+    Other
+}

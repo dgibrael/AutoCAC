@@ -9,5 +9,7 @@ public partial class IvcompoundingLog
 {
     public DateOnly DateCompounded { get; set; }
 
-    public int CompoundedQty { get; set; }
+    public int InpatientQty { get; set; }
+
+    public int OutpatientQty { get; set; }
 }

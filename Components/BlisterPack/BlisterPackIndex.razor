@@ -1,0 +1,82 @@
+﻿@page "/blisterpack"
+@using AutoCAC.Components.Templates.ActivityLogs
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject DialogService DialogService
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+@using AutoCAC.Common
+<PageTitle>Blister Packs</PageTitle>
+<h3>Blister Packs</h3>
+<DataGridVanilla TItem="BlisterPackPatient" GridModel="GridModel">
+	<HeaderContent>
+		<RadzenButton Text="Add Patient" Click="AddPatient" Icon="add_circle" ButtonStyle="ButtonStyle.Success" />
+	</HeaderContent>
+	<ChildContent>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="Patient.Name" >
+			<Template Context="x">
+				<RadzenButton Text="@($"{x?.Patient?.Name} ({x?.Patient?.ChartNumber})")" Click="@(() => Nav.NavigateToRelative($"patient/{x.PatientId}"))" 
+					Variant="Variant.Text" Icon="person"/>
+			</Template>
+		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackFills" Title="Fills" Sortable="false">
+			<Template Context="x">
+				@if (x?.BlisterPackFills != null)
+				{
+					<ul style="list-style-type: none;">
+						@foreach (var fill in x.BlisterPackFills)
+						{
+							<li>@fill.FillDate</li>
+						}
+					</ul>
+				}
+			</Template>
+		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackPatientActivities" Title="Activity" Sortable="false">
+			<Template Context="x">
+				@if (x?.BlisterPackPatientActivities?.Any() == true)
+				{
+					<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
+				}
+			</Template>
+		</RadzenDataGridColumn>
+	</ChildContent>
+</DataGridVanilla>
+@code {
+	DataGridHelper<BlisterPackPatient> GridModel = new()
+	{
+		QueryFactory = db => db.BlisterPackPatients
+						.Include(x => x.Patient)
+						.Include(x => x.BlisterPackFills)
+						.Include(x => x.BlisterPackPatientActivities)
+							.ThenInclude(x => x.AuthUser),
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowFiltering = false,
+		AllowGrouping = false,
+		ShowTemplates = false,
+		ShowDownloadButton = false,
+		SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+	};
+	private async Task AddPatient()
+	{
+		var today = DateTime.Now.DateOnly;
+		var patient = await DialogService.PatientSelectDialogAsync();
+		if (patient == null) return;
+		var newPatient = new BlisterPackPatient
+		{
+			PatientId = patient.Id,
+			EnrolledDate = today
+		};
+		await DbFactory.AddItemAsync(newPatient);
+		var newActivity = new BlisterPackPatientActivity
+		{
+			BlisterPackPatientId = newPatient.PatientId,
+			ActivityAt = DateTime.Now,
+			ActivityType = ActivityLogType.Created.ToString(),
+			AuthUserId = UserContext.UserProfile.Id
+		};
+		await DbFactory.AddItemAsync(newActivity);
+		Nav.NavigateToRelative($"patient/{newPatient.PatientId}");
+	}
+}

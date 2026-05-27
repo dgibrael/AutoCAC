@@ -5,7 +5,6 @@
 @inject ContextMenuService ContextMenuService
 @inject TooltipService TooltipService
 @inject NotificationService NotificationService
-@using AutoCAC.Components.Templates
 @using AutoCAC.Models
 @using AutoCAC.Common
 @inject IDbContextFactory<AutoCAC.Models.MainContext> DbFactory
@@ -15,13 +14,12 @@
 <h4>Notifications</h4>
 <DataGridVanilla TItem="Notification" GridModel="GridModel">
 	<RadzenDataGridColumn TItem="Notification" Title="Last Modified" Property="LastModifiedAt" />
-	<RadzenDataGridColumn TItem="Notification" Title="Last Seen" Property="LastSeenAt" />
-	<RadzenDataGridColumn TItem="Notification" Property="Alert.Title" Title="Type">
+	<RadzenDataGridColumn TItem="Notification" Property="Alert.Title" Title="Info" Sortable="false" Filterable="false">
 		<Template Context="x">
 			<h4>@x?.Alert?.Title</h4>
 			@if(x?.Alert?.AlertMessages.Any() == true)
 			{				
-				<span>Unseen Activity</span>
+				<span>Unseen Activity:</span>
 				<ul>
 					@foreach (var y in x.Alert.AlertMessages)
 					{
@@ -32,7 +30,6 @@
 					}
 				</ul>
 			}
-			
 		</Template>
 	</RadzenDataGridColumn>
 </DataGridVanilla>
@@ -40,7 +37,11 @@
 	ReadStateFilter readStateFilter = ReadStateFilter.Unread;
 	DataGridHelper<Notification> GridModel = new()
 	{
-		IncludeColumns = new[] { "Alert.Title", nameof(Notification.LastSeenAt) },
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowGrouping = false,
+		ShowDownloadButton = false,
+		ShowTemplates = false
 	};
 	protected override void OnInitialized()
 	{

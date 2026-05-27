@@ -1,0 +1,44 @@
+﻿@page "/blisterpack/patient/{Id:int}"
+@using AutoCAC.Components.Templates.ActivityLogs
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+<LoadingContent LoadState="@(patient == null ? LoadingState.Loading : LoadingState.Loaded)">
+	<h3>@patient?.Patient?.Name</h3>
+	<ActivityLogEditable TItem="BlisterPackPatientActivity" Title="Patient Activity" 
+		ActivityLogQueryFactory="@ActivityLogQueryFactory" ConfigureNewItem="@(x => x.BlisterPackPatientId = Id)" />
+
+	<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel"/>
+</LoadingContent>
+
+@code {
+	[Parameter] public int Id { get; set; }
+	BlisterPackPatient patient;
+	DataGridHelper<BlisterPackFill> GridModel = new()
+	{
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowGrouping = false,
+		ShowDownloadButton = false,
+		ShowTemplates = false,
+		IncludeColumns = new[] { nameof(BlisterPackFill.FillDate), nameof(BlisterPackFill.Status), nameof(BlisterPackFill.SerialNumbers) }
+	};
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db => db.BlisterPackFills.Where(x => x.BlisterPackPatientId == Id).OrderByDescending(x => x.FillDate);
+	}
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await using var db = await DbFactory.CreateDbContextAsync();
+			patient = await db.BlisterPackPatients
+							.Include(x => x.Patient)
+							.FirstOrDefaultAsync(x => x.PatientId == Id);
+			StateHasChanged();
+		}
+	}
+	private IQueryable<BlisterPackPatientActivity> ActivityLogQueryFactory(MainContext db)
+	{
+		return db.BlisterPackPatientActivities.Where(x => x.BlisterPackPatientId == Id);
+	}
+}

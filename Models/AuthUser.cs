@@ -35,6 +35,10 @@ public partial class AuthUser
 
     public virtual ICollection<AuthUserGroup> AuthUserGroups { get; set; } = new List<AuthUserGroup>();
 
+    public virtual ICollection<BlisterPackFillActivity> BlisterPackFillActivities { get; set; } = new List<BlisterPackFillActivity>();
+
+    public virtual ICollection<BlisterPackPatientActivity> BlisterPackPatientActivities { get; set; } = new List<BlisterPackPatientActivity>();
+
     public virtual ICollection<DrugRequestActivity> DrugRequestActivities { get; set; } = new List<DrugRequestActivity>();
 
     public virtual ICollection<EmailNotificationRecipient> EmailNotificationRecipients { get; set; } = new List<EmailNotificationRecipient>();

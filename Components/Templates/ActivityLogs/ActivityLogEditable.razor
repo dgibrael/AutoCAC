@@ -1,0 +1,181 @@
+﻿@using AutoCAC.Services
+@using AutoCAC.Models
+@using AutoCAC.Common
+@inject IDbContextFactory<MainContext> DbFactory
+@inject UserContextService UserContext
+@inject DialogService DialogService
+@inject NavigationManager Nav
+@typeparam TItem where TItem : class, IActivityLog, new()
+@using Microsoft.AspNetCore.Components.Routing
+@using AutoCAC.Components.Templates.Printing
+@if (ConfirmIfUnsubmitted && HasDraft)
+{
+    <NavigationLock OnBeforeInternalNavigation="ConfirmLeave" ConfirmExternalNavigation="true" />
+}
+<h4>@Title</h4>
+<div class="rz-chat">
+    <RadzenDataList LoadData="LoadData" Data="data" @ref="dataList" AllowPaging="false"
+                    IsLoading="IsLoading" class="datalist-less-padding">
+        <Template Context="m">
+            @{
+                bool isCurUser = m.IsCurrentUser(UserContext?.UserProfile?.Id ?? 0);
+            }
+            <RadzenStack Orientation="Orientation.Vertical"
+                         AlignItems="@(isCurUser ? AlignItems.End : AlignItems.Start)" Gap="0px"
+                         class="@($"{(isCurUser ? "rz-chat-message-user" : "rz-chat-message-participant")}")">
+                <RadzenRow class="rz-my-0">
+                    @if (!isCurUser)
+                    {
+                        <div class="rz-chat-message-participant-name">@m?.AuthUser?.DisplayName</div>
+                    }
+                    <div class="rz-chat-message-time">@m.ActivityAt.ToString("MM/dd/yyyy HH:mm")</div>
+                    @if ((isCurUser || AllowDeleteAll) && m?.ActivityTypeEnum == ActivityLogType.Comment)
+                    {
+                        <RadzenButton Icon="delete"
+                                      Size="ButtonSize.ExtraSmall"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      ButtonType="ButtonType.Button" Variant="Variant.Text"
+                                      Click="@(async () => await DeleteMessageAsync(m))" />
+                    }
+                </RadzenRow>
+                <RadzenRow class="rz-my-0">
+                    @{
+                        string classStr = "rz-my-0 activity-log-message";
+                        if (m?.ActivityTypeEnum != ActivityLogType.Comment)
+                        {
+                            classStr += " activity-log-system-message";
+                            switch (m?.ActivityTypeEnum)
+                            {
+                                case ActivityLogType.Created:
+									classStr += " rz-color-success";
+                                    break;
+                                case ActivityLogType.Error:
+									classStr += " rz-color-danger";
+                                    break;
+                                case ActivityLogType.Warning:
+									classStr += " rz-color-warning";
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            classStr += " rz-chat-message-text";
+                        }
+                    }
+                    <p class="@classStr">@m?.DisplayMessage</p>
+                </RadzenRow>
+            </RadzenStack>
+        </Template>
+    </RadzenDataList>
+</div>
+<RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-5">
+    <RadzenRow>
+        <RadzenColumn Size="10">
+            <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
+                           Placeholder="Type comment here (Press enter or click arrow to submit)...." />
+        </RadzenColumn>
+        <RadzenColumn Size="1">
+            <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
+        </RadzenColumn>
+    </RadzenRow>
+</RadzenTemplateForm>
+@if (Print && data != null)
+{
+    <PrintContent PrintOnly="true">
+        <RadzenCard>
+            <h5 class="rz-mb-1">Comments:</h5>
+            <ul style="list-style-type: none; padding-left: 10px; padding-top: 0px">
+                @foreach (var c in data)
+                {
+                    <li>
+                        <strong>@c?.Message</strong>
+                        <i>
+                            <small>
+                                @(c?.AuthUser?.DisplayName)
+                            </small><small>@c?.ActivityAt</small>
+                        </i>
+                    </li>
+                }
+            </ul>
+        </RadzenCard>
+    </PrintContent>
+}
+@code {
+    [Parameter, EditorRequired] public Func<MainContext, IQueryable<TItem>> ActivityLogQueryFactory { get; set; }
+    [Parameter, EditorRequired] public Action<TItem> ConfigureNewItem { get; set; }
+    [Parameter] public string Title { get; set; } = "Activity";
+    [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
+    [Parameter] public bool Print { get; set; } = false;
+    [Parameter] public bool AllowDeleteAll { get; set; } = false;
+    private bool HasDraft = false;
+    private RadzenDataList<TItem> dataList;
+    private string _newMsg = "";
+    private IEnumerable<TItem> data;
+    public async Task ReloadAsync() => await dataList.Reload();
+    private bool IsLoading;
+    private async Task LoadData(LoadDataArgs args)
+    {
+        IsLoading = true;
+        await using var db = await DbFactory.CreateDbContextAsync();
+        data = await ActivityLogQueryFactory(db).OrderBy(x => x.ActivityAt).AsNoTracking().ToListAsync();
+        IsLoading = false;
+    }
+
+    private async Task AddMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMsg)) return;
+        var commentType = ActivityLogType.Comment.ToString();
+		var msg = _newMsg.Trim();
+        var newItem = new TItem()
+        {
+            ActivityAt = DateTime.Now,
+            ActivityType = commentType,
+            Message = msg,
+            AuthUser = UserContext.UserProfile,
+			AuthUserId = UserContext.UserProfile.Id
+        };
+        ConfigureNewItem(newItem);
+        await DbFactory.AddItemAsync(newItem);
+        _newMsg = null;
+        HasDraft = false;
+        await dataList.Reload();
+    }
+
+    private async Task DeleteMessageAsync(TItem comment)
+    {
+        var ok = await DialogService.DeleteConfirm(customMessage: "Delete this message?");
+        if (ok != true) return;
+        await DbFactory.DeleteItemAsync(comment);
+        await dataList.Reload();
+    }
+
+    private async Task ConfirmLeave(LocationChangingContext context)
+    {
+        if (!HasDraft) return;
+
+        // Stop navigation while we ask
+        context.PreventNavigation();
+
+        var save = await DialogService.YesNoDialog(
+            "You have an unsubmitted comment, submit now?",
+            "Comment not saved",
+            "Save",
+            "Discard");
+
+        if (save == true)
+        {
+            await AddMessage();
+        }
+        else
+        {
+            HasDraft = false;
+        }
+        // Continue navigation after handling
+        Nav.NavigateTo(context.TargetLocation);
+    }
+
+    private void OnMsgInput(ChangeEventArgs e)
+    {
+        HasDraft = !string.IsNullOrWhiteSpace(e?.Value?.ToString());
+    }
+}

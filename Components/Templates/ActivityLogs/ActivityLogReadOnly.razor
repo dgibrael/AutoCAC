@@ -1,0 +1,57 @@
+﻿@using AutoCAC.Services
+@using AutoCAC.Models
+@using AutoCAC.Common
+@inject IDbContextFactory<MainContext> DbFactory
+@inject UserContextService UserContext
+@inject DialogService DialogService
+@inject NavigationManager Nav
+@typeparam TItem where TItem : class, IActivityLog, new()
+<div>
+    <RadzenDataList Data="Data" AllowPaging="false" class="datalist-less-padding">
+        <Template Context="m">
+            @{
+                bool isCurUser = m.IsCurrentUser(UserContext?.UserProfile?.Id ?? 0);
+            }
+            <RadzenStack Orientation="Orientation.Vertical"
+                         AlignItems="@(isCurUser ? AlignItems.End : AlignItems.Start)" Gap="0px"
+                         class="@($"{(isCurUser ? "rz-chat-message-user" : "rz-chat-message-participant")}")">
+                <RadzenRow class="rz-my-0">
+                    @if (!isCurUser)
+                    {
+                        <div class="rz-chat-message-participant-name">@m?.AuthUser?.DisplayName</div>
+                    }
+                    <div class="rz-chat-message-time">@m.ActivityAt.ToString("MM/dd/yyyy HH:mm")</div>
+                </RadzenRow>
+                <RadzenRow class="rz-my-0">
+                    @{
+                        string classStr = "rz-my-0 activity-log-message";
+                        if (m?.ActivityTypeEnum != ActivityLogType.Comment)
+                        {
+                            classStr += " activity-log-system-message";
+                            switch (m?.ActivityTypeEnum)
+                            {
+                                case ActivityLogType.Created:
+                                    classStr += " rz-color-success";
+                                    break;
+                                case ActivityLogType.Error:
+                                    classStr += " rz-color-danger";
+                                    break;
+                                case ActivityLogType.Warning:
+                                    classStr += " rz-color-warning";
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            classStr += " rz-chat-message-text";
+                        }
+                    }
+                    <p class="@classStr">@m?.DisplayMessage</p>
+                </RadzenRow>
+            </RadzenStack>
+        </Template>
+    </RadzenDataList>
+</div>
+@code {
+    [Parameter, EditorRequired] public IEnumerable<TItem> Data { get; set; }
+}

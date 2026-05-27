@@ -65,6 +65,8 @@ public partial class Patient
 
     public virtual ICollection<Alert> Alerts { get; set; } = new List<Alert>();
 
+    public virtual BlisterPackPatient? BlisterPackPatient { get; set; }
+
     public virtual ICollection<ClinicalFact> ClinicalFacts { get; set; } = new List<ClinicalFact>();
 
     public virtual ICollection<Insurance> Insurances { get; set; } = new List<Insurance>();

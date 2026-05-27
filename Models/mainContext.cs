@@ -35,6 +35,14 @@ public partial class MainContext : DbContext
 
     public virtual DbSet<BillingRx> BillingRxes { get; set; }
 
+    public virtual DbSet<BlisterPackFill> BlisterPackFills { get; set; }
+
+    public virtual DbSet<BlisterPackFillActivity> BlisterPackFillActivities { get; set; }
+
+    public virtual DbSet<BlisterPackPatient> BlisterPackPatients { get; set; }
+
+    public virtual DbSet<BlisterPackPatientActivity> BlisterPackPatientActivities { get; set; }
+
     public virtual DbSet<ClinicalDefinition> ClinicalDefinitions { get; set; }
 
     public virtual DbSet<ClinicalDefinitionItem> ClinicalDefinitionItems { get; set; }
@@ -472,6 +480,101 @@ public partial class MainContext : DbContext
             entity.Property(e => e.RxNum)
                 .HasMaxLength(200)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<BlisterPackFill>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07B2E178C8");
+
+            entity.ToTable("BlisterPackFill");
+
+            entity.Property(e => e.BlisterPackPatientId).HasColumnName("BlisterPackPatient_id");
+            entity.Property(e => e.FillDate).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.SerialNumbers)
+                .HasMaxLength(1000)
+                .IsUnicode(false);
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasDefaultValue("PENDING");
+
+            entity.HasOne(d => d.BlisterPackPatient).WithMany(p => p.BlisterPackFills)
+                .HasForeignKey(d => d.BlisterPackPatientId)
+                .HasConstraintName("FK_BlisterPackFill_BlisterPackPatient");
+        });
+
+        modelBuilder.Entity<BlisterPackFillActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07B3AFDABC");
+
+            entity.ToTable("BlisterPackFillActivity");
+
+            entity.Property(e => e.ActivityAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.ActivityType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.BlisterPackFillId).HasColumnName("BlisterPackFill_id");
+            entity.Property(e => e.Message)
+                .HasMaxLength(2000)
+                .HasDefaultValue("");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.BlisterPackFillActivities)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_BlisterPackFillActivity_auth_user");
+
+            entity.HasOne(d => d.BlisterPackFill).WithMany(p => p.BlisterPackFillActivities)
+                .HasForeignKey(d => d.BlisterPackFillId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_BlisterPackFillActivity_BlisterPackFill");
+        });
+
+        modelBuilder.Entity<BlisterPackPatient>(entity =>
+        {
+            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC3669924A1A4");
+
+            entity.ToTable("BlisterPackPatient");
+
+            entity.Property(e => e.PatientId).ValueGeneratedNever();
+            entity.Property(e => e.Compliant).HasDefaultValue(true);
+            entity.Property(e => e.EnrolledDate).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.Patient).WithOne(p => p.BlisterPackPatient)
+                .HasForeignKey<BlisterPackPatient>(d => d.PatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BlisterPackPatient_PatientId");
+        });
+
+        modelBuilder.Entity<BlisterPackPatientActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC0719FC30F3");
+
+            entity.ToTable("BlisterPackPatientActivity");
+
+            entity.Property(e => e.ActivityAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.ActivityType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.BlisterPackPatientId).HasColumnName("BlisterPackPatient_id");
+            entity.Property(e => e.Message)
+                .HasMaxLength(2000)
+                .HasDefaultValue("");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.BlisterPackPatientActivities)
+                .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_BlisterPackPatientActivity_auth_user");
+
+            entity.HasOne(d => d.BlisterPackPatient).WithMany(p => p.BlisterPackPatientActivities)
+                .HasForeignKey(d => d.BlisterPackPatientId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_BlisterPackPatientActivity_BlisterPackPatient");
         });
 
         modelBuilder.Entity<ClinicalDefinition>(entity =>
