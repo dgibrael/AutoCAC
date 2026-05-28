@@ -61,6 +61,9 @@ builder.Services.AddScoped<FtpUploadService>();
 
 
 var connString = builder.Configuration.GetConnectionString("mainConnection");
+
+SqlDependency.Start(connString);
+
 builder.Services.AddDbContextFactory<AutoCAC.Models.MainContext>(options =>
 {
     options.UseSqlServer(connString);
@@ -85,7 +88,7 @@ builder.Services.Configure<EmailSettings>(
 builder.Services.AddScoped<EmailService>();
 //builder.Services.AddSingleton<ScheduledTaskScheduler>();
 //builder.Services.AddHostedService(sp => sp.GetRequiredService<ScheduledTaskScheduler>());
-
+builder.Services.AddSingleton(new SqlWatcherFactory(connString));
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -124,8 +127,6 @@ app.MapPost("/export-excel", async (HttpContext http, [FromBody] List<Dictionary
 
     await http.Response.Body.WriteAsync(fileBytes);
 });
-
-SqlDependency.Start(connString);
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {

@@ -36,7 +36,9 @@
 			<Template Context="x">
 				@if (x?.BlisterPackPatientActivities?.Any() == true)
 				{
-					<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
+					<RadzenCardGroup >
+						<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
+					</RadzenCardGroup>
 				}
 			</Template>
 		</RadzenDataGridColumn>

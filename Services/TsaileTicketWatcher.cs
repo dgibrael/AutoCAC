@@ -6,17 +6,14 @@ public sealed class TsaileTicketWatcher : IDisposable
 
     public event Func<Task> QueueChangedAsync;
 
-    public TsaileTicketWatcher(IConfiguration configuration)
+    public TsaileTicketWatcher(SqlWatcherFactory sqlWatcherFactory)
     {
-        var connString = configuration.GetConnectionString("mainConnection")
-            ?? throw new InvalidOperationException("Connection string 'mainConnection' not found.");
-
-        var query = @"SELECT COUNT_BIG(*) FROM dbo.tsaile_betterq;";
-
-        _watcher = new SqlWatcher(connString, query);
-
-        // Use async event from SqlWatcher (after you add it)
-        _watcher.ChangedAsync += OnSqlChangedAsync;
+        _watcher = sqlWatcherFactory.Create(
+            """
+            SELECT COUNT_BIG(*)
+            FROM dbo.tsaile_betterq
+            """,
+            OnSqlChangedAsync);
     }
 
     private Task OnSqlChangedAsync()
@@ -37,7 +34,6 @@ public sealed class TsaileTicketWatcher : IDisposable
 
     public void Dispose()
     {
-        _watcher.ChangedAsync -= OnSqlChangedAsync;
         _watcher.Dispose();
     }
 }

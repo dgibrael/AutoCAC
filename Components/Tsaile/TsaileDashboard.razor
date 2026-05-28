@@ -1,10 +1,8 @@
 ﻿@page "/tsaile/dashboard"
-@using AutoCAC.Components.Templates.CardLists
 @using AutoCAC.Models
 @inject IDbContextFactory<MainContext> DbFactory
 @using AutoCAC.Utilities
 @inject NotificationService Notifications
-@inject CacheService Cache
 
 <PageTitle>Tsaile BetterQ Waiters Dashboard</PageTitle>
 <LoadingContent LoadState="@loadState">

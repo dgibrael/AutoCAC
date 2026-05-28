@@ -27,6 +27,8 @@ public partial class MainContext : DbContext
 
     public virtual DbSet<AntibiogramOrganismMapping> AntibiogramOrganismMappings { get; set; }
 
+    public virtual DbSet<AppSetting> AppSettings { get; set; }
+
     public virtual DbSet<AuthGroup> AuthGroups { get; set; }
 
     public virtual DbSet<AuthUser> AuthUsers { get; set; }
@@ -88,6 +90,10 @@ public partial class MainContext : DbContext
     public virtual DbSet<IvcompoundingLog> IvcompoundingLogs { get; set; }
 
     public virtual DbSet<Lab> Labs { get; set; }
+
+    public virtual DbSet<LeaveRequest> LeaveRequests { get; set; }
+
+    public virtual DbSet<LeaveRequestActivity> LeaveRequestActivities { get; set; }
 
     public virtual DbSet<LookupValue> LookupValues { get; set; }
 
@@ -374,6 +380,15 @@ public partial class MainContext : DbContext
             entity.HasOne(d => d.AntibiogramOrganismGroupNameNavigation).WithMany(p => p.AntibiogramOrganismMappings)
                 .HasForeignKey(d => d.AntibiogramOrganismGroupName)
                 .HasConstraintName("FK_AntibiogramOrganismMapping_AntibiogramOrganismGroup");
+        });
+
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.HasKey(e => e.SettingGroup).HasName("PK__AppSetti__E5D73D233A663DF5");
+
+            entity.Property(e => e.SettingGroup)
+                .HasMaxLength(100)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<AuthGroup>(entity =>
@@ -1167,6 +1182,65 @@ public partial class MainContext : DbContext
                 .HasForeignKey(d => d.PatientId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Lab_PatientID");
+        });
+
+        modelBuilder.Entity<LeaveRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F55612878");
+
+            entity.ToTable("LeaveRequest");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.LastModifiedAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.LeaveType)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasDefaultValue("Annual");
+            entity.Property(e => e.Status)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasDefaultValue("Pending");
+
+            entity.HasOne(d => d.RequestedBy).WithMany(p => p.LeaveRequests)
+                .HasForeignKey(d => d.RequestedById)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_LeaveRequest_RequestedById");
+        });
+
+        modelBuilder.Entity<LeaveRequestActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC07D0EDD6C6");
+
+            entity.ToTable("LeaveRequestActivity");
+
+            entity.Property(e => e.ActivityAt)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
+            entity.Property(e => e.ActivityType)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
+            entity.Property(e => e.ChangedField)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.LeaveRequestId).HasColumnName("LeaveRequest_id");
+            entity.Property(e => e.Message)
+                .HasMaxLength(2000)
+                .HasDefaultValue("");
+
+            entity.HasOne(d => d.AuthUser).WithMany(p => p.LeaveRequestActivities)
+                .HasForeignKey(d => d.AuthUserId)
+                .HasConstraintName("FK_LeaveRequestActivity_auth_user");
+
+            entity.HasOne(d => d.LeaveRequest).WithMany(p => p.LeaveRequestActivities)
+                .HasForeignKey(d => d.LeaveRequestId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_LeaveRequestActivity_LeaveRequest");
         });
 
         modelBuilder.Entity<LookupValue>(entity =>

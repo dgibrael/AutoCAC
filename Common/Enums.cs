@@ -12,7 +12,7 @@ public enum ActivityLogType
     Unknown,
     Created,
     Comment,
-    StatusChanged,
+    ValueChanged,
     Error,
     Warning,
     Assigned,

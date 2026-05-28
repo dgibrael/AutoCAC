@@ -1,16 +1,19 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
+﻿using AutoCAC.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text.Json;
 
 namespace AutoCAC.Services;
 
 public sealed class CacheService : IDisposable
 {
     private readonly IMemoryCache _cache;
-    private readonly string _connectionString;
-
+    private readonly SqlWatcherFactory _sqlWatcherFactory;
+    private readonly IDbContextFactory<MainContext> _dbContextFactory;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
-
+    private static readonly int AppSettingsCacheMinutes = 60;
     // "Users" -> watcher
     private readonly ConcurrentDictionary<string, SqlWatcher> _watchers =
         new(StringComparer.OrdinalIgnoreCase);
@@ -21,11 +24,14 @@ public sealed class CacheService : IDisposable
 
     private bool _disposed;
 
-    public CacheService(IMemoryCache cache, IConfiguration configuration)
+    public CacheService(
+        IMemoryCache cache,
+        SqlWatcherFactory sqlWatcherFactory,
+        IDbContextFactory<MainContext> dbContextFactory)
     {
         _cache = cache;
-        _connectionString = configuration.GetConnectionString("mainConnection")
-            ?? throw new InvalidOperationException("Missing connection string 'mainConnection'.");
+        _sqlWatcherFactory = sqlWatcherFactory;
+        _dbContextFactory = dbContextFactory;
     }
 
     public void Invalidate(string key) => _cache.Remove(key);
@@ -46,7 +52,7 @@ public sealed class CacheService : IDisposable
         string key,
         Func<Task<T>> factory,
         string watchDbTable = null,
-        int durationMinutes = 10
+        int durationMinutes = 20
         )
     {
         if (_cache.TryGetValue(key, out T cached))
@@ -85,8 +91,6 @@ public sealed class CacheService : IDisposable
         finally
         {
             gate.Release();
-            if (_locks.TryRemove(key, out var removed))
-                removed.Dispose();
         }
     }
 
@@ -94,14 +98,15 @@ public sealed class CacheService : IDisposable
     {
         _watchers.GetOrAdd(table, t =>
         {
-            var query = $"SELECT COUNT_BIG(*) FROM [dbo].[{t}]";
-            var watcher = new SqlWatcher(_connectionString, query);
-            watcher.ChangedAsync += () =>
-            {
-                InvalidateTable(t);
-                return Task.CompletedTask;
-            };
-            return watcher;
+            string query = $"SELECT COUNT_BIG(*) FROM [dbo].[{t}]";
+
+            return _sqlWatcherFactory.Create(
+                query,
+                () =>
+                {
+                    InvalidateTable(t);
+                    return Task.CompletedTask;
+                });
         });
     }
 
@@ -136,6 +141,35 @@ public sealed class CacheService : IDisposable
                 }
             }
         }
+    }
+
+    public async Task<T> GetAppSettingsGroupAsync<T>(string settingGroup)
+    {
+        string cacheKey = $"AppSettings:{settingGroup}:{typeof(T).FullName}";
+
+        return await GetOrCreateAsync(
+            cacheKey,
+            async () =>
+            {
+                await using var db = await _dbContextFactory.CreateDbContextAsync();
+
+                string json = await db.AppSettings
+                    .AsNoTracking()
+                    .Where(x => x.SettingGroup == settingGroup)
+                    .Select(x => x.SettingValue)
+                    .SingleAsync();
+
+                T result = JsonSerializer.Deserialize<T>(
+                    json,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                return result;
+            },
+            watchDbTable: "AppSettings",
+            durationMinutes: AppSettingsCacheMinutes);
     }
 
     public void Dispose()

@@ -10,6 +10,7 @@ public interface IActivityLog
     AuthUser? AuthUser { get; set; }
     DateTime ActivityAt { get; set; }
     string Message { get; set; }
+    string? ChangedField { get; set; }
     ActivityLogType ActivityTypeEnum
     {
         get
@@ -31,7 +32,7 @@ public interface IActivityLog
             "Created" + (!string.IsNullOrWhiteSpace(Message)
                 ? $" ({Message})"
                 : ""),
-        ActivityLogType.StatusChanged => "Status Changed to: " + Message,
+        ActivityLogType.ValueChanged => $"{ChangedField ?? "Status"} Changed to: {Message}",
         ActivityLogType.Error => "Error: " + Message,
         ActivityLogType.Warning => "Warning: " + Message,
         _ => Message ?? ""

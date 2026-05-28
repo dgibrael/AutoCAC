@@ -47,6 +47,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[AppSettings]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[auth_group]",
          "ObjectType": 0
       },
@@ -164,6 +168,14 @@
       },
       {
          "Name": "[dbo].[Lab]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[LeaveRequest]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[LeaveRequestActivity]",
          "ObjectType": 0
       },
       {

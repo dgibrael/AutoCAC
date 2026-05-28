@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutoCAC.Services.TaskScheduling;
 
-public class ScheduledTaskScheduler : BackgroundService, IDisposable
+public class ScheduledTaskScheduler : BackgroundService
 {
     private readonly IDbContextFactory<MainContext> _dbContextFactory;
-    private readonly IConfiguration _configuration;
+    private readonly SqlWatcherFactory _sqlWatcherFactory;
     private readonly ILogger<ScheduledTaskScheduler> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly SemaphoreSlim _refreshSignal = new(0, 1);
@@ -17,14 +17,14 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
     private static readonly TimeSpan MaxPollingDelay = TimeSpan.FromMinutes(60);
     public ScheduledTaskScheduler(
         IDbContextFactory<MainContext> dbContextFactory,
-        IConfiguration configuration,
         ILogger<ScheduledTaskScheduler> logger,
-        IServiceScopeFactory scopeFactory)
+        IServiceScopeFactory scopeFactory,
+        SqlWatcherFactory sqlWatcherFactory)
     {
         _dbContextFactory = dbContextFactory;
-        _configuration = configuration;
         _logger = logger;
         _scopeFactory = scopeFactory;
+        _sqlWatcherFactory = sqlWatcherFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -72,16 +72,12 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
 
     private void StartWatchers()
     {
-        string connectionString = _configuration.GetConnectionString("mainConnection");
-
-        _scheduledTaskScheduleWatcher = new SqlWatcher(
-            connectionString,
+        _scheduledTaskScheduleWatcher = _sqlWatcherFactory.Create(
             """
             SELECT COUNT_BIG(*)
             FROM dbo.ScheduledTaskSchedule
-            """);
-
-        _scheduledTaskScheduleWatcher.ChangedAsync += OnWatchedTableChangedAsync;
+            """,
+            OnWatchedTableChangedAsync);
     }
 
     private async Task OnWatchedTableChangedAsync()
@@ -166,7 +162,7 @@ public class ScheduledTaskScheduler : BackgroundService, IDisposable
         var fills = await db.RxFills
             .Where(x => x.ReleasedDateTime >= start && x.ReleasedDateTime < end && x.Rx.Division == "CHINLE HOSP PHARMACY")
             .CountAsync();
-        var msg = $"<ul><li>Total Revenue: {paid:N0}</li><li>Total Rx Count: {fills:N0}</li><ul>";
+        var msg = $"<ul><li>Total Revenue: {paid:N0}</li><li>Total Rx Count: {fills:N0}</li></ul>";
         using var scope = _scopeFactory.CreateScope();
         var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
         await emailService.SendEmailByGroupsAsync($"GB Data for {start.DateOnly} to {end.DateOnly}", msg, "GbReport");

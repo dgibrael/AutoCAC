@@ -45,6 +45,10 @@ public partial class AuthUser
 
     public virtual ICollection<HighCostQue> HighCostQues { get; set; } = new List<HighCostQue>();
 
+    public virtual ICollection<LeaveRequestActivity> LeaveRequestActivities { get; set; } = new List<LeaveRequestActivity>();
+
+    public virtual ICollection<LeaveRequest> LeaveRequests { get; set; } = new List<LeaveRequest>();
+
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
     public virtual ICollection<NurseCompoundTraining> NurseCompoundTrainings { get; set; } = new List<NurseCompoundTraining>();

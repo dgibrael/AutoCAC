@@ -14,12 +14,13 @@ public sealed class SqlWatcher : IDisposable
     private int _raiseScheduled;
     private bool _disposed;
 
-    public event Func<Task> ChangedAsync;
+    private readonly Func<Task> _onChangedAsync;
 
-    public SqlWatcher(string connectionString, string query)
+    public SqlWatcher(string connectionString, string query, Func<Task> onChangedAsync)
     {
         _connectionString = connectionString;
         _query = query;
+        _onChangedAsync = onChangedAsync;
         _debounceWindow = TimeSpan.FromMilliseconds(500);
 
         Subscribe();
@@ -84,21 +85,13 @@ public sealed class SqlWatcher : IDisposable
 
     private async Task FireAsync()
     {
-        var handlers = ChangedAsync;
-        if (handlers == null) return;
-
-        // Let multicast invocation handle multiple subscribers:
-        // it returns the Task of the *last* subscriber, so we manually await all.
-        var tasks = handlers.GetInvocationList()
-            .Cast<Func<Task>>()
-            .Select(h => SafeInvoke(h));
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-
-        static async Task SafeInvoke(Func<Task> h)
+        try
         {
-            try { await h().ConfigureAwait(false); }
-            catch { /* log if desired */ }
+            await _onChangedAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // log if desired
         }
     }
 

@@ -14,22 +14,17 @@ public sealed class RuleEngineService : IDisposable
     private bool _disposed;
     public RuleEngineService(
         IDbContextFactory<MainContext> dbContextFactory,
-        IConfiguration configuration)
+        SqlWatcherFactory sqlWatcherFactory)
     {
         _dbContextFactory = dbContextFactory;
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-
-        _watcher = new SqlWatcher(
-            connectionString,
+        _watcher = sqlWatcherFactory.Create(
             """
             SELECT COUNT_BIG(*)
             FROM dbo.ProcessState
             WHERE ProcessName = 'RuleEngineImport'
-            """
-        );
-
-        _watcher.ChangedAsync += OnWatcherChangedAsync;
+            """,
+            OnWatcherChangedAsync);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)

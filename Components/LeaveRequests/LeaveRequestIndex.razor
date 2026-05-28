@@ -1,0 +1,38 @@
+﻿@page "/leaverequest"
+@using AutoCAC.Models
+@inject UserContextService UserContext
+@inject IDbContextFactory<MainContext> DbFactory
+@inject DialogService DialogService
+<DataGridVanilla TItem="LeaveRequest" GridModel="GridModel" AddButtonClick="Add"/>
+
+@code {
+	DataGridHelper<LeaveRequest> GridModel = new()
+	{
+		IncludeColumns = new[] { nameof(LeaveRequest.LeaveStart), nameof(LeaveRequest.LeaveEnd), nameof(LeaveRequest.Status), nameof(LeaveRequest.LeaveType) },
+	};
+	protected override async Task OnInitializedAsync()
+	{
+		await UserContext.EnsureInitializedAsync();
+		GridModel.QueryFactory = db => db.LeaveRequests
+									.Where(x => x.RequestedById == UserContext.UserProfile.Id)
+									.OrderByDescending(x => x.CreatedAt);
+
+	}
+	private async Task Add()
+	{
+		var initialData = new LeaveRequest
+		{
+			RequestedById = UserContext.UserProfile.Id,
+			CreatedAt = DateTime.Now,
+			LastModifiedAt = DateTime.Now,
+			Status = LeaveRequestStatusEnum.Pending.ToString(),
+			LeaveType = LeaveRequestTypeEnum.Annual.ToString(),
+		};
+		LeaveRequest result = await DialogService.OpenAsync<LeaveRequestAdd>("New Leave Request", new Dictionary<string, object>
+		{
+			["InitialData"] = initialData
+		}, DialogService.GetDefaultOptions());
+		if (result == null) return;
+		await GridModel.ReloadAsync();
+	}
+}

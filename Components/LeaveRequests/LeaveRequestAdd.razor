@@ -1,0 +1,17 @@
+﻿@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+<VanillaDialogForm TItem="LeaveRequest" Item="InitialData" NewItem="true" SaveToDb="true">
+	<VanillaFormField Label="Leave Start">
+		<RadzenDatePicker ShowTime="false" @bind-Value="InitialData.LeaveStart" ShowTimeOkButton="false" />
+	</VanillaFormField>
+	<VanillaFormField Label="Leave End">
+		<RadzenDatePicker ShowTime="false" @bind-Value="InitialData.LeaveEnd" ShowTimeOkButton="false" />
+	</VanillaFormField>
+	<VanillaFormField Label="Leave Type">
+		<EnumStringDropdown TEnum="LeaveRequestTypeEnum" @bind-Value="InitialData.LeaveType" />
+	</VanillaFormField>
+</VanillaDialogForm>
+
+@code {
+	[Parameter] public LeaveRequest InitialData { get; set; } = new LeaveRequest();
+}
