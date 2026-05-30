@@ -17,12 +17,19 @@ public class RPMSService : IDisposable
     private readonly IJSRuntime _js;
     public ShellOutput Output;
     private readonly RpmsOptions _options;
+    private readonly CacheService _cache;
+    private string _verifySeed = "";
+    private readonly ILogger<RPMSService> _logger;
+    private const string RpmsVerifySeedSettingName = "RPMSVerifySeed";
     public bool BlockUserInput { get; set;  } = false;
-    public RPMSService(IJSRuntime js, IOptions<RpmsOptions> options)
+    private string _verifyCode => _options.Verify + _verifySeed;
+    public RPMSService(IJSRuntime js, IOptions<RpmsOptions> options, CacheService cache, ILogger<RPMSService> logger)
     {
         _js = js;
         Output = new ShellOutput(_js);
         _options = options.Value;
+        _cache = cache;
+        _logger = logger;
     }
 
     private SshClient _client;
@@ -248,13 +255,21 @@ public class RPMSService : IDisposable
                 break;
             case RPMSMode.Access when data.Contains("VERIFY CODE"):
                 SetMode(RPMSMode.Verify);
-                SendRaw(_options.Verify);
+                SendRaw(_verifyCode);
                 SendRaw("\r");
                 break;
             case RPMSMode.Verify:
-                if (data.Contains("verify code", StringComparison.OrdinalIgnoreCase) ||
-                    data.Contains("that I have it right:"))
+                if (data.Contains("Enter a new VERIFY CODE", StringComparison.OrdinalIgnoreCase))
+                {
+                    var seed = string.IsNullOrWhiteSpace(_verifySeed)
+                        ? 0
+                        : int.Parse(_verifySeed);
+                    _verifySeed = (seed + 1).ToString();
+                    SendRaw(_verifyCode);
+                    SendRaw("\r");
+                    SetMode(RPMSMode.ChangeVerify);
                     break;
+                }
                 if (data.Contains("Option:"))
                 {
                     SetMode(RPMSMode.DefaultInput);
@@ -266,6 +281,24 @@ public class RPMSService : IDisposable
                     break;
                 }
                 SetMode(RPMSMode.DefaultInput);
+                break;
+            case RPMSMode.ChangeVerify:
+                if (data.Contains("that I have it right", StringComparison.OrdinalIgnoreCase))
+                {
+                    SendRaw(_verifyCode);
+                    SendRaw("\r");
+                    break;
+                }
+                if (data.Contains("Option:") || data.Contains("Verify code has been changed", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = _cache.UpdateAppSettingAsync(RpmsVerifySeedSettingName, _verifySeed)
+                        .ContinueWith(t =>
+                        {
+                            _logger.LogError("Error updating verify seed");
+                        }, TaskContinuationOptions.OnlyOnFaulted);
+                    SetMode(RPMSMode.DefaultInput);
+                    break;
+                }
                 break;
             case RPMSMode.Report:
                 string lastLine = data.LastLine();
@@ -347,6 +380,7 @@ public class RPMSService : IDisposable
 
     public async Task Login()
     {
+        _verifySeed = await _cache.GetAppSettingAsync(RpmsVerifySeedSettingName);
         SetMode(RPMSMode.Disconnected);
         OpenConnection();
         SendRaw("\r");

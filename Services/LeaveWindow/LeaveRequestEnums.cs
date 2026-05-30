@@ -4,7 +4,7 @@ public enum LeaveRequestStatusEnum
 {
     Pending,
     Approved,
-    Rejected,
+    Denied,
     Returned
 }
 

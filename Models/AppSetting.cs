@@ -7,7 +7,7 @@ namespace AutoCAC.Models;
 
 public partial class AppSetting
 {
-    public string SettingGroup { get; set; } = null!;
+    public string SettingName { get; set; } = null!;
 
     public string SettingValue { get; set; } = null!;
 }

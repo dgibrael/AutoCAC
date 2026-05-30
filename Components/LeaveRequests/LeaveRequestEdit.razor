@@ -1,0 +1,85 @@
+﻿@page "/leaverequest/{Id:int}"
+@using AutoCAC.Components.Templates.ActivityLogs
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject UserContextService UserContext
+@inject DialogService DialogService
+<LoadingContent LoadState="loadingState">
+	<h4>Request for @data?.RequestedBy?.DisplayName</h4>
+	<p>
+		<strong>Requested Dates: </strong>@data?.LeaveStart to @data?.LeaveEnd
+	</p>
+	<p>
+		<strong>Request Type: </strong>@data?.LeaveType
+	</p>
+	@if(isSupervisor)
+	{
+		<RadzenStack Orientation="Orientation.Horizontal">
+			<RadzenButton Text="Approve" ButtonStyle="ButtonStyle.Success" Click="@(() => SupervisorAction(LeaveRequestStatusEnum.Approved))"/>
+			<RadzenButton Text="Deny" ButtonStyle="ButtonStyle.Danger" Click="@(() => SupervisorAction(LeaveRequestStatusEnum.Denied))" />
+			<RadzenButton Text="Return" ButtonStyle="ButtonStyle.Warning" Click="@(() => SupervisorAction(LeaveRequestStatusEnum.Returned))" />
+		</RadzenStack>
+	}
+	else
+	{
+		<RadzenButton Text="Edit Attributes" Click="EditAttributes" Icon="edit"/>
+	}
+	<ActivityLogEditable TItem="LeaveRequestActivity" 
+		Filter="x => x.LeaveRequestId == Id"
+		ConfigureNewItem="x => x.LeaveRequestId = Id" />
+</LoadingContent>
+
+@code {
+	[Parameter] public int Id { get; set; }
+	LoadingState loadingState = LoadingState.Loading;
+	LeaveRequest data;
+	bool isSupervisor;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await UserContext.EnsureInitializedAsync();
+			isSupervisor = UserContext.IsInGroupOrSuperuser("PharmacistSupervisor");
+			await LoadData();
+		}
+	}
+	private async Task LoadData()
+	{
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var result = await db.LeaveRequests.Include(x => x.RequestedBy).FirstOrDefaultAsync(x => x.Id == Id);
+		if (result == null)
+		{
+			loadingState = LoadingState.NotFound;
+			StateHasChanged();
+			return;
+		}
+		if (isSupervisor || result.RequestedById == UserContext.UserProfile.Id)
+		{
+			data = result;
+			loadingState = LoadingState.Loaded;
+			StateHasChanged();
+			return;
+		}
+		loadingState = LoadingState.UnAuthorized;
+		StateHasChanged();
+	}
+	private async Task EditAttributes()
+	{
+		LeaveRequest result = await DialogService.OpenAsync<LeaveRequestDialog>("New Leave Request", new Dictionary<string, object>
+		{
+			[nameof(LeaveRequestDialog.InitialData)] = data,
+			[nameof(LeaveRequestDialog.NewRequest)] = false
+		}, DialogService.GetDefaultOptions());
+		if (result != null) await LoadData();
+	}
+	private async Task SupervisorAction(LeaveRequestStatusEnum selected)
+	{
+		data.Status = selected.ToString();
+		await DbFactory.UpdateItemAsync(data);
+		await LoadData();
+	}
+	private IQueryable<LeaveRequestActivity> ActivityQry(MainContext db)
+	{
+		return db.LeaveRequestActivities.Where(x => x.LeaveRequestId == Id);
+	}
+}

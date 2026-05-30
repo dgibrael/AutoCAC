@@ -384,9 +384,9 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<AppSetting>(entity =>
         {
-            entity.HasKey(e => e.SettingGroup).HasName("PK__AppSetti__E5D73D233A663DF5");
+            entity.HasKey(e => e.SettingName).HasName("PK__AppSetti__BCA5D462A7EA6E8D");
 
-            entity.Property(e => e.SettingGroup)
+            entity.Property(e => e.SettingName)
                 .HasMaxLength(100)
                 .IsUnicode(false);
         });
@@ -499,12 +499,15 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFill>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07B2E178C8");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC0772C35D22");
 
             entity.ToTable("BlisterPackFill");
 
             entity.Property(e => e.BlisterPackPatientId).HasColumnName("BlisterPackPatient_id");
             entity.Property(e => e.FillDate).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.LastModified)
+                .HasPrecision(2)
+                .HasDefaultValueSql("(sysdatetime())");
             entity.Property(e => e.SerialNumbers)
                 .HasMaxLength(1000)
                 .IsUnicode(false);
@@ -520,7 +523,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFillActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07B3AFDABC");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07901FC2E0");
 
             entity.ToTable("BlisterPackFillActivity");
 
@@ -549,7 +552,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackPatient>(entity =>
         {
-            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC3669924A1A4");
+            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC3665A41EC57");
 
             entity.ToTable("BlisterPackPatient");
 
@@ -565,7 +568,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackPatientActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC0719FC30F3");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC071241EAEF");
 
             entity.ToTable("BlisterPackPatientActivity");
 
@@ -1186,7 +1189,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequest>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F55612878");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F1802A1B0");
 
             entity.ToTable("LeaveRequest");
 
@@ -1214,7 +1217,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequestActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC07D0EDD6C6");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC079909E54E");
 
             entity.ToTable("LeaveRequestActivity");
 
@@ -1235,6 +1238,7 @@ public partial class MainContext : DbContext
 
             entity.HasOne(d => d.AuthUser).WithMany(p => p.LeaveRequestActivities)
                 .HasForeignKey(d => d.AuthUserId)
+                .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_LeaveRequestActivity_auth_user");
 
             entity.HasOne(d => d.LeaveRequest).WithMany(p => p.LeaveRequestActivities)

@@ -1,6 +1,6 @@
 ﻿@using AutoCAC.Components.Templates.Forms
 @using AutoCAC.Models
-<VanillaDialogForm TItem="LeaveRequest" Item="InitialData" NewItem="true" SaveToDb="true">
+<VanillaDialogForm TItem="LeaveRequest" Item="InitialData" NewItem="@NewRequest" SaveToDb="true">
 	<VanillaFormField Label="Leave Start">
 		<RadzenDatePicker ShowTime="false" @bind-Value="InitialData.LeaveStart" ShowTimeOkButton="false" />
 	</VanillaFormField>
@@ -14,4 +14,5 @@
 
 @code {
 	[Parameter] public LeaveRequest InitialData { get; set; } = new LeaveRequest();
+	[Parameter] public bool NewRequest { get; set; }
 }

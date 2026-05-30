@@ -1,0 +1,142 @@
+﻿@using AutoCAC.Common
+@using AutoCAC.Models
+
+<RadzenStack Orientation="Orientation.Vertical"
+             AlignItems="@State.Alignment"
+             Gap="0px"
+             class="@State.ContainerClass">
+
+    <RadzenRow class="rz-my-0">
+        @if (!State.IsComment)
+        {
+            <small class="rz-text-disabled-color">
+                @($"{Item.ActivityAt:MM/dd/yyyy HH:mm} • ")
+
+                <strong class="@State.MessageClass">
+                    @State.DisplayMessage
+                </strong>
+
+                @if (!string.IsNullOrWhiteSpace(State.AuthorDisplay))
+                {
+                    <i>
+                        @($" • {State.AuthorDisplay}")
+                    </i>
+                }
+            </small>
+        }
+        else
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem">
+                @if (!State.IsCurrentUser)
+                {
+                    <div class="rz-chat-message-participant-name">
+                        @State.AuthorDisplay
+                    </div>
+                }
+
+                <div class="rz-chat-message-time">
+                    @Item.ActivityAt.ToString("MM/dd/yyyy HH:mm")
+                </div>
+                @if (State.ShowDelete)
+                {
+                    <RadzenButton Icon="delete"
+                                  Size="ButtonSize.ExtraSmall"
+                                  ButtonStyle="ButtonStyle.Danger"
+                                  ButtonType="ButtonType.Button"
+                                  Variant="Variant.Text"
+                                  Click="@(() => DeleteRequested.InvokeAsync(Item))" />
+                }
+            </RadzenStack>
+        }
+    </RadzenRow>
+    @if (State.IsComment)
+    {        
+        <RadzenRow class="rz-my-0">
+            <p class="@State.MessageClass">
+                @State.DisplayMessage
+            </p>
+        </RadzenRow>
+    }
+</RadzenStack>
+    @code {
+    [Parameter, EditorRequired] public IActivityLog Item { get; set; }
+
+    [Parameter] public int CurrentUserId { get; set; }
+
+    [Parameter] public bool AllowDeleteAll { get; set; }
+
+    [Parameter] public EventCallback<IActivityLog> DeleteRequested { get; set; }
+    private DisplayState State
+    {
+        get
+        {
+            var state = new DisplayState
+            {
+                IsComment = Item.ActivityTypeEnum == ActivityLogType.Comment,
+                IsCurrentUser = Item.IsCurrentUser(CurrentUserId),
+                DisplayMessage = Item.ActivityTypeEnum switch
+                {
+                    ActivityLogType.Created =>
+                        "Created" +
+                        (!string.IsNullOrWhiteSpace(Item.Message)
+                            ? $" ({Item.Message})"
+                            : ""),
+
+                    ActivityLogType.ValueChanged =>
+                        $"{Item.ChangedField ?? "Status"} Changed to: {Item.Message}",
+
+                    ActivityLogType.Error =>
+                        $"Error: {Item.Message}",
+
+                    ActivityLogType.Warning =>
+                        $"Warning: {Item.Message}",
+
+                    _ => Item.Message ?? ""
+                }
+            };
+
+            state.AuthorDisplay = Item.AuthUser == null
+                ? null
+                : state.IsCurrentUser
+                    ? "You"
+                    : Item.AuthUser.DisplayName;
+
+            if (state.IsComment)
+            {
+                state.Alignment = state.IsCurrentUser ? AlignItems.End : AlignItems.Start;
+                state.ContainerClass = state.IsCurrentUser
+                    ? "rz-chat-message-user"
+                    : "rz-chat-message-participant";
+                state.ShowDelete = DeleteRequested.HasDelegate &&
+                                   (state.IsCurrentUser || AllowDeleteAll);
+                state.MessageClass = "rz-my-0 activity-log-message rz-chat-message-text";
+
+                return state;
+            }
+
+            state.Alignment = AlignItems.Center;
+            state.ContainerClass = "rz-chat-message-other";
+            state.ShowDelete = false;
+            state.MessageClass = Item.ActivityTypeEnum switch
+            {
+                ActivityLogType.Created => "rz-color-success",
+                ActivityLogType.Error => "rz-color-danger",
+                ActivityLogType.Warning => "rz-color-warning",
+                _ => ""
+            };
+            return state;
+        }
+    }
+
+    private sealed class DisplayState
+    {
+        public bool IsComment { get; set; }
+        public bool IsCurrentUser { get; set; }
+        public AlignItems Alignment { get; set; }
+        public string ContainerClass { get; set; }
+        public string AuthorDisplay { get; set; }
+        public bool ShowDelete { get; set; }
+        public string MessageClass { get; set; }
+        public string DisplayMessage { get; set; }
+    }
+}

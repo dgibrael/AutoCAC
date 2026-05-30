@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 
@@ -79,7 +80,7 @@ public sealed class CacheService : IDisposable
                 TrackKey(watchDbTable, key, options);
             }
 
-            var result = await factory().ConfigureAwait(false);
+            var result = await factory();
 
             if (options != null)
                 _cache.Set(key, result, options);
@@ -143,33 +144,83 @@ public sealed class CacheService : IDisposable
         }
     }
 
-    public async Task<T> GetAppSettingsGroupAsync<T>(string settingGroup)
+    public Task<string> GetAppSettingAsync(string settingName)
     {
-        string cacheKey = $"AppSettings:{settingGroup}:{typeof(T).FullName}";
+        string cacheKey = GetAppSettingCacheKey(settingName);
 
-        return await GetOrCreateAsync(
+        return GetOrCreateAsync(
             cacheKey,
             async () =>
             {
                 await using var db = await _dbContextFactory.CreateDbContextAsync();
 
-                string json = await db.AppSettings
+                return await db.AppSettings
                     .AsNoTracking()
-                    .Where(x => x.SettingGroup == settingGroup)
+                    .Where(x => x.SettingName== settingName)
                     .Select(x => x.SettingValue)
-                    .SingleAsync();
-
-                T result = JsonSerializer.Deserialize<T>(
-                    json,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-
-                return result;
+                    .FirstOrDefaultAsync();
             },
             watchDbTable: "AppSettings",
             durationMinutes: AppSettingsCacheMinutes);
+    }
+    public async Task<T> GetAppSettingAsync<T>(
+        string settingName,
+        bool storedAsJson)
+    {
+        string value = await GetAppSettingAsync(settingName);
+        if (value == null) return default(T);
+        if (storedAsJson)
+        {
+            return JsonSerializer.Deserialize<T>(
+                value,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+        }
+
+        if (typeof(T) == typeof(string))
+        {
+            return (T)(object)value;
+        }
+
+        return (T)TypeDescriptor
+            .GetConverter(typeof(T))
+            .ConvertFromInvariantString(value);
+    }
+
+    public async Task UpdateAppSettingAsync(
+        string settingName,
+        string settingValue)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync();
+
+        AppSetting setting = await db.AppSettings
+            .FirstOrDefaultAsync(x => x.SettingName == settingName);
+
+        if (setting == null)
+        {
+            setting = new AppSetting
+            {
+                SettingName = settingName,
+                SettingValue = settingValue
+            };
+
+            db.AppSettings.Add(setting);
+        }
+        else
+        {
+            setting.SettingValue = settingValue;
+        }
+
+        await db.SaveChangesAsync();
+
+        Invalidate(GetAppSettingCacheKey(settingName));
+    }
+
+    private static string GetAppSettingCacheKey(string settingName)
+    {
+        return $"AppSettings:{settingName}";
     }
 
     public void Dispose()

@@ -5,7 +5,8 @@
 <LoadingContent LoadState="@(patient == null ? LoadingState.Loading : LoadingState.Loaded)">
 	<h3>@patient?.Patient?.Name</h3>
 	<ActivityLogEditable TItem="BlisterPackPatientActivity" Title="Patient Activity" 
-		ActivityLogQueryFactory="@ActivityLogQueryFactory" ConfigureNewItem="@(x => x.BlisterPackPatientId = Id)" />
+						 Filter="x => x.BlisterPackPatientId == Id" 
+						 ConfigureNewItem="@(x => x.BlisterPackPatientId = Id)" />
 
 	<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel"/>
 </LoadingContent>

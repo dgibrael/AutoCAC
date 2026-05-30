@@ -9,7 +9,7 @@
     @ChildContent(_item)
 
     <RadzenRow>
-        <RadzenButton Text="Submit" ButtonType="ButtonType.Submit" IsBusy="_isbusy" />
+        <RadzenButton Text="@SubmitButtonLabel" ButtonType="ButtonType.Submit" IsBusy="_isbusy" />
         <RadzenButton Text="Cancel"
                       ButtonStyle="ButtonStyle.Secondary"
                       Click="@OnCancelAsync" IsBusy="_isbusy" />
@@ -24,6 +24,7 @@
     [Parameter] public EventCallback<TItem> Submit { get; set; }
     [Parameter] public string Style { get; set; }
     [Parameter] public bool NewItem { get; set; } = false;
+    [Parameter] public string SubmitButtonLabel { get; set; } = "Submit";
     private bool _newItem = true;
     bool _isbusy;
     private TItem _item;

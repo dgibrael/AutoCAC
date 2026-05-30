@@ -1,0 +1,92 @@
+﻿@page "/blisterpack/patient"
+@using AutoCAC.Components.Templates.ActivityLogs
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject DialogService DialogService
+@inject UserContextService UserContext
+@inject NavigationManager Nav
+@inject ActivityLogService ActivityLogService
+<PageTitle>Blister Pack Patients</PageTitle>
+<h3>Blister Pack Patients</h3>
+<DataGridVanilla TItem="BlisterPackPatient" GridModel="GridModel">
+	<HeaderContent>
+		<RadzenButton Text="Add New Patient" Click="AddPatient" Icon="add_circle" ButtonStyle="ButtonStyle.Success" />
+	</HeaderContent>
+	<ChildContent>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="Patient.Name" >
+			<Template Context="x">
+				<RadzenButton Text="@($"{x?.Patient?.Name} ({x?.Patient?.ChartNumber})")" Click="@(() => Nav.NavigateToRelative($"{x.PatientId}"))" 
+					Variant="Variant.Text" Icon="person"/>
+			</Template>
+		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackFills" Title="Fills" Sortable="false" WhiteSpace="WhiteSpace.Wrap">
+			<Template Context="x">
+				<RadzenButton ButtonStyle="ButtonStyle.Primary" Icon="add" Size="ButtonSize.Small" 
+				Text="New Fill" Click="@(() => AddFill(x))" class="rz-mb-1"/>
+				<RadzenStack Orientation="Orientation.Vertical" Gap="0.1rem">
+					@if (x?.BlisterPackFills != null)
+					{
+						<span>Existing Fills: </span>
+						@foreach (var fill in x.BlisterPackFills)
+						{
+							<RadzenLink Path="@($"/blisterpack/fill/{fill.Id}")" Text="@($"{fill.FillDate} {fill.Status}")"/>
+						}
+					}
+				</RadzenStack>
+			</Template>
+		</RadzenDataGridColumn>
+		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackPatientActivities" Title="Activity" Sortable="false">
+			<Template Context="x">
+				@if (x?.BlisterPackPatientActivities?.Any() == true)
+				{
+					<RadzenCardGroup >
+						<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
+					</RadzenCardGroup>
+				}
+			</Template>
+		</RadzenDataGridColumn>
+	</ChildContent>
+</DataGridVanilla>
+@code {
+	DataGridHelper<BlisterPackPatient> GridModel = new()
+	{
+		QueryFactory = db => db.BlisterPackPatients
+						.OrderByDescending(x => x.EnrolledDate)
+						.Include(x => x.Patient)
+						.Include(x => x.BlisterPackFills)
+						.Include(x => x.BlisterPackPatientActivities)
+							.ThenInclude(x => x.AuthUser),
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowFiltering = false,
+		AllowGrouping = false,
+		ShowTemplates = false,
+		ShowDownloadButton = false,
+		SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+	};
+	private async Task AddPatient()
+	{
+		var today = DateTime.Now.DateOnly;
+		var patient = await DialogService.PatientSelectDialogAsync();
+		if (patient == null) return;
+		var newPatient = new BlisterPackPatient
+		{
+			PatientId = patient.Id,
+			EnrolledDate = today
+		};
+		await DbFactory.AddItemAsync(newPatient);
+		await ActivityLogService.CreatedAsync<BlisterPackPatientActivity>(UserContext.UserProfile.Id, x => x.BlisterPackPatientId = newPatient.PatientId);
+		Nav.NavigateToRelative($"{newPatient.PatientId}");
+	}
+	private async Task AddFill(BlisterPackPatient patient)
+	{
+		var newFill = new BlisterPackFill
+		{
+			BlisterPackPatientId = patient.PatientId,
+			FillDate = DateTime.Now.AddDays(27).DateOnly
+		};
+		await DbFactory.AddItemAsync(newFill);
+		await ActivityLogService.CreatedAsync<BlisterPackFillActivity>(UserContext.UserProfile.Id, x => x.BlisterPackFillId = newFill.Id);
+		Nav.NavigateToRelative($"fill/{newFill.Id}", fromParent: true);
+	}
+}

@@ -3,7 +3,11 @@
 @inject UserContextService UserContext
 @inject IDbContextFactory<MainContext> DbFactory
 @inject DialogService DialogService
-<DataGridVanilla TItem="LeaveRequest" GridModel="GridModel" AddButtonClick="Add"/>
+<DataGridVanilla TItem="LeaveRequest" GridModel="GridModel" AddButtonClick="Add">
+	<TrailingColumns Context="x">
+		<ActionDefaultColumn TItem="LeaveRequest" ShowDelete="false" />
+	</TrailingColumns>
+</DataGridVanilla>
 
 @code {
 	DataGridHelper<LeaveRequest> GridModel = new()
@@ -13,9 +17,16 @@
 	protected override async Task OnInitializedAsync()
 	{
 		await UserContext.EnsureInitializedAsync();
-		GridModel.QueryFactory = db => db.LeaveRequests
-									.Where(x => x.RequestedById == UserContext.UserProfile.Id)
-									.OrderByDescending(x => x.CreatedAt);
+		GridModel.QueryFactory = db =>
+		{
+			var qry = db.LeaveRequests.AsQueryable();
+			if (!UserContext.IsInGroupOrSuperuser("PharmacistSupervisor"))
+			{
+				qry = qry.Where(x => x.RequestedById == UserContext.UserProfile.Id);
+			}
+			return qry
+				.OrderByDescending(x => x.CreatedAt);
+		};
 
 	}
 	private async Task Add()
@@ -28,9 +39,10 @@
 			Status = LeaveRequestStatusEnum.Pending.ToString(),
 			LeaveType = LeaveRequestTypeEnum.Annual.ToString(),
 		};
-		LeaveRequest result = await DialogService.OpenAsync<LeaveRequestAdd>("New Leave Request", new Dictionary<string, object>
+		LeaveRequest result = await DialogService.OpenAsync<LeaveRequestDialog>("New Leave Request", new Dictionary<string, object>
 		{
-			["InitialData"] = initialData
+			[nameof(LeaveRequestDialog.InitialData)] = initialData,
+			[nameof(LeaveRequestDialog.NewRequest)] = true
 		}, DialogService.GetDefaultOptions());
 		if (result == null) return;
 		await GridModel.ReloadAsync();

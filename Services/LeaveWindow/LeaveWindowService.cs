@@ -44,52 +44,50 @@ public sealed class LeaveWindowService
 
     private Task<LeaveWindowOptions> GetLeaveWindowOptionsAsync()
     {
-        return _cache.GetAppSettingsGroupAsync<LeaveWindowOptions>(SettingsGroup);
+        return _cache.GetAppSettingAsync<LeaveWindowOptions>(SettingsGroup, true);
     }
 
     private static LeaveWindow CalculateCurrentWindow(
         LeaveWindowOptions options,
         DateOnly today)
     {
-        DateOnly firstWindow1Start = options.StartDate
-            .AddDays(options.Window1StartOffsetDays);
+        DateOnly firstWindow1Start = options.FirstWindow1StartDate;
+        if (today < options.FirstWindow1StartDate)
+        {
+            return new LeaveWindow();
+        }
+        int daysSinceFirstWindow1 =
+            today.DayNumber - firstWindow1Start.DayNumber;
 
-        int daysSinceFirstWindow1 = today.DayNumber - firstWindow1Start.DayNumber;
-        int cycleIndex = FloorDivide(daysSinceFirstWindow1, options.CycleDays);
+        int cycleIndex = daysSinceFirstWindow1 / options.CycleDays;
 
-        DateOnly window1StartDate = firstWindow1Start
-            .AddDays(cycleIndex * options.CycleDays);
+        DateOnly anchorDate =
+            firstWindow1Start.AddDays(cycleIndex * options.CycleDays);
 
-        DateOnly leaveStartDate = options.StartDate
-            .AddDays(cycleIndex * options.CycleDays);
+        DateOnly window1StartDate = anchorDate;
 
-        DateOnly leaveEndDate = leaveStartDate
-            .AddDays(options.LeaveEndOffsetDays);
+        DateOnly window1EndDate =
+            anchorDate.AddDays(options.Window1EndOffsetDays);
 
-        DateOnly window1EndDate = window1StartDate
-            .AddDays(options.Window1LengthDays - 1);
+        DateOnly window2StartDate =
+            anchorDate.AddDays(options.Window2StartOffsetDays);
 
-        DateOnly window2StartDate = window1EndDate
-            .AddDays(options.Window2GapAfterWindow1Days + 1);
+        DateOnly window2EndDate =
+            anchorDate.AddDays(options.Window2EndOffsetDays);
 
-        DateOnly window2EndDate = window2StartDate
-            .AddDays(options.Window2LengthDays - 1);
+        DateOnly leaveStartDate =
+            anchorDate.AddDays(options.LeaveStartOffsetDays);
 
-        DateTime window1Start = window1StartDate.ToDateTime(options.WindowOpenTime);
-        DateTime window1End = window1EndDate.ToDateTime(options.WindowCloseTime);
-
-        DateTime window2Start = window2StartDate.ToDateTime(options.WindowOpenTime);
-        DateTime window2End = window2EndDate.ToDateTime(options.WindowCloseTime);
-
-
+        DateOnly leaveEndDate =
+            anchorDate.AddDays(options.LeaveEndOffsetDays);
 
         if (today >= window1StartDate && today <= window1EndDate)
         {
             return new LeaveWindow
             {
                 WindowNumber = 1,
-                WindowStart = window1Start,
-                WindowEnd = window1End,
+                WindowStart = window1StartDate.ToDateTime(options.WindowOpenTime),
+                WindowEnd = window1EndDate.ToDateTime(options.WindowCloseTime),
                 LeaveStartDate = leaveStartDate,
                 LeaveEndDate = leaveEndDate
             };
@@ -100,8 +98,8 @@ public sealed class LeaveWindowService
             return new LeaveWindow
             {
                 WindowNumber = 2,
-                WindowStart = window2Start,
-                WindowEnd = window2End,
+                WindowStart = window2StartDate.ToDateTime(options.WindowOpenTime),
+                WindowEnd = window2EndDate.ToDateTime(options.WindowCloseTime),
                 LeaveStartDate = leaveStartDate,
                 LeaveEndDate = leaveEndDate
             };
@@ -112,15 +110,5 @@ public sealed class LeaveWindowService
             LeaveStartDate = leaveStartDate,
             LeaveEndDate = leaveEndDate
         };
-    }
-
-    private static int FloorDivide(int value, int divisor)
-    {
-        int result = value / divisor;
-
-        if (value < 0 && value % divisor != 0)
-            result--;
-
-        return result;
     }
 }

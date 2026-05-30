@@ -6,38 +6,30 @@
 @inject UserContextService UserContext
 @inject NavigationManager Nav
 @using AutoCAC.Common
+@inject ActivityLogService ActivityLogService
 <PageTitle>Blister Packs</PageTitle>
 <h3>Blister Packs</h3>
-<DataGridVanilla TItem="BlisterPackPatient" GridModel="GridModel">
+<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel">
 	<HeaderContent>
-		<RadzenButton Text="Add Patient" Click="AddPatient" Icon="add_circle" ButtonStyle="ButtonStyle.Success" />
+		<RadzenButton Text="Add New Fill" Click="@(() => Nav.NavigateTo("/blisterpack/patient"))" Icon="add_circle" ButtonStyle="ButtonStyle.Success" />
 	</HeaderContent>
 	<ChildContent>
-		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="Patient.Name" >
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="BlisterPackPatient.Patient" Title="Patient">
 			<Template Context="x">
-				<RadzenButton Text="@($"{x?.Patient?.Name} ({x?.Patient?.ChartNumber})")" Click="@(() => Nav.NavigateToRelative($"patient/{x.PatientId}"))" 
+				<RadzenButton Text="@($"{x?.BlisterPackPatient?.Patient?.Name} ({x?.BlisterPackPatient?.Patient?.ChartNumber})")" 
+							  Click="@(() => Nav.NavigateToRelative($"patient/{x.BlisterPackPatient?.PatientId}"))"
 					Variant="Variant.Text" Icon="person"/>
 			</Template>
 		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackFills" Title="Fills" Sortable="false">
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.FillDate)" Title="Fill Date"/>
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.SerialNumbers)" Title="Serial Numbers" />
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.Status)" Title="Status" />
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="BlisterPackFillActivities" Title="Activity" Sortable="false">
 			<Template Context="x">
-				@if (x?.BlisterPackFills != null)
-				{
-					<ul style="list-style-type: none;">
-						@foreach (var fill in x.BlisterPackFills)
-						{
-							<li>@fill.FillDate</li>
-						}
-					</ul>
-				}
-			</Template>
-		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="BlisterPackPatient" Property="BlisterPackPatientActivities" Title="Activity" Sortable="false">
-			<Template Context="x">
-				@if (x?.BlisterPackPatientActivities?.Any() == true)
+				@if (x?.BlisterPackFillActivities?.Any() == true)
 				{
 					<RadzenCardGroup >
-						<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
+						<ActivityLogReadOnly Data="x.BlisterPackFillActivities"/>
 					</RadzenCardGroup>
 				}
 			</Template>
@@ -45,20 +37,19 @@
 	</ChildContent>
 </DataGridVanilla>
 @code {
-	DataGridHelper<BlisterPackPatient> GridModel = new()
+	DataGridHelper<BlisterPackFill> GridModel = new()
 	{
-		QueryFactory = db => db.BlisterPackPatients
-						.Include(x => x.Patient)
-						.Include(x => x.BlisterPackFills)
-						.Include(x => x.BlisterPackPatientActivities)
-							.ThenInclude(x => x.AuthUser),
+		QueryFactory = db => db.BlisterPackFills
+						.Include(x => x.BlisterPackFillActivities)
+							.ThenInclude(x => x.AuthUser)
+						.Include(x => x.BlisterPackPatient)
+							.ThenInclude(x => x.Patient),
 		AllowColumnPicking = false,
 		AllowColumnReorder = false,
-		AllowFiltering = false,
 		AllowGrouping = false,
 		ShowTemplates = false,
 		ShowDownloadButton = false,
-		SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+		SearchColumns = new[] { "BlisterPackPatient.Patient.Name", "BlisterPackPatient.Patient.ChartNumber" }
 	};
 	private async Task AddPatient()
 	{
@@ -71,14 +62,7 @@
 			EnrolledDate = today
 		};
 		await DbFactory.AddItemAsync(newPatient);
-		var newActivity = new BlisterPackPatientActivity
-		{
-			BlisterPackPatientId = newPatient.PatientId,
-			ActivityAt = DateTime.Now,
-			ActivityType = ActivityLogType.Created.ToString(),
-			AuthUserId = UserContext.UserProfile.Id
-		};
-		await DbFactory.AddItemAsync(newActivity);
+		await ActivityLogService.CreatedAsync<BlisterPackPatientActivity>(UserContext.UserProfile.Id, x => x.BlisterPackPatientId = newPatient.PatientId);
 		Nav.NavigateToRelative($"patient/{newPatient.PatientId}");
 	}
 }

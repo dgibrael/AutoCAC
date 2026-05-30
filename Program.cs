@@ -81,7 +81,7 @@ builder.Services.AddSingleton<CacheService>();
 builder.Services.AddSingleton<TsaileTicketWatcher>();
 builder.Services.AddSingleton<LookupValueService>();
 builder.Services.AddSingleton<IRecordUnlockService, RecordUnlockService>();
-
+builder.Services.AddScoped<ActivityLogService>();
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 

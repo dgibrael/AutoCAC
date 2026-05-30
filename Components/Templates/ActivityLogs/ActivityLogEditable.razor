@@ -8,77 +8,36 @@
 @typeparam TItem where TItem : class, IActivityLog, new()
 @using Microsoft.AspNetCore.Components.Routing
 @using AutoCAC.Components.Templates.Printing
+@using System.Linq.Expressions;
 @if (ConfirmIfUnsubmitted && HasDraft)
 {
     <NavigationLock OnBeforeInternalNavigation="ConfirmLeave" ConfirmExternalNavigation="true" />
 }
-<h4>@Title</h4>
-<div class="rz-chat">
-    <RadzenDataList LoadData="LoadData" Data="data" @ref="dataList" AllowPaging="false"
-                    IsLoading="IsLoading" class="datalist-less-padding">
-        <Template Context="m">
-            @{
-                bool isCurUser = m.IsCurrentUser(UserContext?.UserProfile?.Id ?? 0);
-            }
-            <RadzenStack Orientation="Orientation.Vertical"
-                         AlignItems="@(isCurUser ? AlignItems.End : AlignItems.Start)" Gap="0px"
-                         class="@($"{(isCurUser ? "rz-chat-message-user" : "rz-chat-message-participant")}")">
-                <RadzenRow class="rz-my-0">
-                    @if (!isCurUser)
-                    {
-                        <div class="rz-chat-message-participant-name">@m?.AuthUser?.DisplayName</div>
-                    }
-                    <div class="rz-chat-message-time">@m.ActivityAt.ToString("MM/dd/yyyy HH:mm")</div>
-                    @if ((isCurUser || AllowDeleteAll) && m?.ActivityTypeEnum == ActivityLogType.Comment)
-                    {
-                        <RadzenButton Icon="delete"
-                                      Size="ButtonSize.ExtraSmall"
-                                      ButtonStyle="ButtonStyle.Danger"
-                                      ButtonType="ButtonType.Button" Variant="Variant.Text"
-                                      Click="@(async () => await DeleteMessageAsync(m))" />
-                    }
-                </RadzenRow>
-                <RadzenRow class="rz-my-0">
-                    @{
-                        string classStr = "rz-my-0 activity-log-message";
-                        if (m?.ActivityTypeEnum != ActivityLogType.Comment)
-                        {
-                            classStr += " activity-log-system-message";
-                            switch (m?.ActivityTypeEnum)
-                            {
-                                case ActivityLogType.Created:
-									classStr += " rz-color-success";
-                                    break;
-                                case ActivityLogType.Error:
-									classStr += " rz-color-danger";
-                                    break;
-                                case ActivityLogType.Warning:
-									classStr += " rz-color-warning";
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            classStr += " rz-chat-message-text";
-                        }
-                    }
-                    <p class="@classStr">@m?.DisplayMessage</p>
-                </RadzenRow>
-            </RadzenStack>
-        </Template>
-    </RadzenDataList>
-</div>
-<RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-5">
-    <RadzenRow>
-        <RadzenColumn Size="10">
-            <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
-                           Placeholder="Type comment here (Press enter or click arrow to submit)...." />
-        </RadzenColumn>
-        <RadzenColumn Size="1">
-            <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
-        </RadzenColumn>
-    </RadzenRow>
-</RadzenTemplateForm>
+<RadzenCard Variant="Variant.Filled" class="rz-mb-5 rz-mt-0">
+    <h4 class="rz-mt-1">@Title</h4>
+    <div style="@($"max-height: {MaxHeight}; overflow-y: scroll")">
+        <RadzenDataList LoadData="LoadData" Data="data" @ref="dataList" AllowPaging="false"
+                        IsLoading="IsLoading" class="datalist-less-padding">
+            <Template Context="m">
+                <ActivityLogEntry Item="m"
+                        CurrentUserId="@(UserContext?.UserProfile?.Id ?? 0)"
+                        AllowDeleteAll="AllowDeleteAll"
+                        DeleteRequested="DeleteMessageAsync" />
+            </Template>
+        </RadzenDataList>
+    </div>
+    <RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-0">
+        <RadzenRow>
+            <RadzenColumn Size="10">
+                <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
+                                Placeholder="Type comment here (Press enter or click arrow to submit)...." />
+            </RadzenColumn>
+            <RadzenColumn Size="1">
+                <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenTemplateForm>
+</RadzenCard>
 @if (Print && data != null)
 {
     <PrintContent PrintOnly="true">
@@ -101,12 +60,51 @@
     </PrintContent>
 }
 @code {
-    [Parameter, EditorRequired] public Func<MainContext, IQueryable<TItem>> ActivityLogQueryFactory { get; set; }
+    /// <summary>
+    /// Allows the caller to set the .Where() predicte for the query to load the activity log. Usually the linked item Id
+    /// </summary>
+    /// <remarks>
+    ///
+    /// Example:
+    ///
+    /// <code>
+    /// Filter="x => x.OrderId == Id"
+    /// </code>
+    /// </remarks>
+    [Parameter, EditorRequired] public Expression<Func<TItem, bool>> Filter { get; set; }
+    /// <summary>
+    /// Allows the caller to configure entity-specific fields on a new activity item. Usually the linked item Id
+    /// The component automatically sets:
+    /// - ActivityAt
+    /// - ActivityType
+    /// - Message
+    /// - AuthUser
+    /// - AuthUserId
+    /// </summary>
+    /// <remarks>
+    ///
+    /// Example:
+    ///
+    /// <code>
+    /// ConfigureNewItem="@(x =>
+    /// {
+    ///     x.WorkOrderId = WorkOrder.Id;
+    ///     x.CustomerId = WorkOrder.CustomerId;
+    /// })"
+    /// </code>
+    ///
+    /// Example:
+    ///
+    /// <code>
+    /// ConfigureNewItem="@(x => x.OrderId = Id)"
+    /// </code>
+    /// </remarks>
     [Parameter, EditorRequired] public Action<TItem> ConfigureNewItem { get; set; }
     [Parameter] public string Title { get; set; } = "Activity";
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
     [Parameter] public bool Print { get; set; } = false;
     [Parameter] public bool AllowDeleteAll { get; set; } = false;
+    [Parameter] public string MaxHeight { get; set; } = "50vh";
     private bool HasDraft = false;
     private RadzenDataList<TItem> dataList;
     private string _newMsg = "";
@@ -117,7 +115,12 @@
     {
         IsLoading = true;
         await using var db = await DbFactory.CreateDbContextAsync();
-        data = await ActivityLogQueryFactory(db).OrderBy(x => x.ActivityAt).AsNoTracking().ToListAsync();
+        data = await db.Set<TItem>()
+            .Where(Filter)
+            .Include(x => x.AuthUser)
+            .OrderBy(x => x.ActivityAt)
+            .AsNoTracking()
+            .ToListAsync();
         IsLoading = false;
     }
 
@@ -141,11 +144,9 @@
         await dataList.Reload();
     }
 
-    private async Task DeleteMessageAsync(TItem comment)
+    private async Task DeleteMessageAsync(IActivityLog comment)
     {
-        var ok = await DialogService.DeleteConfirm(customMessage: "Delete this message?");
-        if (ok != true) return;
-        await DbFactory.DeleteItemAsync(comment);
+        await DbFactory.DeleteItemAsync((TItem)comment);
         await dataList.Reload();
     }
 

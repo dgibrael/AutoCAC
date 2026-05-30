@@ -15,6 +15,8 @@ public partial class BlisterPackFill
 
     public DateOnly FillDate { get; set; }
 
+    public DateTime LastModified { get; set; }
+
     public string Status { get; set; } = null!;
 
     public virtual ICollection<BlisterPackFillActivity> BlisterPackFillActivities { get; set; } = new List<BlisterPackFillActivity>();

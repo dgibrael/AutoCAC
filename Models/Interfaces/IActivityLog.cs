@@ -26,15 +26,4 @@ public interface IActivityLog
         set => ActivityType = value.ToString();
     }
     bool IsCurrentUser(int currentUserId) => AuthUserId.HasValue && AuthUserId.Value == currentUserId;
-    string DisplayMessage => ActivityTypeEnum switch
-    {
-        ActivityLogType.Created =>
-            "Created" + (!string.IsNullOrWhiteSpace(Message)
-                ? $" ({Message})"
-                : ""),
-        ActivityLogType.ValueChanged => $"{ChangedField ?? "Status"} Changed to: {Message}",
-        ActivityLogType.Error => "Error: " + Message,
-        ActivityLogType.Warning => "Warning: " + Message,
-        _ => Message ?? ""
-    };
 }

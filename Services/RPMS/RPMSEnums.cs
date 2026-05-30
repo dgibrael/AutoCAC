@@ -51,6 +51,7 @@ public enum RPMSMode
     DefaultReceive,
     Access,
     Verify,
+    ChangeVerify,
     ScrollWrite,
     Report,
     ReportPrompt
@@ -63,7 +64,7 @@ public static class RPMSModeExtensions
         public bool SignedIn => mode switch
         {
             RPMSMode.Disconnected or RPMSMode.Access
-            or RPMSMode.Verify => false,
+            or RPMSMode.Verify or RPMSMode.ChangeVerify => false,
             _ => true
         };
     }
