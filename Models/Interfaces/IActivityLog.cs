@@ -9,8 +9,7 @@ public interface IActivityLog
     int? AuthUserId { get; set; }
     AuthUser? AuthUser { get; set; }
     DateTime ActivityAt { get; set; }
-    string Message { get; set; }
-    string? ChangedField { get; set; }
+    string Value { get; set; }
     ActivityLogType ActivityTypeEnum
     {
         get

@@ -499,7 +499,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFill>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07F2C449A0");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07C76F29CA");
 
             entity.ToTable("BlisterPackFill");
 
@@ -523,7 +523,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFillActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07FC79FB45");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC0784A44E5D");
 
             entity.ToTable("BlisterPackFillActivity");
 
@@ -534,7 +534,7 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
-            entity.Property(e => e.Message)
+            entity.Property(e => e.Value)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
 
@@ -550,7 +550,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackPatient>(entity =>
         {
-            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC36635EAD77B");
+            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC3660BC1EA6C");
 
             entity.ToTable("BlisterPackPatient");
 
@@ -566,7 +566,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackPatientActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07BA78289C");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07FBEBBB85");
 
             entity.ToTable("BlisterPackPatientActivity");
 
@@ -577,7 +577,7 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
-            entity.Property(e => e.Message)
+            entity.Property(e => e.Value)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
 
@@ -1186,7 +1186,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequest>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F1DBA8EC7");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F533741EE");
 
             entity.ToTable("LeaveRequest");
 
@@ -1214,7 +1214,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequestActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC07DD8CB942");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC0754FD0700");
 
             entity.ToTable("LeaveRequestActivity");
 
@@ -1225,10 +1225,7 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
-            entity.Property(e => e.ChangedField)
-                .HasMaxLength(100)
-                .IsUnicode(false);
-            entity.Property(e => e.Message)
+            entity.Property(e => e.Value)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
 

@@ -7,12 +7,12 @@ namespace AutoCAC.Services;
 
 public sealed class ActivityLogService
 {
-    private readonly IDbContextFactory<MainContext> _contextFactory;
+    private readonly IDbContextFactory<MainContext> _dbFactory;
 
     public ActivityLogService(
         IDbContextFactory<MainContext> contextFactory)
     {
-        _contextFactory = contextFactory;
+        _dbFactory = contextFactory;
     }
 
     public async Task<TActivity> LogActivityAsync<TActivity, TItemKey>(
@@ -20,7 +20,6 @@ public sealed class ActivityLogService
         TItemKey itemId,
         int? authUserId,
         string message = "",
-        string changedField = null,
         Action<TActivity> configure = null
         )
         where TActivity : class, IActivityLog<TItemKey>, new()
@@ -30,16 +29,12 @@ public sealed class ActivityLogService
             ActivityAt = DateTime.Now,
             ActivityTypeEnum = activityType,
             AuthUserId = authUserId,
-            Message = message,
+            Value = message,
             ItemId = itemId
         };
-        if (changedField != null)
-        {
-            activity.ChangedField = changedField;
-        }
         if (configure != null) configure(activity);
 
-        await _contextFactory.AddItemAsync(activity);
+        await _dbFactory.AddItemAsync(activity);
 
         return activity;
     }
@@ -59,13 +54,12 @@ public sealed class ActivityLogService
     {
         return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.Comment, itemId, authUserId: authUserId, message: comment);
     }
-    public Task<TActivity> ValueChangedAsync<TActivity, TItemKey>(
+    public Task<TActivity> StatusChangedAsync<TActivity, TItemKey>(
         TItemKey itemId,
         string newValue,
-        int? authUserId,
-        string changedField = null)
+        int? authUserId)
         where TActivity : class, IActivityLog<TItemKey>, new()
     {
-        return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.ValueChanged, itemId, authUserId: authUserId, message: newValue, changedField: changedField);
+        return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.StatusChanged, itemId, authUserId: authUserId, message: newValue);
     }
 }

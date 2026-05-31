@@ -13,13 +13,11 @@ public partial class LeaveRequestActivity
 
     public string ActivityType { get; set; } = null!;
 
-    public string? ChangedField { get; set; }
-
     public int? AuthUserId { get; set; }
 
     public DateTime ActivityAt { get; set; }
 
-    public string Message { get; set; } = null!;
+    public string Value { get; set; } = null!;
 
     public virtual AuthUser? AuthUser { get; set; }
 

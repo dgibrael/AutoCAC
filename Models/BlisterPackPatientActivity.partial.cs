@@ -6,5 +6,4 @@ namespace AutoCAC.Models;
 
 public partial class BlisterPackPatientActivity : IActivityLog<int>
 {
-    [NotMapped] public string? ChangedField { get; set; } = null;
 }

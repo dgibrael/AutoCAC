@@ -17,7 +17,7 @@ public partial class BlisterPackPatientActivity
 
     public DateTime ActivityAt { get; set; }
 
-    public string Message { get; set; } = null!;
+    public string Value { get; set; } = null!;
 
     public virtual AuthUser? AuthUser { get; set; }
 

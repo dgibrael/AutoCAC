@@ -86,7 +86,7 @@
 	{
 		fill.StatusEnum = BlisterPackFillStatus.Completed;
 		await DbFactory.UpdateItemAsync(fill);
-		await ActivityLogService.ValueChangedAsync<BlisterPackFillActivity, int>(fill.Id, fill.Status, authUserId: UserContext.UserProfile.Id);
+		await ActivityLogService.StatusChangedAsync<BlisterPackFillActivity, int>(fill.Id, fill.Status, authUserId: UserContext.UserProfile.Id);
 		NotificationService.Success("Successfully saved");
 		await LoadData();
 	}
