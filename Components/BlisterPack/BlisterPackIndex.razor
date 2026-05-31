@@ -3,25 +3,23 @@
 @using AutoCAC.Models
 @inject IDbContextFactory<MainContext> DbFactory
 @inject DialogService DialogService
+@inject NotificationService NotificationService
 @inject UserContextService UserContext
 @inject NavigationManager Nav
-@using AutoCAC.Common
 @inject ActivityLogService ActivityLogService
 <PageTitle>Blister Packs</PageTitle>
 <h3>Blister Packs</h3>
-<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel">
+<EnumSelectBar TEnum="StatusFilter" @bind-Value="@_selectedStatus" Change="@(() => GridModel?.ReloadAsync())" Orientation="Orientation.Horizontal" />
+<RadzenLink Text="Blister Pack Patient List" Icon="person" Path="/blisterpack/patient" />
+
+<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel" RowDoubleClick="@(x => Nav.NavigateTo($"blisterpack/fill/{x.Data.Id}"))">
 	<HeaderContent>
-		<RadzenButton Text="Add New Fill" Click="@(() => Nav.NavigateTo("/blisterpack/patient"))" Icon="add_circle" ButtonStyle="ButtonStyle.Success" />
+		<DropdownDataGridVanilla GridModel="PatientGridModel" TItem="BlisterPackPatient" AddButtonClick="AddPatient" 
+			RowSelect="@(x => AddFill(x))" Placeholder="New Fill" AddButtonLabel="New Patient"/>
 	</HeaderContent>
 	<ChildContent>
-		<RadzenDataGridColumn TItem="BlisterPackFill" Property="BlisterPackPatient.Patient" Title="Patient">
-			<Template Context="x">
-				<RadzenButton Text="@($"{x?.BlisterPackPatient?.Patient?.Name} ({x?.BlisterPackPatient?.Patient?.ChartNumber})")" 
-							  Click="@(() => Nav.NavigateToRelative($"patient/{x.BlisterPackPatient?.PatientId}"))"
-					Variant="Variant.Text" Icon="person"/>
-			</Template>
-		</RadzenDataGridColumn>
-		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.FillDate)" Title="Fill Date"/>
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="BlisterPackPatient.Patient.Name" Title="Patient" />
+		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.FillDate)" Title="Fill Date" />
 		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.SerialNumbers)" Title="Serial Numbers" />
 		<RadzenDataGridColumn TItem="BlisterPackFill" Property="@nameof(BlisterPackFill.Status)" Title="Status" />
 		<RadzenDataGridColumn TItem="BlisterPackFill" Property="BlisterPackFillActivities" Title="Activity" Sortable="false">
@@ -34,9 +32,20 @@
 				}
 			</Template>
 		</RadzenDataGridColumn>
+		<ActionColumn TItem="BlisterPackFill" Context="x" >
+			<RadzenButton Text="Edit" Click="@(() => Nav.NavigateTo($"blisterpack/fill/{x.Id}"))" Icon="edit"/>
+			<RadzenButton Text="Create Next Fill" Click="@(() => AddFill(x.BlisterPackPatient, x.FillDate))" Icon="add" ButtonStyle="ButtonStyle.Success"/>
+		</ActionColumn>
 	</ChildContent>
 </DataGridVanilla>
 @code {
+	private enum StatusFilter
+	{
+		All,
+		ScheduledAll,
+		ScheduledForToday
+	}
+	StatusFilter _selectedStatus = StatusFilter.ScheduledForToday;
 	DataGridHelper<BlisterPackFill> GridModel = new()
 	{
 		QueryFactory = db => db.BlisterPackFills
@@ -51,18 +60,79 @@
 		ShowDownloadButton = false,
 		SearchColumns = new[] { "BlisterPackPatient.Patient.Name", "BlisterPackPatient.Patient.ChartNumber" }
 	};
+	DataGridHelper<BlisterPackPatient> PatientGridModel = new()
+	{
+		QueryFactory = db => db.BlisterPackPatients
+						.Include(x => x.Patient),
+		AllowColumnPicking = false,
+		AllowColumnReorder = false,
+		AllowGrouping = false,
+		AllowFiltering = false,
+		ShowTemplates = false,
+		ShowDownloadButton = false,
+		SearchColumns = new[] { "Patient.Name", "Patient.ChartNumber" },
+		IncludeColumns = new[] { "Patient.Name", "Patient.ChartNumber" }
+	};
+	protected override void OnInitialized()
+	{
+		GridModel.QueryFactory = db => 
+		{
+			var today = DateTime.Today.DateOnly;
+			var qry = db.BlisterPackFills.AsQueryable();
+			qry = _selectedStatus switch
+			{
+				StatusFilter.ScheduledAll => qry.Where(x => x.Status == BlisterPackFillStatus.Scheduled.ToString()),
+				StatusFilter.ScheduledForToday => qry.Where(x => x.Status == BlisterPackFillStatus.Scheduled.ToString() && x.FillDate == today),
+				_ => qry
+			};
+			return qry
+					.Include(x => x.BlisterPackFillActivities)
+						.ThenInclude(x => x.AuthUser)
+					.Include(x => x.BlisterPackPatient)
+						.ThenInclude(x => x.Patient);
+		};
+
+	}
 	private async Task AddPatient()
 	{
 		var today = DateTime.Now.DateOnly;
-		var patient = await DialogService.PatientSelectDialogAsync();
-		if (patient == null) return;
-		var newPatient = new BlisterPackPatient
+		var newPatient = await DialogService.PatientSelectDialogAsync();
+		if (newPatient == null) return;
+		await using var db = await DbFactory.CreateDbContextAsync();
+		var patient = await db.BlisterPackPatients.FirstOrDefaultAsync(x => x.PatientId == newPatient.Id);
+		if (patient != null)
 		{
-			PatientId = patient.Id,
-			EnrolledDate = today
+			NotificationService.Info("Patient is already enrolled. Creating fill for existing patient");
+		}
+		else
+		{			
+			patient = new BlisterPackPatient
+			{
+				PatientId = newPatient.Id,
+				EnrolledDate = today,
+				Compliant = true
+			};
+			await db.AddItemAsync(patient);
+			await db.SaveChangesAsync();
+			await ActivityLogService.CreatedAsync<BlisterPackPatientActivity, int>(patient.PatientId, UserContext.UserProfile.Id);
+			NotificationService.Success("Successfully enrolled patient");
+			await PatientGridModel?.ReloadAsync();
+		}
+		await AddFill(patient);
+	}
+	private async Task AddFill(BlisterPackPatient patient, DateOnly? lastFillDate = null)
+	{
+		var initialDate = lastFillDate ?? DateTime.Now.DateOnly;
+		initialDate = initialDate.AddDays(27);
+		var fillDate = await DialogService.DatePromptAsync(initialDate, title: "Select Expected Fill Date");
+		if (fillDate == null) return;
+		var newFill = new BlisterPackFill
+		{
+			BlisterPackPatientId = patient.PatientId,
+			FillDate = fillDate.Value
 		};
-		await DbFactory.AddItemAsync(newPatient);
-		await ActivityLogService.CreatedAsync<BlisterPackPatientActivity>(UserContext.UserProfile.Id, x => x.BlisterPackPatientId = newPatient.PatientId);
-		Nav.NavigateToRelative($"patient/{newPatient.PatientId}");
+		await DbFactory.AddItemAsync(newFill);
+		await ActivityLogService.CreatedAsync<BlisterPackFillActivity, int>(newFill.Id, UserContext.UserProfile.Id);
+		Nav.NavigateToRelative($"fill/{newFill.Id}");
 	}
 }

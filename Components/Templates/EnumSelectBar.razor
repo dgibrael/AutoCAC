@@ -1,0 +1,23 @@
+﻿@using AutoCAC.Extensions
+@typeparam TEnum where TEnum : struct, Enum
+
+<RadzenSelectBar TValue="TEnum" Data="@(EnumExtensionsCustom.GetDictionary<TEnum>())"
+    ValueProperty="Key" TextProperty="Value" Value="Value" ValueChanged="OnValueChanged" 
+    Orientation="@Orientation" />
+
+@code {
+    [Parameter] public TEnum Value { get; set; }
+    [Parameter] public EventCallback<TEnum> ValueChanged { get; set; }
+
+    // Optional extra callback for consumers who want a "changed" hook
+    [Parameter] public EventCallback Change { get; set; }
+    [Parameter] public Orientation Orientation { get; set; } = Orientation.Horizontal;
+    private async Task OnValueChanged(TEnum newValue)
+    {
+        // push the new value up to the parent (this is what makes @bind work)
+        await ValueChanged.InvokeAsync(newValue);
+
+        // optional hook
+        await Change.InvokeAsync();
+    }
+}

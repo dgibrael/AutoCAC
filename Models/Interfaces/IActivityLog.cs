@@ -27,3 +27,7 @@ public interface IActivityLog
     }
     bool IsCurrentUser(int currentUserId) => AuthUserId.HasValue && AuthUserId.Value == currentUserId;
 }
+public interface IActivityLog<TItemKey> : IActivityLog
+{
+    TItemKey ItemId { get; set; }
+}

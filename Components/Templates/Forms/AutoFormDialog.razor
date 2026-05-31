@@ -24,7 +24,7 @@
     [Parameter] public EventCallback Submit { get; set; }
     [Parameter] public HashSet<string> IncludedProperties { get; set; }
     [Parameter] public bool SaveToDb { get; set; }
-    [Parameter] public IEnumerable<SplitButtonItem> OtherActions { get; set; }
+    [Parameter] public IEnumerable<ButtonListItem> OtherActions { get; set; }
     [Parameter] public bool NewItem { get; set; } = false;
     private static readonly PropertyInfo[] _allSupportedProperties =
         typeof(TItem)

@@ -1,0 +1,33 @@
+﻿@typeparam TItem where TItem : class, new()
+@inject DialogService DialogService
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+<RadzenButton Click="@Open" title="Click to edit" Style="text-transform: none;" 
+    Variant="Variant.Outlined" class="@Class">
+    <RadzenStack Orientation="Orientation.Vertical">
+        <RadzenStack Orientation="Orientation.Horizontal"
+            JustifyContent="JustifyContent.SpaceBetween"
+            AlignItems="AlignItems.Center">
+            <h4>@Title</h4>
+            <RadzenIcon Icon="edit" />
+        </RadzenStack>
+        @ButtonContent
+    </RadzenStack>
+</RadzenButton>
+
+@code {
+    [Parameter] public RenderFragment<TItem> DialogFormFields { get; set; }
+    [Parameter] public RenderFragment ButtonContent { get; set; }
+    [Parameter] public EventCallback<TItem> OnSubmitted { get; set; }
+    [Parameter] public EventCallback<TItem> OnClose { get; set; }
+    [Parameter] public TItem Data { get; set; }
+    [Parameter] public string Title { get; set; } = "Edit Attributes";
+    [Parameter] public string Class { get; set; }
+    private async Task Open()
+    {
+        var saveToDb = !OnSubmitted.HasDelegate;
+        var result = await DialogService.OpenFormAsync<TItem>(DialogFormFields, Data, Title, saveToDb);
+        await OnSubmitted.InvokeAsync(result);
+        await OnClose.InvokeAsync(result);
+    }
+}

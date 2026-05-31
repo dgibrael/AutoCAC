@@ -29,7 +29,8 @@
                     AllowColumnResize="true"
                     ShowPagingSummary="true"
                     CellRender="CellRender"
-					ColumnWidth="200px" TextProperty="@TextProperty"
+                    ColumnWidth="200px" TextProperty="@TextProperty"
+                    Placeholder="@Placeholder"
                     PageSizeOptions="pageSizes" Value="Value" ValueChanged="OnValueChanged"
                     Context="row" FilterCaseSensitivity="@(GridModel.UseClientSideData ? FilterCaseSensitivity.CaseInsensitive : FilterCaseSensitivity.Default)"
                     EmptyTemplate="EmptyTemplate"
@@ -38,20 +39,20 @@
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Start"
                          Wrap="FlexWrap.Wrap">
                 @HeaderContent
-                @if (!string.IsNullOrEmpty(GridModel?.AddButtonUrl) || AddButtonClick.HasDelegate)
-                {
-                    <RadzenButton Icon="add_circle_outline"
-                                  Text="Add"
-                                  ButtonStyle="ButtonStyle.Success"
-                                  Click="@OnAddClickInternal"
-                                  Variant="Variant.Flat" />
-                }
                 @if (GridModel?.SearchColumns != null)
                 {
                     <RadzenColumn Size="5">
                         <QuickSearch @bind-Value="GridModel.SearchText" @bind-Value:after="() => _ = GridModel.ReloadAsync(ClearCache: false)"
                                      Placeholder="@GridModel?.SearchTextPlaceholder" />
                     </RadzenColumn>
+                }
+                @if (!string.IsNullOrEmpty(GridModel?.AddButtonUrl) || AddButtonClick.HasDelegate)
+                {
+                    <RadzenButton Icon="add_circle_outline"
+                                  Text="@AddButtonLabel"
+                                  ButtonStyle="ButtonStyle.Success"
+                                  Click="@OnAddClickInternal"
+                                  Variant="Variant.Flat" />
                 }
             </RadzenStack>
         </HeaderTemplate>
@@ -99,19 +100,17 @@
     // RenderFragments stay as parameters (as requested)
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public RenderFragment EmptyTemplate { get; set; }
-    [Parameter] public RenderFragment<TItem> ExpandContentView { get; set; }
     [Parameter] public RenderFragment<TItem> LeadingColumns { get; set; }
     [Parameter] public RenderFragment<TItem> TrailingColumns { get; set; }
     [Parameter] public RenderFragment HeaderContent { get; set; }
     [Parameter] public EventCallback AddButtonClick { get; set; }
-    [Parameter] public EventCallback RowSelect { get; set; }
-    [Parameter] public EventCallback<TItem> RowExpand { get; set; }
-    [Parameter] public EventCallback<DataGridRowMouseEventArgs<TItem>> RowDoubleClick { get; set; }
-    [Parameter] public EventCallback<TItem> RowEdit { get; set; }
+    [Parameter] public EventCallback<TItem> RowSelect { get; set; }
     [Parameter] public Action<DataGridCellRenderEventArgs<TItem>> CellRender { get; set; }
     [Parameter] public TItem Value { get; set; }
     [Parameter] public EventCallback<TItem> ValueChanged { get; set; }
     [Parameter] public string TextProperty { get; set; }
+    [Parameter] public string Placeholder { get; set; }
+    [Parameter] public string AddButtonLabel { get; set; } = "Add";
     async Task OnValueChanged(TItem value)
     {
         await ValueChanged.InvokeAsync(value);

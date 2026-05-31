@@ -122,9 +122,9 @@ else
     }
     private List<string> statusChoices = new() { "New", "Submitted", "Verified", "Completed" };
 
-    IEnumerable<SplitButtonItem> BuildButtons => new[]
+    IEnumerable<ButtonListItem> BuildButtons => new[]
     {
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Move Back",
             Value = "Back",
@@ -142,7 +142,7 @@ else
                 StateHasChanged();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Submit",
             Value = "Forward",
@@ -160,7 +160,7 @@ else
                 Nav.NavigateToRelative(fromParent: true);
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Delete Record",
             Value = "Delete",

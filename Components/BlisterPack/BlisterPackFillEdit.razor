@@ -1,0 +1,98 @@
+﻿@page "/blisterpack/fill/{Id:int}"
+@using AutoCAC.Components.Templates.ActivityLogs
+@using AutoCAC.Components.Templates.Buttons
+@using AutoCAC.Components.Templates.Forms
+@using AutoCAC.Models
+@inject IDbContextFactory<MainContext> DbFactory
+@inject ActivityLogService ActivityLogService
+@inject UserContextService UserContext
+@inject NotificationService NotificationService
+<LoadingContent LoadState="_loadState">
+	<RadzenStack AlignItems="AlignItems.Start" Orientation="Orientation.Horizontal">
+		<RadzenLink Text="@($"{fill?.BlisterPackPatient?.Patient?.Name} Profile")" Icon="person" Path="@($"/blisterpack/patient/{fill?.BlisterPackPatientId}")" />
+		<RadzenLink Text="Patient List" Icon="people" Path="/blisterpack/patient" />
+		<RadzenLink Text="Blister Pack Home" Icon="home" Path="/blisterpack" />
+	</RadzenStack>
+	<RadzenStack Orientation="Orientation.Horizontal">
+		<AttributesWithEditDialog TItem="BlisterPackFill" OnSubmitted="LoadData" Data="fill" Class="rz-mb-5" Title="@($"Fill for {fill?.BlisterPackPatient?.Patient?.Name}")">
+			<ButtonContent>
+				<RadzenStack Orientation="Orientation.Horizontal">
+					<p>
+						<strong>Fill Date: </strong>@fill?.FillDate
+					</p>
+					<p>
+						<strong>Serial Numbers: </strong>@fill?.SerialNumbers
+					</p>
+					<p>
+						<strong>Status: </strong>@fill?.Status
+					</p>
+				</RadzenStack>
+			</ButtonContent>
+			<DialogFormFields Context="x">
+				<VanillaFormField Label="Fill Date">
+					<RadzenDatePicker ShowTime="false" ShowTimeOkButton="false" @bind-Value="x.FillDate" />
+				</VanillaFormField>
+				<VanillaFormField Label="Serial Numbers">
+					<RadzenTextBox @bind-Value="x.SerialNumbers" />
+				</VanillaFormField>
+				<VanillaFormField Label="Status">
+					<EnumStringDropdown TEnum="BlisterPackFillStatus" @bind-Value="x.Status" />
+				</VanillaFormField>
+			</DialogFormFields>
+		</AttributesWithEditDialog>
+		<SplitButtonTemplate ButtonText="Quick Actions" Buttons="Buttons" />
+	</RadzenStack>
+	<RadzenRow>
+		<RadzenColumn Size="6">
+			<ActivityLogEditable TActivity="BlisterPackFillActivity" Title="Fill Activity" 
+									 ItemId="fill.Id" TItemKey="int"/>
+		</RadzenColumn>
+		<RadzenColumn Size="6">
+			<ActivityLogEditable TActivity="BlisterPackPatientActivity" Title="Patient Activity" ItemId="fill.BlisterPackPatientId" TItemKey="int"/>
+		</RadzenColumn>
+	</RadzenRow>
+</LoadingContent>
+
+@code {
+	[Parameter] public int Id { get; set; }
+	BlisterPackFill fill;
+	LoadingState _loadState = LoadingState.Loading;
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			await LoadData();
+		}
+	}
+	private async Task LoadData()
+	{
+		_loadState = LoadingState.Loading;
+		StateHasChanged();
+		await using var db = await DbFactory.CreateDbContextAsync();
+		fill = await db.BlisterPackFills
+						.Where(x => x.Id == Id)
+						.Include(x => x.BlisterPackPatient)
+							.ThenInclude(x => x.Patient)
+						.FirstOrDefaultAsync();
+		_loadState = LoadingState.Loaded;
+		StateHasChanged();
+	}
+	private List<ButtonListItem> Buttons => new List<ButtonListItem>
+	{
+		new() { Value = "Complete and Create Next", Action = CompleteAsync},
+		new() { Value = "Complete", Action = CompleteAsync}
+	};
+	private async Task CompleteAsync()
+	{
+		fill.StatusEnum = BlisterPackFillStatus.Completed;
+		await DbFactory.UpdateItemAsync(fill);
+		await ActivityLogService.ValueChangedAsync<BlisterPackFillActivity, int>(fill.Id, fill.Status, authUserId: UserContext.UserProfile.Id);
+		NotificationService.Success("Successfully saved");
+		await LoadData();
+	}
+	private async Task AttributesChanged(BlisterPackFill item)
+	{
+		if (item == null) return;
+
+	}
+}

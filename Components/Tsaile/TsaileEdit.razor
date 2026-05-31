@@ -192,9 +192,9 @@
 
 	}
 
-	IEnumerable<SplitButtonItem> BuildButtons() => new[]
+	IEnumerable<ButtonListItem> BuildButtons() => new[]
 	{
-		new SplitButtonItem
+		new ButtonListItem
 		{
 			Text = $"Complete {item?.StatusEnum.ToString()}",
 			Value = "Submit",
@@ -208,7 +208,7 @@
 				Nav.NavigateToWithExistingQry("/tsaile/");
 			}
 		},
-		new SplitButtonItem
+		new ButtonListItem
 		{
 			Text = "Move Ticket Back",
 			Value = "Back",
@@ -223,7 +223,7 @@
 				StateHasChanged();
 			}
 		},
-		new SplitButtonItem
+		new ButtonListItem
 		{
 			Text = "Change Status",
 			Value = "ChangeStatus",
@@ -239,7 +239,7 @@
 				StateHasChanged();
 			}
 		},
-		new SplitButtonItem
+		new ButtonListItem
 		{
 			Text = "Patient Profile",
 			Value = "Patient",
@@ -250,7 +250,7 @@
 				Nav.NavigateToWithExistingQry($"/tsaile/patient/{item?.PatientId}");
 			}
 		},
-		new SplitButtonItem
+		new ButtonListItem
 		{
 			Text = "Delete Record",
 			Value = "Delete",

@@ -9,7 +9,7 @@ public partial class BlisterPackFillActivity
 {
     public long Id { get; set; }
 
-    public int? BlisterPackFillId { get; set; }
+    public int ItemId { get; set; }
 
     public string ActivityType { get; set; } = null!;
 
@@ -21,5 +21,5 @@ public partial class BlisterPackFillActivity
 
     public virtual AuthUser? AuthUser { get; set; }
 
-    public virtual BlisterPackFill? BlisterPackFill { get; set; }
+    public virtual BlisterPackFill Item { get; set; } = null!;
 }

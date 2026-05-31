@@ -499,7 +499,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFill>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC0772C35D22");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07F2C449A0");
 
             entity.ToTable("BlisterPackFill");
 
@@ -514,7 +514,7 @@ public partial class MainContext : DbContext
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .IsUnicode(false)
-                .HasDefaultValue("PENDING");
+                .HasDefaultValue("Scheduled");
 
             entity.HasOne(d => d.BlisterPackPatient).WithMany(p => p.BlisterPackFills)
                 .HasForeignKey(d => d.BlisterPackPatientId)
@@ -523,7 +523,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackFillActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07901FC2E0");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07FC79FB45");
 
             entity.ToTable("BlisterPackFillActivity");
 
@@ -534,7 +534,6 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
-            entity.Property(e => e.BlisterPackFillId).HasColumnName("BlisterPackFill_id");
             entity.Property(e => e.Message)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
@@ -544,15 +543,14 @@ public partial class MainContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK_BlisterPackFillActivity_auth_user");
 
-            entity.HasOne(d => d.BlisterPackFill).WithMany(p => p.BlisterPackFillActivities)
-                .HasForeignKey(d => d.BlisterPackFillId)
-                .OnDelete(DeleteBehavior.Cascade)
+            entity.HasOne(d => d.Item).WithMany(p => p.BlisterPackFillActivities)
+                .HasForeignKey(d => d.ItemId)
                 .HasConstraintName("FK_BlisterPackFillActivity_BlisterPackFill");
         });
 
         modelBuilder.Entity<BlisterPackPatient>(entity =>
         {
-            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC3665A41EC57");
+            entity.HasKey(e => e.PatientId).HasName("PK__BlisterP__970EC36635EAD77B");
 
             entity.ToTable("BlisterPackPatient");
 
@@ -568,7 +566,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<BlisterPackPatientActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC071241EAEF");
+            entity.HasKey(e => e.Id).HasName("PK__BlisterP__3214EC07BA78289C");
 
             entity.ToTable("BlisterPackPatientActivity");
 
@@ -579,7 +577,6 @@ public partial class MainContext : DbContext
                 .HasMaxLength(100)
                 .IsUnicode(false);
             entity.Property(e => e.AuthUserId).HasColumnName("auth_user_id");
-            entity.Property(e => e.BlisterPackPatientId).HasColumnName("BlisterPackPatient_id");
             entity.Property(e => e.Message)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
@@ -589,8 +586,8 @@ public partial class MainContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("FK_BlisterPackPatientActivity_auth_user");
 
-            entity.HasOne(d => d.BlisterPackPatient).WithMany(p => p.BlisterPackPatientActivities)
-                .HasForeignKey(d => d.BlisterPackPatientId)
+            entity.HasOne(d => d.Item).WithMany(p => p.BlisterPackPatientActivities)
+                .HasForeignKey(d => d.ItemId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_BlisterPackPatientActivity_BlisterPackPatient");
         });
@@ -1189,7 +1186,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequest>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F1802A1B0");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3213E83F1DBA8EC7");
 
             entity.ToTable("LeaveRequest");
 
@@ -1217,7 +1214,7 @@ public partial class MainContext : DbContext
 
         modelBuilder.Entity<LeaveRequestActivity>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC079909E54E");
+            entity.HasKey(e => e.Id).HasName("PK__LeaveReq__3214EC07DD8CB942");
 
             entity.ToTable("LeaveRequestActivity");
 
@@ -1231,7 +1228,6 @@ public partial class MainContext : DbContext
             entity.Property(e => e.ChangedField)
                 .HasMaxLength(100)
                 .IsUnicode(false);
-            entity.Property(e => e.LeaveRequestId).HasColumnName("LeaveRequest_id");
             entity.Property(e => e.Message)
                 .HasMaxLength(2000)
                 .HasDefaultValue("");
@@ -1241,9 +1237,8 @@ public partial class MainContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_LeaveRequestActivity_auth_user");
 
-            entity.HasOne(d => d.LeaveRequest).WithMany(p => p.LeaveRequestActivities)
-                .HasForeignKey(d => d.LeaveRequestId)
-                .OnDelete(DeleteBehavior.Cascade)
+            entity.HasOne(d => d.Item).WithMany(p => p.LeaveRequestActivities)
+                .HasForeignKey(d => d.ItemId)
                 .HasConstraintName("FK_LeaveRequestActivity_LeaveRequest");
         });
 

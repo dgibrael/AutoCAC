@@ -50,9 +50,9 @@
         SearchColumns = new[] { "Patient.Name", "Patient.TsaileChartNumber" }
     };
 
-    IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
+    IEnumerable<ButtonListItem> BuildButtons(TsaileBetterq row) => new[]
     {
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Edit",
             Value = "Edit",
@@ -63,7 +63,7 @@
                 Nav.NavigateToWithExistingQry($"tsaile/ticket/{row.Id}");
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Send ticket back",
             Value = "Back",
@@ -77,7 +77,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Delete",
             Value = "Delete",
@@ -94,7 +94,7 @@
                 }
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Change Status",
             Value = "ChangeStatus",

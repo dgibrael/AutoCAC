@@ -3,7 +3,6 @@
 @inject NavigationManager Nav
 @inject DialogService DialogService
 @inject NotificationService Notifications
-@using AutoCAC.Extensions
 
 <div title="@($"{TooltipText ?? ButtonText} (click arrow for more options)")" style="max-width: 100%;">
     <RadzenSplitButton AlwaysOpenPopup="@(_resolvedDefaultAction is null)" ButtonStyle="@ButtonStyle" 
@@ -26,15 +25,15 @@
     [Parameter] public string DefaultButtonValue { get; set; }
     [Parameter] public string ButtonText { get; set; } = "";
     [Parameter] public string TooltipText { get; set; } = null;
-    [Parameter] public IEnumerable<SplitButtonItem> Buttons { get; set; }
+    [Parameter] public IEnumerable<ButtonListItem> Buttons { get; set; }
     [Parameter] public string MainIcon { get; set; } = null;
     [Parameter] public bool Disabled { get; set; } = false;
     [Parameter] public ButtonStyle ButtonStyle { get; set; } = ButtonStyle.Primary;
     [Parameter] public ButtonSize ButtonSize { get; set; } = ButtonSize.Medium;
     bool _isBusy;
     private Func<Task> _resolvedDefaultAction;
-    private List<SplitButtonItem> _buttons = new();
-    private SplitButtonItem _defaultItem;
+    private List<ButtonListItem> _buttons = new();
+    private ButtonListItem _defaultItem;
 
     protected override void OnParametersSet()
     {

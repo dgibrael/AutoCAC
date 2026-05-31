@@ -9,7 +9,7 @@ public partial class LeaveRequestActivity
 {
     public long Id { get; set; }
 
-    public int? LeaveRequestId { get; set; }
+    public int ItemId { get; set; }
 
     public string ActivityType { get; set; } = null!;
 
@@ -23,5 +23,5 @@ public partial class LeaveRequestActivity
 
     public virtual AuthUser? AuthUser { get; set; }
 
-    public virtual LeaveRequest? LeaveRequest { get; set; }
+    public virtual LeaveRequest Item { get; set; } = null!;
 }

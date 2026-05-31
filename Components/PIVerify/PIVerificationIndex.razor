@@ -87,9 +87,9 @@
         Nav.NavigateTo(Nav.GetPath(dbRecord.Id.ToString()));
     }
 
-    IEnumerable<SplitButtonItem> BuildButtons(PiVerification row) => new[]
+    IEnumerable<ButtonListItem> BuildButtons(PiVerification row) => new[]
     {
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Edit",
             Value = "Edit",
@@ -100,7 +100,7 @@
                 Nav.NavigateTo(Nav.GetPath(row.Id.ToString()));
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Move Back",
             Value = "Back",
@@ -117,7 +117,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Submit",
             Value = "Forward",
@@ -134,7 +134,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Delete Record",
             Value = "Delete",

@@ -194,9 +194,9 @@
         }
     }
 
-    IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
+    IEnumerable<ButtonListItem> BuildButtons(TsaileBetterq row) => new[]
     {
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Edit",
             Value = "Edit",
@@ -207,7 +207,7 @@
                 Nav.NavigateToWithExistingQry($"/tsaile/ticket/{row.Id}");
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Screening ? "Already at Beginning"
                     : $"Move ticket back",
@@ -222,7 +222,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = row?.StatusEnum == null || row?.StatusEnum ==  TsaileTicketStatus.Complete ? "Already Completed"
                     : $"Complete {row?.StatusEnum}",
@@ -238,7 +238,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Delete",
             Value = "Delete",
@@ -255,7 +255,7 @@
                 }
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Change Status",
             Value = "ChangeStatus",
@@ -270,7 +270,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Patient Profile",
             Value = "Patient",
@@ -281,7 +281,7 @@
                 Nav.NavigateToWithExistingQry($"/tsaile/patient/{row.PatientId}");
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Call Patient",
             Value = "Call",

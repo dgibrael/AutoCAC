@@ -59,9 +59,9 @@
         await GridModel.ReloadAsync();
     }
 
-    IEnumerable<SplitButtonItem> BuildButtons(TsaileBetterq row) => new[]
+    IEnumerable<ButtonListItem> BuildButtons(TsaileBetterq row) => new[]
     {
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Edit",
             Value = "Edit",
@@ -72,7 +72,7 @@
                 Nav.NavigateToRelative(row.Id.ToString(), fromParent: true);
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Delete Permanently",
             Value = "Delete",
@@ -91,7 +91,7 @@
                 }
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Change Status",
             Value = "ChangeStatus",
@@ -106,7 +106,7 @@
                 await GridModel.ReloadAsync();
             }
         },
-        new SplitButtonItem
+        new ButtonListItem
         {
             Text = "Undo Delete",
             Value = "Undo",

@@ -5,10 +5,11 @@
 @inject UserContextService UserContext
 @inject DialogService DialogService
 @inject NavigationManager Nav
-@typeparam TItem where TItem : class, IActivityLog, new()
+@typeparam TActivity where TActivity : class, IActivityLog<TItemKey>, new()
+@typeparam TItemKey
 @using Microsoft.AspNetCore.Components.Routing
 @using AutoCAC.Components.Templates.Printing
-@using System.Linq.Expressions;
+@inject ActivityLogService ActivityLogService
 @if (ConfirmIfUnsubmitted && HasDraft)
 {
     <NavigationLock OnBeforeInternalNavigation="ConfirmLeave" ConfirmExternalNavigation="true" />
@@ -26,14 +27,14 @@
             </Template>
         </RadzenDataList>
     </div>
-    <RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-0">
+    <RadzenTemplateForm TItem="string" Data="_newMsg" Submit="@AddMessage" class="rz-mb-0" >
         <RadzenRow>
-            <RadzenColumn Size="10">
+            <RadzenColumn Size="11">
                 <RadzenTextBox @bind-Value="_newMsg" class="rz-w-100" @oninput="OnMsgInput"
                                 Placeholder="Type comment here (Press enter or click arrow to submit)...." />
             </RadzenColumn>
             <RadzenColumn Size="1">
-                <RadzenButton ButtonType="ButtonType.Submit" Icon="send" />
+                <RadzenButton ButtonType="ButtonType.Submit" Icon="send" Disabled="!HasDraft"/>
             </RadzenColumn>
         </RadzenRow>
     </RadzenTemplateForm>
@@ -60,63 +61,24 @@
     </PrintContent>
 }
 @code {
-    /// <summary>
-    /// Allows the caller to set the .Where() predicte for the query to load the activity log. Usually the linked item Id
-    /// </summary>
-    /// <remarks>
-    ///
-    /// Example:
-    ///
-    /// <code>
-    /// Filter="x => x.OrderId == Id"
-    /// </code>
-    /// </remarks>
-    [Parameter, EditorRequired] public Expression<Func<TItem, bool>> Filter { get; set; }
-    /// <summary>
-    /// Allows the caller to configure entity-specific fields on a new activity item. Usually the linked item Id
-    /// The component automatically sets:
-    /// - ActivityAt
-    /// - ActivityType
-    /// - Message
-    /// - AuthUser
-    /// - AuthUserId
-    /// </summary>
-    /// <remarks>
-    ///
-    /// Example:
-    ///
-    /// <code>
-    /// ConfigureNewItem="@(x =>
-    /// {
-    ///     x.WorkOrderId = WorkOrder.Id;
-    ///     x.CustomerId = WorkOrder.CustomerId;
-    /// })"
-    /// </code>
-    ///
-    /// Example:
-    ///
-    /// <code>
-    /// ConfigureNewItem="@(x => x.OrderId = Id)"
-    /// </code>
-    /// </remarks>
-    [Parameter, EditorRequired] public Action<TItem> ConfigureNewItem { get; set; }
+    [Parameter, EditorRequired] public TItemKey ItemId { get; set; } = default!;
     [Parameter] public string Title { get; set; } = "Activity";
     [Parameter] public bool ConfirmIfUnsubmitted { get; set; } = true;
     [Parameter] public bool Print { get; set; } = false;
     [Parameter] public bool AllowDeleteAll { get; set; } = false;
     [Parameter] public string MaxHeight { get; set; } = "50vh";
     private bool HasDraft = false;
-    private RadzenDataList<TItem> dataList;
+    private RadzenDataList<TActivity> dataList;
     private string _newMsg = "";
-    private IEnumerable<TItem> data;
+    private IEnumerable<TActivity> data;
     public async Task ReloadAsync() => await dataList.Reload();
     private bool IsLoading;
     private async Task LoadData(LoadDataArgs args)
     {
         IsLoading = true;
         await using var db = await DbFactory.CreateDbContextAsync();
-        data = await db.Set<TItem>()
-            .Where(Filter)
+        data = await db.Set<TActivity>()
+            .Where(x => x.ItemId.Equals(ItemId))
             .Include(x => x.AuthUser)
             .OrderBy(x => x.ActivityAt)
             .AsNoTracking()
@@ -128,17 +90,8 @@
     {
         if (string.IsNullOrWhiteSpace(_newMsg)) return;
         var commentType = ActivityLogType.Comment.ToString();
-		var msg = _newMsg.Trim();
-        var newItem = new TItem()
-        {
-            ActivityAt = DateTime.Now,
-            ActivityType = commentType,
-            Message = msg,
-            AuthUser = UserContext.UserProfile,
-			AuthUserId = UserContext.UserProfile.Id
-        };
-        ConfigureNewItem(newItem);
-        await DbFactory.AddItemAsync(newItem);
+        var msg = _newMsg.Trim();
+        await ActivityLogService.CommentAsync<TActivity, TItemKey>(ItemId, UserContext.UserProfile.Id, msg);
         _newMsg = null;
         HasDraft = false;
         await dataList.Reload();
@@ -146,7 +99,7 @@
 
     private async Task DeleteMessageAsync(IActivityLog comment)
     {
-        await DbFactory.DeleteItemAsync((TItem)comment);
+        await DbFactory.DeleteItemAsync((TActivity)comment);
         await dataList.Reload();
     }
 

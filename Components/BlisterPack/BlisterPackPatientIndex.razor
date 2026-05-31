@@ -39,9 +39,7 @@
 			<Template Context="x">
 				@if (x?.BlisterPackPatientActivities?.Any() == true)
 				{
-					<RadzenCardGroup >
-						<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
-					</RadzenCardGroup>
+					<ActivityLogReadOnly Data="x.BlisterPackPatientActivities"/>
 				}
 			</Template>
 		</RadzenDataGridColumn>
@@ -72,21 +70,24 @@
 		var newPatient = new BlisterPackPatient
 		{
 			PatientId = patient.Id,
-			EnrolledDate = today
+			EnrolledDate = today,
+			Compliant = true
 		};
 		await DbFactory.AddItemAsync(newPatient);
-		await ActivityLogService.CreatedAsync<BlisterPackPatientActivity>(UserContext.UserProfile.Id, x => x.BlisterPackPatientId = newPatient.PatientId);
-		Nav.NavigateToRelative($"{newPatient.PatientId}");
+		await ActivityLogService.CreatedAsync<BlisterPackPatientActivity, int>(newPatient.PatientId, UserContext.UserProfile.Id);
+		await AddFill(newPatient);
 	}
 	private async Task AddFill(BlisterPackPatient patient)
 	{
+		var fillDate = await DialogService.DatePromptAsync(DateTime.Now.DateOnly.AddDays(27), title: "Select Expected Fill Date");
+		if (fillDate == null) return;
 		var newFill = new BlisterPackFill
 		{
 			BlisterPackPatientId = patient.PatientId,
-			FillDate = DateTime.Now.AddDays(27).DateOnly
+			FillDate = fillDate.Value
 		};
 		await DbFactory.AddItemAsync(newFill);
-		await ActivityLogService.CreatedAsync<BlisterPackFillActivity>(UserContext.UserProfile.Id, x => x.BlisterPackFillId = newFill.Id);
+		await ActivityLogService.CreatedAsync<BlisterPackFillActivity, int>(newFill.Id, UserContext.UserProfile.Id);
 		Nav.NavigateToRelative($"fill/{newFill.Id}", fromParent: true);
 	}
 }

@@ -15,42 +15,57 @@ public sealed class ActivityLogService
         _contextFactory = contextFactory;
     }
 
-    public async Task<T> LogActivityAsync<T>(
+    public async Task<TActivity> LogActivityAsync<TActivity, TItemKey>(
         ActivityLogType activityType,
-        Action<T> configure,
-        int? authUserId = null,
+        TItemKey itemId,
+        int? authUserId,
         string message = "",
-        string changedField = null
+        string changedField = null,
+        Action<TActivity> configure = null
         )
-        where T : class, IActivityLog, new()
+        where TActivity : class, IActivityLog<TItemKey>, new()
     {
-        var activity = new T
+        var activity = new TActivity
         {
             ActivityAt = DateTime.Now,
             ActivityTypeEnum = activityType,
             AuthUserId = authUserId,
-            Message = message
+            Message = message,
+            ItemId = itemId
         };
-        configure(activity);
+        if (changedField != null)
+        {
+            activity.ChangedField = changedField;
+        }
+        if (configure != null) configure(activity);
 
         await _contextFactory.AddItemAsync(activity);
 
         return activity;
     }
 
-    public Task<T> CreatedAsync<T>(
-        int authUserId,
-        Action<T> configure)
-        where T : class, IActivityLog, new()
+    public Task<TActivity> CreatedAsync<TActivity, TItemKey>(
+        TItemKey itemId,
+        int? authUserId)
+         where TActivity : class, IActivityLog<TItemKey>, new()
     {
-        return LogActivityAsync<T>(ActivityLogType.Created, configure, authUserId: authUserId);
+        return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.Created, itemId, authUserId: authUserId);
     }
-    public Task<T> CommentAsync<T>(
+    public Task<TActivity> CommentAsync<TActivity, TItemKey>(
+        TItemKey itemId,
         int authUserId,
-        string comment,
-        Action<T> configure)
-        where T : class, IActivityLog, new()
+        string comment)
+        where TActivity : class, IActivityLog<TItemKey>, new()
     {
-        return LogActivityAsync<T>(ActivityLogType.Comment, configure, authUserId: authUserId, message: comment);
+        return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.Comment, itemId, authUserId: authUserId, message: comment);
+    }
+    public Task<TActivity> ValueChangedAsync<TActivity, TItemKey>(
+        TItemKey itemId,
+        string newValue,
+        int? authUserId,
+        string changedField = null)
+        where TActivity : class, IActivityLog<TItemKey>, new()
+    {
+        return LogActivityAsync<TActivity, TItemKey>(ActivityLogType.ValueChanged, itemId, authUserId: authUserId, message: newValue, changedField: changedField);
     }
 }

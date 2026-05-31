@@ -76,7 +76,7 @@ namespace AutoCAC.Extensions
                 ["CharacterPattern"] = characterPattern
             };
 
-            var result = await dialogService.OpenAsync<Components.Templates.TextDialog>(
+            var result = await dialogService.OpenAsync<TextDialog>(
                 string.IsNullOrWhiteSpace(title) ? "Prompt" : title,
                 parameters,
                 options ?? new DialogOptions
@@ -117,7 +117,7 @@ namespace AutoCAC.Extensions
                 ["Min"] = min
             };
 
-            var result = await dialogService.OpenAsync<Components.Templates.NumericDialog<TValue>>(
+            var result = await dialogService.OpenAsync<NumericDialog<TValue>>(
                 title,
                 parameters,
                 options ?? new DialogOptions
@@ -132,6 +132,36 @@ namespace AutoCAC.Extensions
                 return value;
 
             return null;
+        }
+        public static async Task<DateOnly?> DatePromptAsync(
+            this DialogService dialogService,
+            DateOnly? initial = null,
+            string title = "Select Date",
+            string message = null,
+            DateOnly? max = null,
+            DateOnly? min = null,
+            DialogOptions options = null) 
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                [nameof(DateDialog.InitialValue)] = initial,
+                [nameof(DateDialog.Max)] = max,
+                [nameof(DateDialog.Min)] = min,
+                [nameof(DateDialog.Message)] = message
+            };
+
+            DateOnly? result = await dialogService.OpenAsync<DateDialog>(
+                title,
+                parameters,
+                options ?? new DialogOptions
+                {
+                    AutoFocusFirstElement = true,
+                    Width = "75%",
+                    CloseDialogOnOverlayClick = true,
+                    Resizable = true,
+                    Draggable = true,
+                });
+            return result;
         }
 
         public static Task<int?> NumericPromptAsync(
@@ -494,7 +524,7 @@ namespace AutoCAC.Extensions
             HashSet<string> IncludedProperties = default,
             bool SaveToDb = false,
             string title = "",
-            IEnumerable<SplitButtonItem> OtherActions = null,
+            IEnumerable<ButtonListItem> OtherActions = null,
             bool NewItem = false
             )
             where TItem : class, new()

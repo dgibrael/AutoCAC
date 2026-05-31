@@ -4,10 +4,7 @@
 @inject IDbContextFactory<MainContext> DbFactory
 <LoadingContent LoadState="@(patient == null ? LoadingState.Loading : LoadingState.Loaded)">
 	<h3>@patient?.Patient?.Name</h3>
-	<ActivityLogEditable TItem="BlisterPackPatientActivity" Title="Patient Activity" 
-						 Filter="x => x.BlisterPackPatientId == Id" 
-						 ConfigureNewItem="@(x => x.BlisterPackPatientId = Id)" />
-
+	<ActivityLogEditable TActivity="BlisterPackPatientActivity" Title="Patient Activity" TItemKey="int" ItemId="Id" />
 	<DataGridVanilla TItem="BlisterPackFill" GridModel="GridModel"/>
 </LoadingContent>
 
@@ -37,9 +34,5 @@
 							.FirstOrDefaultAsync(x => x.PatientId == Id);
 			StateHasChanged();
 		}
-	}
-	private IQueryable<BlisterPackPatientActivity> ActivityLogQueryFactory(MainContext db)
-	{
-		return db.BlisterPackPatientActivities.Where(x => x.BlisterPackPatientId == Id);
 	}
 }

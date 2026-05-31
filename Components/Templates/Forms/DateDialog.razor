@@ -1,0 +1,32 @@
+﻿@using Radzen
+@inject DialogService DialogService
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <p class="text-sm text-gray-600">@Message</p>
+}
+<RadzenDatePicker TValue="DateOnly" @bind-Value="_selectedDate" Change="() => DialogService.Close(_selectedDate)" ShowTime="false" ShowTimeOkButton="false" Max="@_max" Min="@_min" />
+<RadzenButton Text="Submit" Click="() => DialogService.Close(_selectedDate)" ButtonStyle="ButtonStyle.Primary" Icon="check"/>
+<RadzenButton Text="Cancel" Click="() => DialogService.Close(null)" ButtonStyle="ButtonStyle.Base" Icon="cancel"/>
+
+@code {
+	[Parameter] public string Message { get; set; }
+	[Parameter] public DateOnly? InitialValue { get; set; }
+	[Parameter] public DateOnly? Max { get; set; }
+	[Parameter] public DateOnly? Min { get; set; }
+	private bool _busy;
+	private DateOnly _selectedDate;
+	private DateTime? _max;
+	private DateTime? _min;
+	protected override void OnInitialized()
+	{
+		var today = DateTime.Now.DateOnly;
+		_selectedDate = InitialValue ?? today;
+		_max = Max?.ToDateTime(TimeOnly.MinValue);
+		_min = Min?.ToDateTime(TimeOnly.MinValue);
+	}
+	private void Close()
+	{
+		DialogService.Close(_selectedDate);
+	}
+}
